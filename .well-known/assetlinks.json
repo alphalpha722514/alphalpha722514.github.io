@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.alphalpha722514.mugensobado",
+      "sha256_cert_fingerprints": [
+        "3F:89:27:08:02:6B:54:2F:17:08:BF:36:79:37:02:C8:74:96:25:0C:82:E3:10:E6:E0:6A:BD:D8:23:F8:A7:3D"
+      ]
+    }
+  }
+]
