@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>東尋坊サスペンス劇場：崖っぷち説得隊</title>
+<title>東尋坊ディスウェイド</title>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 canvas{display:block;position:absolute;left:0;top:0;touch-action:none}
@@ -165,7 +165,7 @@ canvas{display:block;position:absolute;left:0;top:0;touch-action:none}
 <script>
 'use strict';
 /* =========================================================
-   東尋坊サスペンス劇場：崖っぷち説得隊
+   東尋坊ディスウェイド
    Canvas + Web Audio API / 外部アセットなし
    ========================================================= */
 
@@ -1762,9 +1762,9 @@ const T_RULE = { x: 40, y: 712, w: 146, h: 56 }, T_MY = { x: 197, y: 712, w: 146
 function drawTitle() {
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `bold 20px ${MINCHO}`; outlineText('東尋坊サスペンス劇場', W / 2, 90, '#ffe2a0', '#000', 5);
+  ctx.font = `bold 30px ${MINCHO}`; outlineText('東 尋 坊', W / 2, 88, '#ffe2a0', '#000', 6);
   ctx.save(); ctx.translate(W / 2, 150); ctx.rotate(-0.04);
-  ctx.font = `bold 52px ${MINCHO}`; outlineText('崖っぷち説得隊', 0, 0, '#ff4a3a', '#1a0000', 9);
+  ctx.font = `bold 52px ${MINCHO}`; outlineText('ディスウェイド', 0, 0, '#ff4a3a', '#1a0000', 9);
   ctx.restore();
   ctx.font = `14px ${GOTH}`; ctx.fillStyle = '#ddd'; ctx.fillText('〜 証拠と人情と福井グルメで、犯人を自首させろ 〜', W / 2, 202);
   ctx.font = `bold 18px ${MINCHO}`; outlineText('― 難易度を選んで開幕 ―', W / 2, 300, '#fff', '#000', 4);
