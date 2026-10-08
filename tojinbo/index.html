@@ -1,0 +1,2544 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>東尋坊サスペンス劇場：崖っぷち説得隊</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+canvas{display:block;position:absolute;left:0;top:0;touch-action:none}
+/* マイページ・番付（キャンバスの上に重ねる画面） */
+#ov{position:fixed;inset:0;z-index:10;background:rgba(6,7,14,.94);overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+  color:#eee;font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",sans-serif;font-size:15px;line-height:1.6}
+#ov[hidden],#ov [hidden]{display:none!important}
+#ov input{-webkit-user-select:text;user-select:text}
+.ov-scr{max-width:520px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) 14px 48px}
+.ov-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 12px}
+.ov-title{margin:0;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;font-size:28px;color:#ffe2a0;letter-spacing:.08em}
+.ov-card{background:#14141f;border:1px solid #8a6b3a;border-radius:14px;padding:12px 14px;margin:0 0 12px}
+.ov-h{margin:0 0 8px;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;font-size:18px;color:#ffd56b}
+.ov-lead{margin:0 0 6px}
+.ov-note{margin:6px 0 0;font-size:12.5px;color:#a9a9b8}
+.ov-warn{margin:0 0 6px;color:#ffb0a0}
+.ov-label{display:block;font-size:12.5px;color:#cfcfdc;margin:8px 0 4px}
+.ov-input{box-sizing:border-box;width:100%;min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid #5a5a70;background:#0b0b14;color:#fff;font-size:16px}
+.ov-input:focus{outline:2px solid #ffd56b;outline-offset:1px}
+.ov-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+.ov-row .ov-input{flex:1 1 140px;width:auto}
+.ov-form{margin-top:4px}
+.ov-btn{min-height:44px;padding:8px 16px;border-radius:12px;border:1.5px solid rgba(255,255,255,.55);background:linear-gradient(#2a4a7a,#152540);color:#fff;
+  font:inherit;font-weight:700;cursor:pointer}
+.ov-btn.small{min-height:40px;padding:6px 12px;font-size:14px}
+.ov-btn.primary{background:linear-gradient(#c43a2a,#6a1410)}
+.ov-btn.gold{background:linear-gradient(#8a6a10,#4a3500);border-color:#ffd56b}
+.ov-btn.danger{background:#2a1416;border-color:#ff8a8a;color:#ffb0b0}
+.ov-btn.danger-solid{background:linear-gradient(#c43a2a,#6a1410);border-color:#ff8a8a}
+.ov-btn:disabled{opacity:.5;cursor:default}
+.ov-btn:focus-visible{outline:2px solid #ffd56b;outline-offset:2px}
+.ov-btn[aria-pressed="true"]{background:linear-gradient(#ffd56b,#b8761c);color:#2a1a00;border-color:#ffe9b0}
+.ov-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.ov-check{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:700}
+.ov-check input{width:22px;height:22px;accent-color:#ffd56b}
+.mp-name-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0}
+.mp-name{font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;font-size:22px;font-weight:700;overflow-wrap:anywhere}
+.mp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0}
+.mp-cell{background:#0d0d17;border-radius:10px;padding:8px 10px}
+.mp-cell dt{font-size:12px;color:#a9a9b8}
+.mp-cell dd{margin:2px 0 0;font-size:20px;font-weight:700;color:#fff}
+.mp-table-wrap{overflow-x:auto;margin-top:10px}
+.mp-table{width:100%;border-collapse:collapse;font-size:13.5px;white-space:nowrap}
+.mp-table th{font-weight:400;color:#a9a9b8;text-align:right;padding:4px 6px;border-bottom:1px solid #333}
+.mp-table td{text-align:right;padding:6px;border-bottom:1px solid #222}
+.mp-table th:first-child,.mp-table td:first-child{text-align:left}
+.mp-dname{font-weight:700}
+.mp-status{margin:0;font-weight:700}
+.mp-msg{margin:8px 0 0;min-height:1.4em;color:#b0ffc8}
+.mp-msg.bad{color:#ffb0a0}
+.rk-podium{list-style:none;margin:8px 0;padding:0;display:grid;gap:8px}
+.rk-pod{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"t n s" "m m m" "b b b";gap:4px 10px;align-items:center;
+  background:#1c1608;border:1.5px solid #b8761c;border-radius:14px;padding:10px 12px}
+.rk-pod.p1{border-color:#ffd56b;background:#2a1f06}
+.rk-pod .rk-title{grid-area:t;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;font-size:15px;font-weight:700;color:#2a1a00;background:#ffd56b;border-radius:8px;padding:2px 8px}
+.rk-pod.p2 .rk-title{background:#d8d8e0}.rk-pod.p3 .rk-title{background:#d89a5a}
+.rk-pname{grid-area:n;font-weight:700;overflow-wrap:anywhere}
+.rk-pscore{grid-area:s;font-size:20px;font-weight:700;color:#ffe9b0}
+.rk-pmeta{grid-area:m;font-size:12.5px;color:#cfc0a0}
+.rk-pod .ov-btn{grid-area:b;justify-self:start;margin-top:4px}
+.rk-me{margin:8px 0;padding:10px 12px;border-radius:12px;background:#10261a;border:1px solid #2e9e5b;color:#d8ffe6;font-weight:700}
+.rk-list{list-style:none;margin:0 0 12px;padding:0}
+.rk-row{display:grid;grid-template-columns:3.2em 1fr auto;grid-template-areas:"no n s" "no m b";gap:0 8px;align-items:center;padding:8px 4px;border-bottom:1px solid #26263a}
+.rk-no{grid-area:no;color:#a9a9b8}
+.rk-name{grid-area:n;overflow-wrap:anywhere}
+.rk-score{grid-area:s;font-weight:700;text-align:right}
+.rk-meta{grid-area:m;font-size:12px;color:#8f8fa3}
+.rk-row .ov-btn{grid-area:b;justify-self:end;min-height:36px;padding:4px 10px;font-size:12.5px}
+.me{outline:2px solid #6bd98f;outline-offset:-2px;border-radius:10px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ov" hidden>
+  <section id="scr-mypage" class="ov-scr" aria-labelledby="mp-h" hidden>
+    <div class="ov-bar"><h2 id="mp-h" class="ov-title">マイページ</h2><button id="mp-back" class="ov-btn" type="button">もどる</button></div>
+    <section class="ov-card">
+      <h3 class="ov-h">刑事の名前</h3>
+      <p class="mp-name-row"><span id="mp-name" class="mp-name"></span><button id="mp-name-edit" class="ov-btn small" type="button">変更</button></p>
+      <form id="mp-name-form" class="ov-form" hidden>
+        <label for="mp-name-input" class="ov-label">表示名（12文字まで・番付に出ます）</label>
+        <div class="ov-row">
+          <input id="mp-name-input" class="ov-input" type="text" maxlength="12" autocomplete="nickname" enterkeyhint="done">
+          <button class="ov-btn small primary" type="submit">保存</button>
+          <button id="mp-name-cancel" class="ov-btn small" type="button">やめる</button>
+        </div>
+      </form>
+    </section>
+    <section class="ov-card">
+      <h3 class="ov-h">戦績</h3>
+      <dl id="mp-grid" class="mp-grid"></dl>
+      <div class="mp-table-wrap"><table id="mp-table" class="mp-table"></table></div>
+      <p class="ov-note">「最短」は解決までのターン数、「ランク」は難易度ごとの最高の説得ランクです。</p>
+    </section>
+    <section class="ov-card">
+      <h3 class="ov-h">アカウントと同期</h3>
+      <p id="mp-status" class="mp-status"></p>
+      <p id="mp-sync" class="ov-note"></p>
+      <form id="mp-auth" class="ov-form" hidden>
+        <label for="mp-user" class="ov-label">ユーザー名（3〜16文字・英数字・かな・漢字・_ -）</label>
+        <input id="mp-user" class="ov-input" type="text" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false">
+        <label for="mp-pass" class="ov-label">パスワード（6文字以上）</label>
+        <input id="mp-pass" class="ov-input" type="password" maxlength="64" autocomplete="current-password">
+        <div class="ov-row">
+          <button id="mp-register" class="ov-btn small primary" type="button">アカウント作成</button>
+          <button id="mp-login" class="ov-btn small primary" type="submit">ログイン</button>
+          <button id="mp-auth-cancel" class="ov-btn small" type="button">やめる</button>
+        </div>
+      </form>
+      <div class="ov-row">
+        <button id="mp-open-auth" class="ov-btn small primary" type="button">アカウント作成 / ログイン</button>
+        <button id="mp-sync-now" class="ov-btn small" type="button">今すぐ同期</button>
+        <button id="mp-logout" class="ov-btn small" type="button">ログアウト</button>
+        <button id="mp-delete" class="ov-btn small danger" type="button">アカウントを削除</button>
+      </div>
+      <form id="mp-del-form" class="ov-form" hidden>
+        <p class="ov-warn">クラウドに保存したアカウントと記録、番付の記録を削除します。元に戻せません（この端末の記録はそのまま残ります）。確認のため、パスワードを入れてください。</p>
+        <label for="mp-del-pass" class="ov-label">パスワード</label>
+        <input id="mp-del-pass" class="ov-input" type="password" maxlength="64" autocomplete="current-password">
+        <div class="ov-row">
+          <button class="ov-btn small danger-solid" type="submit">削除する</button>
+          <button id="mp-del-no" class="ov-btn small" type="button">やめる</button>
+        </div>
+      </form>
+      <p id="mp-msg" class="mp-msg" role="status" aria-live="polite"></p>
+      <p class="ov-note">記録はいつもこの端末に保存されます。ログインすると、クラウドにも写しを保存して同期します。集めるのはユーザー名とパスワード（この端末で暗号化したもの）だけで、メールアドレスなどは使いません。</p>
+      <p id="mp-note" class="ov-note"></p>
+    </section>
+  </section>
+
+  <section id="scr-rank" class="ov-scr" aria-labelledby="rk-h" hidden>
+    <div class="ov-bar"><h2 id="rk-h" class="ov-title">番付</h2><button id="rk-back" class="ov-btn" type="button">もどる</button></div>
+    <p class="ov-lead">難易度ごとの説得スコアの番付（上位50人）。サーバーが打ち手の記録から事件を再生し、本当に解決できた記録だけを載せます。「この事件に挑む」で、同じ事件ファイルに挑戦できます。</p>
+    <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10</p>
+    <div id="rk-login" class="ov-card">
+      <p>番付は、マイページでログインすると見られます。</p>
+      <button id="rk-open-mypage" class="ov-btn small primary" type="button">マイページでログイン</button>
+    </div>
+    <div id="rk-body" hidden>
+      <div id="rk-diffs" class="ov-tabs" role="group" aria-label="難易度"></div>
+      <div id="rk-periods" class="ov-tabs" role="group" aria-label="期間">
+        <button class="ov-btn small" type="button" data-period="week" aria-pressed="true">今週</button>
+        <button class="ov-btn small" type="button" data-period="all" aria-pressed="false">全期間</button>
+      </div>
+      <p id="rk-status" class="ov-note" role="status"></p>
+      <ol id="rk-podium" class="rk-podium" aria-label="上位3人"></ol>
+      <p id="rk-me" class="rk-me" hidden></p>
+      <ol id="rk-list" class="rk-list"></ol>
+      <section class="ov-card">
+        <h3 class="ov-h">参加の設定</h3>
+        <label class="ov-check"><input id="rk-join" type="checkbox"> 番付に参加する</label>
+        <p class="ov-note">参加すると、事件を解決したときに、表示名・事件番号・打ち手の記録（使ったカードの順番）がこの端末から送られ、番付に名前と説得スコアが載ります。設定はこの端末ごとです。</p>
+        <button id="rk-leave" class="ov-btn small danger" type="button">番付から自分の記録を消す</button>
+        <p id="rk-join-msg" class="ov-note" role="status"></p>
+      </section>
+    </div>
+  </section>
+</div>
+<script>
+'use strict';
+/* =========================================================
+   東尋坊サスペンス劇場：崖っぷち説得隊
+   Canvas + Web Audio API / 外部アセットなし
+   ========================================================= */
+
+/*CORE-START*/
+/* ---------- カード（全48種） ----------
+   r: 1=よくある 2=ときどき 3=レア
+   ev 証拠: dmg 心壁ダメージ / pct 残り心壁の割合ダメージ / chainEv 直前が証拠なら追加 /
+            alertBonus 警戒1につき追加 / breakSur 心壁を割ったら自首+
+   hu 人情: sur 自首 / perHu このターン使った人情1枚につき+ / pierce 心壁で弱まらない /
+            crisisBonus 危機2歩以下で×2 / step 犯人を1歩戻す
+   gu グルメ: daze 動揺 / boostHu 次の人情×1.5 / boostEv 次の証拠×1.5
+   共通: draw ap heal alert surFlat hpCost
+*/
+const CARDS = {
+  // ===== 証拠 =====
+  megane:   { type: 'ev', r: 1, name: '眼鏡の痕跡', cost: 1, dmg: 20, flav: '現場に残っとった鼻あての跡……鯖江の職人が作った、あんたの眼鏡のもんや！' },
+  alibi:    { type: 'ev', r: 1, name: 'アリバイの矛盾', cost: 2, dmg: 38, flav: 'その時刻、えちぜん鉄道は運休しとった。あんたはどうやって帰ったんや？' },
+  camera:   { type: 'ev', r: 1, name: '防犯カメラの映像', cost: 2, dmg: 28, alert: -1, flav: '三国港の土産物屋のカメラに、あんたがはっきり映っとる。' },
+  finger:   { type: 'ev', r: 2, name: '決定的な指紋', cost: 3, dmg: 60, flav: '凶器の恐竜の置物……そこに残っとったのは、あんたの指紋や！' },
+  techo:    { type: 'ev', r: 1, name: '被害者の手帳', cost: 1, dmg: 12, draw: 1, flav: '手帳の最後のページに、あんたの名前が書いてあった。' },
+  tsuikyu:  { type: 'ev', r: 1, name: '強引な追及', cost: 1, dmg: 30, alert: 1, flav: 'いいかげんにしねま！ 全部わかっとるんやぞ！（ドンッ）' },
+  kippu:    { type: 'ev', r: 1, name: 'えち鉄の切符', cost: 1, dmg: 14, chainEv: 14, flav: 'この切符、日付が事件当日や。改札の記録とも一致しとる。' },
+  hanken:   { type: 'ev', r: 1, name: '恐竜博物館の半券', cost: 0, dmg: 9, flav: '勝山の恐竜博物館の半券……入館時刻は犯行の直前やな。' },
+  kara:     { type: 'ev', r: 2, name: '越前ガニの殻', cost: 2, dmg: 24, breakSur: 15, flav: '現場に落ちとったカニの殻。あの日あんたが食べた越前ガニのもんや。' },
+  seni:     { type: 'ev', r: 2, name: '着衣の繊維', cost: 2, pct: 45, flav: '羽二重の繊維……勝山の織物工場、あんたの実家の仕事やろ。' },
+  mokugeki: { type: 'ev', r: 2, name: '朝市の目撃証言', cost: 2, dmg: 22, alertBonus: 6, flav: '朝市のおばちゃんが見とったんや。「あの人、えらい慌てとったわ」ってな。' },
+  jihaku:   { type: 'ev', r: 3, name: '共犯者の自白', cost: 3, dmg: 45, draw: 2, flav: 'あんたの相棒は、もう全部話したんや。' },
+  rireki:   { type: 'ev', r: 1, name: '通話履歴', cost: 1, dmg: 16, alert: -1, flav: '事件の夜、あんたは被害者に11回も電話しとる。' },
+  kizu:     { type: 'ev', r: 2, name: '手の甲の傷', cost: 2, dmg: 50, hpCost: 6, flav: '（ぐいっと腕をつかむ）この傷……被害者ともみ合った時のもんやろ！' },
+  kanshiki: { type: 'ev', r: 3, name: '鑑識の最終報告', cost: 3, pct: 70, flav: '鑑識の結果が出た。……もう言い逃れはできんぞ。' },
+  ashiato:  { type: 'ev', r: 1, name: '雪に残った足跡', cost: 1, dmg: 18, breakSur: 8, flav: '大雪の朝や。現場から続く足跡、サイズはあんたの靴と同じやった。' },
+  // ===== 人情 =====
+  hoya:     { type: 'hu', r: 1, name: 'ほやほやの言葉', cost: 1, sur: 16, flav: 'ほやほや……おめさんの気持ちも、わからんことないんやざ。' },
+  haha:     { type: 'hu', r: 1, name: '故郷の母', cost: 2, sur: 32, flav: '大野のおっかちゃん、毎日あんたの帰り待っとるんやで。' },
+  konema:   { type: 'hu', r: 1, name: 'こっち来ねま', cost: 1, sur: 13, heal: 4, flav: 'そこ寒いやろ。……こっち来ねま。' },
+  tegami:   { type: 'hu', r: 1, name: '幼なじみの手紙', cost: 2, sur: 26, alert: -1, flav: '「また一緒に、谷口屋の油揚げ食べよっさ」……あんたの親友からや。' },
+  namida:   { type: 'hu', r: 2, name: '刑事の涙', cost: 3, sur: 46, flav: 'わしもな……若い頃、取り返しのつかんことしたんや。（ほろり）' },
+  matsuri:  { type: 'hu', r: 1, name: '三国祭の思い出', cost: 1, sur: 10, perHu: 9, flav: '三国祭の山車、子どもの頃一緒に引いたやろ。あの掛け声、覚えとるか？' },
+  sakura:   { type: 'hu', r: 2, name: '足羽川の桜並木', cost: 2, sur: 20, pierce: true, flav: '春になったら、足羽川の桜を見に行こっさ。何べんでも見られるんやで。' },
+  sakebi:   { type: 'hu', r: 2, name: '崖っぷちの叫び', cost: 2, sur: 20, crisisBonus: true, flav: 'まだ間に合う！ 戻ってこい！ 戻ってこいや――っ！' },
+  ippo:     { type: 'hu', r: 3, name: '一歩、話そっさ', cost: 3, sur: 12, step: 1, flav: '……そこやと話も聞こえんやろ。一歩だけ、こっちで話そっさ。' },
+  enikki:   { type: 'hu', r: 2, name: '娘の絵日記', cost: 2, sur: 28, draw: 1, flav: '「おとうさんと東尋坊の夕日を見た」……娘さんの絵日記や。' },
+  nukumori: { type: 'hu', r: 1, name: '福井弁のぬくもり', cost: 0, sur: 7, flav: 'なんやかんや言うても……おめさん、根はええ人なんやざ。' },
+  onshi:    { type: 'hu', r: 1, name: '恩師の言葉', cost: 1, sur: 14, alert: -1, flav: '高校の担任の先生が言うとった。「あいつは根はまっすぐな子や」ってな。' },
+  yakusoku: { type: 'hu', r: 3, name: '果たせなかった約束', cost: 3, sur: 36, perHu: 10, flav: '恐竜博物館に連れてくって、息子さんと約束しとったんやろ？' },
+  shashin:  { type: 'hu', r: 1, name: '同窓会の写真', cost: 1, sur: 12, heal: 6, flav: '去年の同窓会の写真や。みんな、あんたのこと心配しとる。' },
+  kotatsu:  { type: 'hu', r: 2, name: 'こたつの記憶', cost: 2, sur: 24, alert: -1, heal: 4, flav: '冬はこたつで水ようかん。……あったかい家、まだあるんやで。' },
+  izoku:    { type: 'hu', r: 3, name: 'ご遺族の言葉', cost: 3, sur: 40, pierce: true, flav: '「本当のことを話してほしい。それだけでええ」……ご遺族の言葉や。' },
+  // ===== グルメ =====
+  katsudon: { type: 'gu', r: 1, name: 'ヨーロッパ軒のソースカツ丼', cost: 1, daze: true, draw: 1, flav: 'ほら、ソースカツ丼や。甘辛いソースの匂い、たまらんやろ？' },
+  soba:     { type: 'gu', r: 1, name: 'あったかい越前そば', cost: 0, ap: 1, heal: 5, flav: '大根おろしの辛みが沁みるのう……ほら、あんたの分もあるで。' },
+  saba:     { type: 'gu', r: 1, name: '焼き鯖寿司', cost: 1, draw: 2, surFlat: 5, flav: '脂ののった焼き鯖寿司や。腹が減っとったら、ろくなこと考えん。' },
+  yokan:    { type: 'gu', r: 1, name: '冬の水ようかん', cost: 0, alert: -1, draw: 1, flav: '福井じゃ水ようかんはこたつで食べるもんや。……一緒に食べよ。' },
+  habutae:  { type: 'gu', r: 1, name: '羽二重餅', cost: 1, dmg: 12, ap: 1, flav: 'やわらか〜い羽二重餅。固まった心も、ふにゃっとなるやろ。' },
+  kani:     { type: 'gu', r: 3, name: '茹でたての越前ガニ', cost: 2, daze: true, ap: 1, draw: 2, flav: '茹でたての越前ガニや！ 殻むいたるで、ほら食べね。' },
+  age:      { type: 'gu', r: 2, name: '谷口屋の油揚げ', cost: 1, boostHu: true, surFlat: 3, flav: 'カリッと揚がった油揚げ、大根おろしと醤油で……ほっこりするやろ？' },
+  amaebi:   { type: 'gu', r: 1, name: '甘エビの刺身', cost: 1, boostEv: true, draw: 1, flav: 'とろっと甘い甘エビや。……気ぃ緩んだな？ ほな、話を戻すで。' },
+  ramen:    { type: 'gu', r: 1, name: '敦賀ラーメン', cost: 1, heal: 8, draw: 1, flav: '屋台の敦賀ラーメンや。夜通し走ってきたんやろ、温まるで。' },
+  umeboshi: { type: 'gu', r: 1, name: '福井梅の梅干し', cost: 0, daze: true, flav: '福井梅の梅干しや。……すっぱいやろ？ 目ぇ覚めたか？' },
+  heshiko:  { type: 'gu', r: 2, name: 'へしこ茶漬け', cost: 1, ap: 2, flav: 'へしこ茶漬けや。しょっぱいけど、力が湧いてくるやろ。' },
+  kuzu:     { type: 'gu', r: 1, name: '熊川の葛まんじゅう', cost: 1, heal: 4, alert: -1, draw: 1, flav: '鯖街道の宿場町、熊川の葛まんじゅうや。ぷるんとしとるやろ。' },
+  kanimeshi:{ type: 'gu', r: 2, name: '駅弁の越前かにめし', cost: 2, draw: 3, flav: '駅弁の越前かにめしや。ゆっくり食べながら、話そっさ。' },
+  gomadofu: { type: 'gu', r: 2, name: '永平寺のごま豆腐', cost: 1, alert: -2, surFlat: 4, flav: '永平寺のごま豆腐や。心を落ち着けて、深呼吸せえ。' },
+  volga:    { type: 'gu', r: 3, name: 'ボルガライス', cost: 2, ap: 2, draw: 2, boostHu: true, flav: '越前市名物ボルガライス！ オムライスにカツや、元気出るで。' },
+  rakkyo:   { type: 'gu', r: 1, name: '花らっきょう', cost: 0, boostEv: true, flav: '三里浜の花らっきょう、ポリッとな。……さて、話の続きや。' },
+};
+const POOL = { ev: [], hu: [], gu: [] };
+for (const [id, c] of Object.entries(CARDS)) POOL[c.type].push(id);
+const DECK_MIX = { ev: 9, hu: 7, gu: 7 };
+/* ---------- 乱数（事件番号＝シードから全て決定的に生成） ---------- */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// 用途ごとに独立した乱数列（プレイヤーの選択によって他の乱数がずれない）
+function rngFor(seed, k) { return mulberry32((seed ^ Math.imul(k + 1, 0x9E3779B1)) >>> 0); }
+function seededShuffle(a, rnd) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// 山札を組む（よくある×4 / ときどき×2 / レア×1 の重み、同じカードは最大2枚・レアは1枚）
+function buildDeck(rnd) {
+  const deck = [];
+  for (const t of ['ev', 'hu', 'gu']) {
+    const cnt = {};
+    for (let i = 0; i < DECK_MIX[t]; i++) {
+      const cands = POOL[t].filter(id => (cnt[id] || 0) < (CARDS[id].r === 3 ? 1 : 2));
+      const wsum = cands.reduce((a, id) => a + [0, 4, 2, 1][CARDS[id].r], 0);
+      let x = rnd() * wsum, pickId = cands[0];
+      for (const id of cands) { x -= [0, 4, 2, 1][CARDS[id].r]; if (x <= 0) { pickId = id; break; } }
+      cnt[pickId] = (cnt[pickId] || 0) + 1; deck.push(pickId);
+    }
+  }
+  return deck;
+}
+
+/* ---------- 心境 ---------- */
+const MOODS = {
+  calm:      { name: '平静', desc: '特になし', col: '#cfd8e8' },
+  nostalgia: { name: '郷愁', desc: '人情 ×1.5', col: '#7dffa8' },
+  hungry:    { name: '空腹', desc: 'グルメ効果 ×2', col: '#ffb37a' },
+  doubt:     { name: '疑心', desc: '証拠 ×0.5', col: '#ff9a9a' },
+  rage:      { name: '激昂', desc: '証拠×1.5／人情×0.5', col: '#ff6b5a' },
+  reject:    { name: '拒絶', desc: '人情を使うと警戒+1', col: '#ff9a9a' },
+  guarded:   { name: '頑な', desc: '証拠1枚ごとに −8', col: '#9fc4ff' },
+};
+
+/* ---------- 難易度 ---------- */
+const DIFFS = [
+  { key: 'easy', name: 'かんたん', sub: '物語を楽しみたい人に', col: '#6bd98f',
+    shield: 70, crisis: 7, hp: 60, ap: 3, atk: 4, alertAtk: 2, regen: 0, huUnder: 0.5, wallAmt: 10,
+    wallBreak: false, alertHu: false, samePenalty: false,
+    moods: ['calm', 'calm', 'calm', 'nostalgia', 'hungry'], intents: { atk: 6, alert: 1 }, reward: 1 },
+  { key: 'normal', name: 'ふつう', sub: '狙いを読んで対処しよう', col: '#ffd56b',
+    shield: 100, crisis: 6, hp: 50, ap: 3, atk: 6, alertAtk: 3, regen: 0, huUnder: 0.5, wallAmt: 15,
+    wallBreak: false, alertHu: false, samePenalty: false,
+    moods: ['calm', 'calm', 'nostalgia', 'hungry', 'doubt', 'rage'], intents: { atk: 4, alert: 2, wall: 2, retreat: 2 }, reward: 1 },
+  { key: 'hard', name: 'むずかしい', sub: '心壁が毎ターン回復・同じ話は効かない', col: '#ff9a5a',
+    shield: 110, crisis: 6, hp: 45, ap: 3, atk: 7, alertAtk: 3, regen: 6, huUnder: 0.4, wallAmt: 20,
+    wallBreak: true, alertHu: true, samePenalty: true,
+    moods: ['calm', 'nostalgia', 'hungry', 'doubt', 'rage', 'reject', 'guarded'], intents: { atk: 4, alert: 2, wall: 2, retreat: 2 }, reward: 2 },
+  { key: 'oni', name: '崖っぷち', sub: '一手のミスが命取り。県民の本気', col: '#ff4a4a',
+    shield: 120, crisis: 6, hp: 40, ap: 3, atk: 8, alertAtk: 4, regen: 8, huUnder: 0.25, wallAmt: 25,
+    wallBreak: true, alertHu: true, samePenalty: true,
+    moods: ['nostalgia', 'hungry', 'doubt', 'doubt', 'rage', 'reject', 'reject', 'guarded', 'guarded'], intents: { atk: 4, alert: 2, wall: 3, retreat: 3 }, reward: 3 },
+];
+
+/* ---------- ルール本体（描画から独立：最善手探索にも使う） ---------- */
+function makeSim(g) {
+  return {
+    shield: g.shield, maxShield: g.maxShield, sur: g.sur, hp: g.hp, maxHp: g.maxHp, ap: g.ap,
+    alert: g.alert, daze: g.daze, stun: g.stun, ate: g.ate, lastType: g.lastType, played: g.played.slice(),
+    crisis: g.crisis, stepBack: g.stepBack, mood: g.mood, intent: g.intent, drawn: 0,
+    boostHu: !!g.boostHu, boostEv: !!g.boostEv,
+    hand: g.hand ? g.hand.map(c => (typeof c === 'string' ? c : c.id)) : []
+  };
+}
+function cloneSim(s) { const n = Object.assign({}, s); n.played = s.played.slice(); n.hand = s.hand.slice(); return n; }
+
+// カード効果を状態 s に適用し、何が起きたかを返す
+function cardEffect(s, id, D) {
+  const d = CARDS[id];
+  const r = { shieldDmg: 0, sur: 0, broke: false, heal: 0, ap: 0, draw: 0, alert: 0, daze: false, stepBack: false,
+    step: 0, hpCost: 0, boostHu: false, boostEv: false, tags: [] };
+  s.ap -= d.cost;
+  let m = 1;
+  if (D.samePenalty && s.played.includes(id)) { m *= 0.5; r.tags.push('二度目×0.5'); }
+  const hitShield = raw => {
+    if (raw <= 0) return;
+    if (s.shield > 0) {
+      const dealt = Math.min(s.shield, raw);
+      s.shield -= dealt; r.shieldDmg += dealt;
+      if (s.shield <= 0) { s.shield = 0; r.broke = true; s.stun = true; }
+    } else { const g = Math.round(raw * 0.3); s.sur += g; r.sur += g; }
+  };
+  let alertD = d.alert || 0;
+  if (d.type === 'ev') {
+    let base = d.dmg || 0;
+    if (d.pct) { base = Math.max(10, Math.round(s.shield * d.pct / 100)); r.tags.push('残り心壁の' + d.pct + '%'); }
+    if (d.chainEv && s.lastType === 'ev') { base += d.chainEv; r.tags.push('連携+' + d.chainEv); }
+    if (d.alertBonus && s.alert > 0) { base += d.alertBonus * s.alert; r.tags.push('警戒+' + d.alertBonus * s.alert); }
+    let mult = m;
+    if (s.mood === 'doubt') { mult *= 0.5; r.tags.push('疑心×0.5'); }
+    if (s.mood === 'rage') { mult *= 1.5; r.tags.push('激昂×1.5'); }
+    if (s.boostEv) { mult *= 1.5; s.boostEv = false; r.tags.push('強化×1.5'); }
+    let dmg = Math.round(base * mult);
+    if (s.mood === 'guarded') { dmg = Math.max(0, dmg - 8); r.tags.push('頑な−8'); }
+    hitShield(dmg);
+    if (r.broke && d.breakSur) { s.sur += d.breakSur; r.sur += d.breakSur; r.tags.push('破壊ボーナス'); }
+    if (d.draw) r.draw = Math.round(d.draw * m);
+  } else if (d.type === 'hu') {
+    let base = d.sur;
+    if (d.perHu) { const n = s.played.filter(x => CARDS[x].type === 'hu').length; if (n) { base += d.perHu * n; r.tags.push('畳みかけ+' + d.perHu * n); } }
+    let mult = m;
+    if (s.mood === 'nostalgia') { mult *= 1.5; r.tags.push('郷愁×1.5'); }
+    if (s.mood === 'rage') { mult *= 0.5; r.tags.push('激昂×0.5'); }
+    if (s.lastType === 'ev') { mult *= 1.3; r.tags.push('緩急×1.3'); }
+    if (s.boostHu) { mult *= 1.5; s.boostHu = false; r.tags.push('強化×1.5'); }
+    if (d.crisisBonus && s.crisis <= 2) { mult *= 2; r.tags.push('崖っぷち×2'); }
+    if (D.alertHu && s.alert > 0) { mult *= (1 - 0.1 * s.alert); r.tags.push('警戒×' + (1 - 0.1 * s.alert).toFixed(1)); }
+    if (s.shield > 0) { if (d.pierce) r.tags.push('心壁を貫く'); else { mult *= D.huUnder; r.tags.push('心壁×' + D.huUnder); } }
+    const g = Math.round(base * mult);
+    s.sur += g; r.sur += g;
+    if (s.mood === 'reject') { alertD += 1; r.tags.push('拒絶:警戒+1'); }
+    if (d.heal) r.heal = Math.round(d.heal * m);
+    if (d.draw) r.draw = Math.round(d.draw * m);
+    if (d.step) { s.crisis += d.step; r.step = d.step; }
+  } else {
+    const k = (s.mood === 'hungry' ? 2 : 1) * m;
+    if (s.mood === 'hungry') r.tags.push('空腹×2');
+    if (d.daze) { s.daze = true; r.daze = true; }
+    if (d.boostHu) { s.boostHu = true; r.boostHu = true; }
+    if (d.boostEv) { s.boostEv = true; r.boostEv = true; }
+    if (d.dmg) hitShield(Math.round(d.dmg * k));
+    if (d.surFlat) { const g = Math.round(d.surFlat * k); s.sur += g; r.sur += g; }
+    if (d.draw) r.draw = Math.round(d.draw * k);
+    if (d.ap) r.ap = Math.round(d.ap * k);
+    if (d.heal) r.heal = Math.round(d.heal * k);
+    if (d.alert) alertD = Math.round(d.alert * k);
+    s.ate = true;
+  }
+  if (d.hpCost) { r.hpCost = Math.min(d.hpCost, s.hp - 1); s.hp -= r.hpCost; }
+  if (r.heal) { r.heal = Math.min(r.heal, s.maxHp - s.hp); s.hp += r.heal; }
+  if (r.ap) s.ap += r.ap;
+  if (alertD) { const before = s.alert; s.alert = Math.max(0, Math.min(5, s.alert + alertD)); r.alert = s.alert - before; }
+  s.drawn += r.draw;
+  s.sur = Math.min(100, s.sur);
+  if (s.sur >= 50 && !s.stepBack) { s.stepBack = true; s.crisis += 1; r.stepBack = true; }
+  s.lastType = d.type; s.played.push(id);
+  return r;
+}
+function atkValue(s, D) {
+  let v = D.atk + D.alertAtk * s.alert + ((s.intent && s.intent.bonus) || 0);
+  if (s.sur >= 60) v = Math.ceil(v * 0.5);
+  return v;
+}
+// 犯人の行動を計算（状態は変えない）
+function planEnemy(s, D) {
+  const it = s.intent;
+  const rec = { type: it.type, dmg: 0, alert: 0, shield: 0, crisis: 1, canceled: false, stun: false, regen: 0, eaten: false, halved: false, rebuild: false };
+  if (s.stun) { rec.stun = true; rec.canceled = true; }
+  else if (it.type === 'atk') { rec.dmg = atkValue(s, D); if (s.daze) { rec.dmg = Math.ceil(rec.dmg / 2); rec.halved = true; } }
+  else if (it.type === 'alert') { if (s.daze) rec.canceled = true; else rec.alert = 1; }
+  else if (it.type === 'wall') { rec.rebuild = s.shield === 0; rec.shield = Math.min(s.maxShield - s.shield, D.wallAmt); }
+  else if (it.type === 'retreat') { if (s.ate) { rec.eaten = true; rec.crisis = 1; } else rec.crisis = 2; }
+  if (s.shield > 0 && it.type !== 'wall' && !rec.stun) rec.regen = Math.min(D.regen, s.maxShield - s.shield);
+  return rec;
+}
+function applyEnemy(s, rec) {
+  s.hp = Math.max(0, s.hp - rec.dmg);
+  s.alert = Math.min(5, s.alert + rec.alert);
+  s.shield += rec.shield + rec.regen;
+  s.crisis -= rec.crisis;
+  s.stun = false;
+}
+function rollMood(g, D, rnd) { const x = rnd(); return g.turn <= 1 ? 'calm' : D.moods[Math.floor(x * D.moods.length)]; }
+function rollIntent(g, D, rnd) {
+  const soft = g.sur >= 60;
+  const ok = {
+    atk: true,
+    alert: !soft && g.alert < 4,
+    wall: !soft && ((g.shield > 0 && g.shield < g.maxShield) || (g.shield === 0 && D.wallBreak && g.sur < 50)),
+    retreat: true,
+  };
+  const ents = Object.entries(D.intents).filter(([k, w]) => ok[k] && w > 0);
+  const x1 = rnd(), x2 = rnd();
+  let tot = ents.reduce((a, e) => a + e[1], 0), r = x1 * tot;
+  for (const [k, w] of ents) { r -= w; if (r <= 0) return { type: k, bonus: Math.floor(x2 * 3) }; }
+  return { type: 'atk', bonus: 0 };
+}
+// 局面評価（ターン終了後、犯人の行動まで見越す）
+function evaluate(s0, s, D) {
+  if (s.sur >= 100) return 1e6 + s.hp * 10 + s.ap;
+  const e = cloneSim(s); applyEnemy(e, planEnemy(e, D));
+  if (e.hp <= 0) return -1e5 + e.sur;
+  if (e.crisis <= 0) return -1e5 + e.sur;
+  let v = 0;
+  v += (e.sur - s0.sur) * 3;
+  v += (s0.shield - e.shield) * 1.3;
+  v += (e.hp - s0.hp) * (e.hp < 15 ? 3 : 1.5);
+  v += (e.crisis - s0.crisis) * 30;
+  v -= (e.alert - s0.alert) * 8;
+  v += s.drawn * 6;
+  return v;
+}
+// 最善手探索：今の手札でどの順に何を使うのが一番か
+function solve(g, D) {
+  const s0 = makeSim(g);
+  let best = { v: evaluate(s0, s0, D), seq: [] }, nodes = 0;
+  const dfs = (s, seq) => {
+    if (++nodes > 60000) return;
+    const tried = new Set();
+    for (let i = 0; i < s.hand.length; i++) {
+      const id = s.hand[i];
+      if (tried.has(id) || CARDS[id].cost > s.ap) continue;
+      tried.add(id);
+      const n = cloneSim(s); n.hand.splice(i, 1); cardEffect(n, id, D);
+      seq.push(id);
+      const v = evaluate(s0, n, D);
+      if (v > best.v + 1e-6) best = { v, seq: seq.slice() };
+      if (n.sur < 100) dfs(n, seq);
+      seq.pop();
+    }
+  };
+  dfs(s0, []);
+  return best;
+}
+/* ---------- ゲーム進行（画面側も検証AIも同じ関数を使う） ---------- */
+function coreNewGame(D, seed) {
+  return {
+    seed, reshuffles: 0,
+    shield: D.shield, maxShield: D.shield, sur: 0, crisis: D.crisis, hp: D.hp, maxHp: D.hp, ap: D.ap, alert: 0,
+    daze: false, stun: false, ate: false, lastType: null, played: [], mood: 'calm', intent: { type: 'atk', bonus: 0 },
+    deck: seededShuffle(buildDeck(rngFor(seed, 1)), rngFor(seed, 2)), hand: [], disc: [], turn: 0,
+    stepBack: false, boostHu: false, boostEv: false
+  };
+}
+function coreDraw(g, n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    if (!g.deck.length) {
+      if (!g.disc.length) break;
+      g.reshuffles++;
+      g.deck = seededShuffle(g.disc.slice().sort(), rngFor(g.seed, 100 + g.reshuffles));
+      g.disc = [];
+    }
+    out.push(g.deck.pop());
+  }
+  return out;
+}
+function coreStartTurn(g, D) {
+  g.turn++; g.ap = D.ap; g.daze = false; g.ate = false; g.lastType = null; g.played = []; g.boostHu = false; g.boostEv = false;
+  const rnd = rngFor(g.seed, 1000 + g.turn);
+  g.mood = rollMood(g, D, rnd);
+  g.intent = rollIntent(g, D, rnd);
+}
+// 検証：プレイヤーと同じ情報（今の手札・狙い・心境）だけで打つ最善手AIが、この事件をクリアできるか
+// ※未来の山札は一切見ない。毎手「県民の勘」に従った場合と同じ打ち筋になる
+function playout(seed, D, maxTurns) {
+  const g = coreNewGame(D, seed);
+  while (g.turn < (maxTurns || 20)) {
+    coreStartTurn(g, D); g.hand.push(...coreDraw(g, 4));
+    for (;;) {
+      const id = solve(g, D).seq[0]; if (!id) break;
+      g.hand.splice(g.hand.indexOf(id), 1); g.disc.push(id);
+      const r = cardEffect(g, id, D); if (r.draw) g.hand.push(...coreDraw(g, r.draw));
+      if (g.sur >= 100) return { win: true, turn: g.turn, hp: g.hp, crisis: g.crisis };
+    }
+    g.disc.push(...g.hand); g.hand = [];
+    applyEnemy(g, planEnemy(g, D));
+    if (g.hp <= 0 || g.crisis <= 0) return { win: false, turn: g.turn };
+  }
+  return { win: false, turn: g.turn };
+}
+/* ---------- 番付：打ち手の記録から事件を再生して確かめる（サーバーも同じ関数を使う） ---------- */
+// log = [[1ターン目に使ったカードid…], [2ターン目…], …]。最後の1枚で自首100になった記録だけが勝ち
+const RANK_BASE = { easy: 1000, normal: 2000, hard: 3500, oni: 5000 };
+function rankScore(diffKey, turn, hp) { return RANK_BASE[diffKey] + Math.max(0, 10 - turn) * 300 + hp * 10; }
+function diffByKey(k) { return DIFFS.find(d => d.key === k) || null; }
+function replayLog(D, seed, log) {
+  if (!D || !Number.isInteger(seed) || seed < 1 || seed > 0xFFFFFFFF || !Array.isArray(log) || !log.length || log.length > 30) return null;
+  const g = coreNewGame(D, seed);
+  for (let t = 0; t < log.length; t++) {
+    const moves = log[t];
+    if (!Array.isArray(moves) || moves.length > 40) return null;
+    coreStartTurn(g, D); g.hand.push(...coreDraw(g, 4));
+    for (let k = 0; k < moves.length; k++) {
+      const id = moves[k];
+      if (typeof id !== 'string' || !Object.prototype.hasOwnProperty.call(CARDS, id)) return null;
+      const i = g.hand.indexOf(id);
+      if (i < 0 || CARDS[id].cost > g.ap) return null;
+      g.hand.splice(i, 1); g.disc.push(id);
+      const r = cardEffect(g, id, D); if (r.draw) g.hand.push(...coreDraw(g, r.draw));
+      if (g.sur >= 100) {
+        if (t !== log.length - 1 || k !== moves.length - 1) return null;
+        return { win: true, turn: g.turn, hp: g.hp, crisis: g.crisis, score: rankScore(D.key, g.turn, g.hp) };
+      }
+    }
+    if (t === log.length - 1) return null;
+    g.disc.push(...g.hand); g.hand = [];
+    applyEnemy(g, planEnemy(g, D));
+    if (g.hp <= 0 || g.crisis <= 0) return null;
+  }
+  return null;
+}
+function randomSeed() { return (Math.floor(Math.random() * 0xFFFFFFFF) >>> 0) || 1; }
+function caseNo(seed) { return String(seed % 100000).padStart(5, '0'); }
+/*CORE-END*/
+
+const W = 540, H = 960, SCENE_H = 520;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let scale = 1, offX = 0, offY = 0, dpr = 1;
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = innerWidth, h = innerHeight;
+  scale = Math.min(w / W, h / H);
+  offX = (w - W * scale) / 2; offY = (h - H * scale) / 2;
+  cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+}
+addEventListener('resize', resize); resize();
+
+const MINCHO = '"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","MS PMincho",serif';
+const GOTH = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",sans-serif';
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+// ゲーム内時間：ポーズ中は進まない。やり直し時は RUN を進めて古い待ちを破棄
+let GT = 0, RUN = 0, paused = false;
+let waiters = [];
+const sleep = ms => new Promise(r => waiters.push({ t: GT + ms / 1000, fn: r, run: RUN }));
+const later = (ms, fn) => waiters.push({ t: GT + ms / 1000, fn, run: RUN });
+function tickWaiters() {
+  if (!waiters.length) return;
+  const due = waiters.filter(w => w.t <= GT && w.run === RUN);
+  waiters = waiters.filter(w => w.t > GT && w.run === RUN);
+  due.forEach(w => w.fn());
+}
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function hex(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function mix(a, b, t) { const A = hex(a), B = hex(b); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')'; }
+function rr(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath(); ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function wrap(text, maxW) {
+  const out = []; let line = '';
+  for (const ch of text) {
+    if (ch === '\n') { out.push(line); line = ''; continue; }
+    const t = line + ch;
+    if (ctx.measureText(t).width > maxW && line) {
+      if ('、。！？」』）…ー'.includes(ch)) { line = t; continue; }
+      out.push(line); line = ch;
+    } else line = t;
+  }
+  if (line) out.push(line);
+  return out;
+}
+function outlineText(t, x, y, fill, stroke, lw) {
+  ctx.lineJoin = 'round'; ctx.lineWidth = lw || 4; ctx.strokeStyle = stroke || '#000';
+  ctx.strokeText(t, x, y); ctx.fillStyle = fill; ctx.fillText(t, x, y);
+}
+
+/* ---------- セーブ ---------- */
+/* ---------- セーブ（ローカルファースト。ログイン中はクラウドの写しと同期する） ----------
+   schema 3: { schema, devs: {端末id: {earn, spend, plays:{難易度:回数}, wins:{…}}}, best: {難易度: {score, turn}},
+               clear: {難易度: ランク0〜3}, seenRules, profile: {name, at} }
+   県民の勘は「端末ごとの増えた数・使った数」の帳簿から数える（同期で多いほうを取っても、使った勘が戻らないように）。
+   挑戦回数・クリア回数も端末ごとに数え、合計を表示する。 */
+var SAVE_KEY = 'tojinbo_suspense_v2';               // (キー名はそのまま。古いセーブをその場で読み替える)
+var DEVICE_KEY = SAVE_KEY + '.device';              // この端末の印（同期しない）
+var ACCOUNT_KEY = SAVE_KEY + '.account';            // この端末のログイン {user, token, adapter, lastSync}
+var RANKJOIN_KEY = SAVE_KEY + '.rankJoin';          // 番付に参加する（この端末の設定）
+var PROFILE_NAME_MAX = 12, DEFAULT_PLAYER_NAME = 'ななしの刑事', COUNT_MAX = 10000000;
+var DIFF_KEYS = ['easy', 'normal', 'hard', 'oni'];
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { } }
+function isObj(o) { return !!o && typeof o === 'object' && !Array.isArray(o); }
+function cInt(v, a, b) { v = Math.floor(Number(v)); return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : a; }
+function randHex(n) {
+  const a = new Uint8Array(n);
+  try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256); }
+  return Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
+}
+function deviceId() {
+  let id = lsGet(DEVICE_KEY);
+  if (!/^[0-9a-f]{16}$/.test(id || '')) { id = randHex(8); lsSet(DEVICE_KEY, id); }
+  return id;
+}
+function cleanName(v) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, PROFILE_NAME_MAX) : ''; }
+function blankDev() { const z = {}; DIFF_KEYS.forEach(k => z[k] = 0); return { earn: 0, spend: 0, plays: Object.assign({}, z), wins: Object.assign({}, z) }; }
+function blankSave() { return { schema: 3, devs: {}, best: {}, clear: {}, seenRules: false, profile: { name: '', at: 0 } }; }
+// 何が来ても（壊れたセーブ・クラウドから届いた値でも）正しい形に直す
+function coerceSave(raw) {
+  const out = blankSave();
+  if (!isObj(raw)) return out;
+  if (raw.schema !== 3) {                            // schema 2（アカウント以前）: {kan, clear, seenRules}
+    const kan = cInt(raw.kan, 0, COUNT_MAX);
+    if (kan) { const d = blankDev(); d.earn = kan; out.devs[deviceId()] = d; }
+  } else if (isObj(raw.devs)) {
+    let n = 0;
+    for (const id of Object.keys(raw.devs)) {
+      const d = raw.devs[id];
+      if (!/^[0-9a-f]{16}$/.test(id) || !isObj(d) || ++n > 64) continue;
+      const e = blankDev();
+      e.earn = cInt(d.earn, 0, COUNT_MAX); e.spend = cInt(d.spend, 0, COUNT_MAX);
+      DIFF_KEYS.forEach(k => {
+        e.plays[k] = cInt(isObj(d.plays) ? d.plays[k] : 0, 0, COUNT_MAX);
+        e.wins[k] = Math.min(e.plays[k], cInt(isObj(d.wins) ? d.wins[k] : 0, 0, COUNT_MAX));
+      });
+      out.devs[id] = e;
+    }
+  }
+  DIFF_KEYS.forEach(k => {
+    const b = isObj(raw.best) ? raw.best[k] : null;
+    if (isObj(b) && cInt(b.score, 0, 99999) > 0) out.best[k] = { score: cInt(b.score, 0, 99999), turn: cInt(b.turn, 1, 30) };
+    const c = isObj(raw.clear) ? raw.clear[k] : null;
+    if (c != null && Number.isFinite(Number(c))) out.clear[k] = cInt(c, 0, 3);
+  });
+  out.seenRules = raw.seenRules === true;
+  if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
+  return out;
+}
+// この端末とクラウドの、よいほうを合わせる（帳簿と回数は端末ごとに多いほう、ベストはよいほう、名前は新しいほう）
+function mergeSaves(a, b) {
+  const L = coerceSave(a), C = coerceSave(b), out = coerceSave(a);
+  for (const id of Object.keys(C.devs)) {
+    const x = out.devs[id] || blankDev(), y = C.devs[id];
+    x.earn = Math.max(x.earn, y.earn); x.spend = Math.max(x.spend, y.spend);
+    DIFF_KEYS.forEach(k => { x.plays[k] = Math.max(x.plays[k], y.plays[k]); x.wins[k] = Math.max(x.wins[k], y.wins[k]); });
+    out.devs[id] = x;
+  }
+  DIFF_KEYS.forEach(k => {
+    const p = L.best[k], q = C.best[k];
+    if (p || q) out.best[k] = { score: Math.max(p ? p.score : 0, q ? q.score : 0), turn: Math.min(p ? p.turn : 99, q ? q.turn : 99) };
+    if (C.clear[k] != null && !(out.clear[k] >= C.clear[k])) out.clear[k] = C.clear[k];
+  });
+  out.seenRules = L.seenRules || C.seenRules;
+  if (C.profile.at > L.profile.at) out.profile = Object.assign({}, C.profile);
+  return out;
+}
+function loadSave() {
+  let raw = null;
+  try { raw = JSON.parse(lsGet(SAVE_KEY) || 'null'); } catch (e) { lsSet(SAVE_KEY + '.backup-unreadable', lsGet(SAVE_KEY) || ''); }
+  const s = coerceSave(raw);
+  if (isObj(raw) && raw.schema !== 3) { lsSet(SAVE_KEY + '.backup-s2', JSON.stringify(raw)); lsSet(SAVE_KEY, JSON.stringify(s)); }
+  return s;
+}
+var SAVE = loadSave();
+// 書いたら、ログイン中は少しあとでクラウドにも送る
+function save() {
+  lsSet(SAVE_KEY, JSON.stringify(SAVE));
+  if (typeof SyncManager !== 'undefined' && SyncManager) SyncManager.request();
+}
+function myDev() { const id = deviceId(); if (!SAVE.devs[id]) SAVE.devs[id] = blankDev(); return SAVE.devs[id]; }
+function kanNow() { let n = 0; for (const id in SAVE.devs) n += SAVE.devs[id].earn - SAVE.devs[id].spend; return Math.max(0, n); }
+function earnKan(n) { myDev().earn = Math.min(COUNT_MAX, myDev().earn + n); }
+function spendKan() { if (kanNow() <= 0) return false; myDev().spend++; return true; }
+function statSum(field, k) { let n = 0; for (const id in SAVE.devs) n += k ? SAVE.devs[id][field][k] : DIFF_KEYS.reduce((a, d) => a + SAVE.devs[id][field][d], 0); return n; }
+function displayName() { return SAVE.profile.name || DEFAULT_PLAYER_NAME; }
+function setDisplayName(v) { SAVE.profile = { name: cleanName(v), at: Date.now() }; save(); }
+function rankJoin() { return lsGet(RANKJOIN_KEY) === '1'; }
+const RANKS = ['C', 'B', 'A', 'S'];
+
+/* =========================================================
+   AUDIO (Web Audio API)
+   ========================================================= */
+const SND = { ctx: null, muted: false };
+const NOTE = n => 440 * Math.pow(2, (n - 69) / 12);
+function ok() { return !!SND.ctx; }
+function audioInit() {
+  if (SND.ctx) { if (SND.ctx.state === 'suspended') SND.ctx.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+  const c = new AC(); SND.ctx = c;
+  SND.master = c.createGain(); SND.master.gain.value = 0.8;
+  const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+  SND.master.connect(comp); comp.connect(c.destination);
+  SND.bgm = c.createGain(); SND.bgm.gain.value = 0; SND.bgm.connect(SND.master);
+  SND.sfx = c.createGain(); SND.sfx.gain.value = 0.9; SND.sfx.connect(SND.master);
+  SND.seaG = c.createGain(); SND.seaG.gain.value = 0.55; SND.seaG.connect(SND.master);
+  const len = c.sampleRate * 2, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  SND.noise = b;
+  const b2 = c.createBuffer(1, c.sampleRate * 4, c.sampleRate), d2 = b2.getChannelData(0); let last = 0;
+  for (let i = 0; i < d2.length; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d2[i] = last * 3.5; }
+  SND.rev = c.createConvolver();
+  const ir = c.createBuffer(2, c.sampleRate * 2.6, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const x = ir.getChannelData(ch); for (let i = 0; i < x.length; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / x.length, 3); }
+  SND.rev.buffer = ir; SND.revG = c.createGain(); SND.revG.gain.value = 0.3;
+  SND.rev.connect(SND.revG); SND.revG.connect(SND.master);
+  startSea(b2);
+}
+function startSea(buf) {
+  const c = SND.ctx;
+  const mk = (freq, type, lfoF, base, depth) => {
+    const s = c.createBufferSource(); s.buffer = buf; s.loop = true;
+    const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = c.createGain(); g.gain.value = base;
+    const l = c.createOscillator(); l.frequency.value = lfoF;
+    const lg = c.createGain(); lg.gain.value = depth;
+    l.connect(lg); lg.connect(g.gain);
+    s.connect(f); f.connect(g); g.connect(SND.seaG); s.start(); l.start();
+  };
+  mk(480, 'lowpass', 0.11, 0.55, 0.45);
+  mk(1700, 'bandpass', 0.17, 0.12, 0.11);
+  const s = c.createBufferSource(); s.buffer = SND.noise; s.loop = true;
+  const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 6;
+  const l = c.createOscillator(); l.frequency.value = 0.07; const lg = c.createGain(); lg.gain.value = 500;
+  l.connect(lg); lg.connect(f.frequency);
+  const g = c.createGain(); g.gain.value = 0.05;
+  s.connect(f); f.connect(g); g.connect(SND.seaG); s.start(); l.start();
+}
+function osc(type, freq, t, dur, vol, dest, o = {}) {
+  const c = SND.ctx, a = o.a || 0.005;
+  const os = c.createOscillator(); os.type = type; os.frequency.setValueAtTime(freq, t);
+  if (o.slide) os.frequency.exponentialRampToValueAtTime(o.slide, t + a + dur);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + a + dur);
+  os.connect(g); g.connect(dest || SND.sfx); os.start(t); os.stop(t + a + dur + 0.05);
+}
+function noiseHit(t, dur, vol, type, f1, f2, dest) {
+  const c = SND.ctx, s = c.createBufferSource(); s.buffer = SND.noise;
+  const f = c.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(f1, t);
+  if (f2) f.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(dest || SND.sfx);
+  s.start(t, Math.random()); s.stop(t + dur + 0.05);
+}
+function sndSting(kind) {
+  if (!ok()) return; const c = SND.ctx, t = c.currentTime + 0.02;
+  const chords = { ev: [38, 50, 53, 56, 62], hu: [41, 53, 57, 60, 65], gu: [43, 55, 59, 62, 67] };
+  const ch = chords[kind] || chords.ev;
+  const hit = (t0, dur, vol) => {
+    const f = c.createBiquadFilter(); f.type = 'lowpass';
+    f.frequency.setValueAtTime(kind === 'hu' ? 1800 : 3200, t0); f.frequency.exponentialRampToValueAtTime(400, t0 + dur);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    f.connect(g); g.connect(SND.sfx); g.connect(SND.rev);
+    ch.forEach(n => [-11, 0, 11].forEach(dt => {
+      const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = NOTE(n); o.detune.value = dt;
+      o.connect(f); o.start(t0); o.stop(t0 + dur + 0.1);
+    }));
+    osc('sine', 80, t0, dur * 0.7, vol * 6, SND.sfx, { slide: 34 });
+    noiseHit(t0, 0.3, vol * 4, 'lowpass', 2400, 200);
+  };
+  hit(t, 0.16, 0.05);
+  hit(t + 0.22, kind === 'hu' ? 1.8 : 1.5, 0.06);
+}
+function sndBreak() {
+  if (!ok()) return; const t = SND.ctx.currentTime;
+  noiseHit(t, 0.9, 0.7, 'highpass', 3000, 800);
+  noiseHit(t, 0.4, 0.8, 'lowpass', 1500, 100);
+  osc('sine', 60, t, 1.2, 0.9, SND.sfx, { slide: 25 });
+  for (let i = 0; i < 9; i++) osc('sine', rand(2000, 5200), t + rand(0, 0.5), rand(0.15, 0.5), 0.08, SND.sfx);
+  [37, 38, 44, 49].forEach(n => osc('sawtooth', NOTE(n + 12), t + 0.05, 1.6, 0.04, SND.rev));
+}
+function sndHurt() {
+  if (!ok()) return; const t = SND.ctx.currentTime;
+  osc('sine', 120, t, 0.35, 0.7, SND.sfx, { slide: 40 });
+  osc('square', 300, t, 0.25, 0.06, SND.sfx, { slide: 90 });
+  noiseHit(t, 0.2, 0.4, 'lowpass', 900, 100);
+}
+function sndDraw(d) { if (!ok()) return; const t = SND.ctx.currentTime + (d || 0); noiseHit(t, 0.07, 0.25, 'bandpass', 3000, 1500); osc('triangle', 900, t, 0.06, 0.04, SND.sfx, { slide: 1300 }); }
+function sndBuzz() { if (!ok()) return; const t = SND.ctx.currentTime; osc('square', 140, t, 0.18, 0.08); osc('square', 133, t, 0.18, 0.08); }
+function sndBlip() { if (!ok()) return; const t = SND.ctx.currentTime; osc('square', rand(520, 600), t, 0.025, 0.012); }
+function sndClick() { if (!ok()) return; const t = SND.ctx.currentTime; osc('triangle', 660, t, 0.06, 0.08, SND.sfx, { slide: 990 }); }
+function sndAlert() { if (!ok()) return; const t = SND.ctx.currentTime; [0, 0.14].forEach(d => osc('sawtooth', 220, t + d, 0.12, 0.05, SND.sfx, { slide: 330 })); }
+function sndShieldUp() { if (!ok()) return; const t = SND.ctx.currentTime; osc('triangle', 200, t, 0.5, 0.12, SND.sfx, { slide: 600 }); noiseHit(t, 0.4, 0.15, 'bandpass', 600, 2400); }
+function sndHeal() { if (!ok()) return; const t = SND.ctx.currentTime; [72, 76, 79, 84].forEach((n, i) => osc('sine', NOTE(n), t + i * 0.07, 0.4, 0.06, SND.sfx)); }
+function sndHint() { if (!ok()) return; const t = SND.ctx.currentTime; [84, 88, 91, 96, 100].forEach((n, i) => { osc('sine', NOTE(n), t + i * 0.05, 0.6, 0.05, SND.sfx); osc('sine', NOTE(n), t + i * 0.05, 0.6, 0.03, SND.rev); }); }
+function sndStep() { if (!ok()) return; const t = SND.ctx.currentTime; noiseHit(t, 0.12, 0.35, 'lowpass', 700, 200); noiseHit(t + 0.05, 0.25, 0.12, 'highpass', 4000, 2000); }
+function sndHeart() { if (!ok()) return; const t = SND.ctx.currentTime; [0, 0.22, 0.9, 1.12].forEach((d, i) => osc('sine', 70, t + d, 0.2, i % 2 ? 0.5 : 0.8, SND.sfx, { slide: 38 })); }
+function sndCrash() {
+  if (!ok()) return; const c = SND.ctx, t = c.currentTime;
+  const s = c.createBufferSource(); s.buffer = SND.noise; s.loop = true;
+  const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(1400, t); f.frequency.exponentialRampToValueAtTime(260, t + 2.3);
+  const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.22); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.5);
+  s.connect(f); f.connect(g); g.connect(SND.seaG); s.start(t); s.stop(t + 2.6);
+}
+function sndLose() {
+  if (!ok()) return; const t = SND.ctx.currentTime;
+  [38, 41, 44, 26].forEach(n => osc('sawtooth', NOTE(n + 12), t, 3.0, 0.035, SND.rev, { slide: NOTE(n + 10) }));
+  osc('sine', 55, t, 2.5, 0.5, SND.sfx, { slide: 30 });
+}
+function pianoNote(n, t, dur, vol) {
+  const c = SND.ctx, f = NOTE(n);
+  [[1, 'sine', 1], [2, 'sine', 0.35], [3, 'triangle', 0.1], [4, 'sine', 0.05]].forEach(([m, tp, v]) => {
+    const o = c.createOscillator(); o.type = tp; o.frequency.value = f * m;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol * v, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur / m);
+    o.connect(g); g.connect(SND.sfx); g.connect(SND.rev); o.start(t); o.stop(t + dur + 0.05);
+  });
+}
+function sndPiano() {
+  if (!ok()) return; const t0 = SND.ctx.currentTime + 0.3, b = 0.5;
+  const mel = [[69, 0, 1], [72, 1, 1], [77, 2, 2], [76, 4, 1], [74, 5, 1], [72, 6, 2], [70, 8, 1], [69, 9, 1], [67, 10, 1.5], [69, 11.5, 0.5], [65, 12, 3], [72, 15, 1], [77, 16, 5]];
+  const chs = [[0, [41, 48, 57]], [4, [38, 45, 53]], [8, [34, 41, 50]], [10, [36, 43, 52]], [12, [41, 48, 53, 57]], [14, [36, 43, 48, 55]], [16, [29, 41, 48, 53, 57, 60]]];
+  mel.forEach(([n, s, d]) => pianoNote(n, t0 + s * b, d * b + 1.4, 0.2));
+  chs.forEach(([s, ns]) => ns.forEach((n, k) => pianoNote(n, t0 + s * b + k * 0.07, b * 4 + 1, 0.08)));
+}
+const BGM = { on: false, next: 0, step: 0, tempo: 78, tension: 0 };
+const PROG = [[38, 41, 45], [34, 38, 41], [31, 34, 38], [33, 37, 40]];
+function bgmStart() {
+  if (!ok()) return; BGM.on = true; BGM.next = SND.ctx.currentTime + 0.1; BGM.step = 0;
+  const g = SND.bgm.gain, t = SND.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(0.55, t, 0.6);
+}
+function bgmStop(fade) {
+  BGM.on = false; if (!ok()) return;
+  const g = SND.bgm.gain, t = SND.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(0, t, fade || 0.05);
+}
+function bgmStep(s, t) {
+  const spb = 60 / BGM.tempo / 4, ch = PROG[Math.floor(s / 16) % 4], i = s % 16, c = SND.ctx;
+  if (i === 0) {
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 650 + BGM.tension * 500; f.Q.value = 3;
+    const g = c.createGain(), L = spb * 16;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.045, t + L * 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + L + 0.25);
+    f.connect(g); g.connect(SND.bgm);
+    ch.forEach(n => [-9, 9].forEach(dt => { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = NOTE(n + 12); o.detune.value = dt; o.connect(f); o.start(t); o.stop(t + L + 0.3); }));
+  }
+  if (i === 0 || i === 3) osc('sine', 95, t, 0.22, i === 0 ? 0.55 : 0.35, SND.bgm, { slide: 40 });
+  if (i === 8 || i === 11) osc('sine', 95, t, 0.2, i === 8 ? 0.35 : 0.22, SND.bgm, { slide: 40 });
+  if (i % 2 === 0) { const arp = [ch[0] + 24, ch[1] + 24, ch[2] + 24, ch[1] + 24]; osc('triangle', NOTE(arp[(i / 2) % 4]), t, spb * 1.5, 0.055, SND.bgm); }
+  if (BGM.tension > 0.45 && i % 4 === 2) osc('square', NOTE(ch[2] + 36), t, 0.04, 0.012 + BGM.tension * 0.01, SND.bgm);
+  if (BGM.tension > 0.7 && i === 15) osc('sawtooth', NOTE(ch[0] + 37), t, spb * 2, 0.02, SND.bgm, { slide: NOTE(ch[0] + 36) });
+}
+setInterval(() => {
+  if (!SND.ctx || !BGM.on) return;
+  const spb = 60 / BGM.tempo / 4;
+  while (BGM.next < SND.ctx.currentTime + 0.12) { bgmStep(BGM.step, BGM.next); BGM.next += spb; BGM.step++; }
+}, 25);
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let phase = 'title'; // title, battle, winning, win, losing, lose
+let G = null, D = DIFFS[1], T = 0, uid = 0, resultT = 0, loseKind = 'crisis', lastReward = 0, newRecord = false;
+let rules = null; // { page, onClose }
+const CN = '犯人・岩城', CC = '#ff8f80', DN = '刑事・荒島', DC = '#ffe2a0', NN = 'ナレーション', NC = '#cfd8e8', KN = '県民の勘', KC = '#ffd56b';
+const V = {
+  shake: 0, flash: 0, flashCol: '#fff', cracks: [], crackT: 0, floats: [], parts: [], wind: [],
+  sunset: 0, cx: 368, kneel: 0, kneelT: 0, cshake: 0, shakenT: 0, banner: null, splashT: 2.5,
+  culpritA: 1, dark: 0, flying: [], clouds: [], intentPulse: 0
+};
+for (let i = 0; i < 46; i++) V.wind.push({ x: rand(0, W), y: rand(20, 500), len: rand(20, 70), spd: rand(260, 520), a: rand(0.08, 0.3) });
+for (let i = 0; i < 7; i++) V.clouds.push({ x: rand(-60, W), y: rand(150, 270), w: rand(90, 200), h: rand(18, 34), spd: rand(6, 16) });
+
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function resetRun() {
+  RUN++; waiters = []; dlg = null; dlgResolve = null; paused = false; pmConfirm = null;
+  setDuck(false);
+}
+function newGame(diff, seed) {
+  D = diff;
+  G = Object.assign(coreNewGame(D, seed || 1), { busy: true, totalPlayed: 0, hint: null, kanUsed: 0, verified: false, log: [], rankMsg: '', bestUp: false });
+  V.kneelT = 0; V.kneel = 0; V.culpritA = 1; V.dark = 0; V.sunset = 0; V.cracks = []; V.crackT = 0;
+  V.flying = []; V.floats = []; V.banner = null; V.cx = cliffX(G.crisis);
+}
+newGame(DIFFS[1]);
+function cliffX(cr) { return 452 - 12 * Math.min(cr, 7); }
+function addFloat(x, y, text, col, size) { V.floats.push({ x, y, text, col, life: 1.4, max: 1.4, size: size || 22 }); }
+function banner(text, col) { V.banner = { text, col, t: 0 }; }
+
+/* ---------- 対話 ---------- */
+let dlg = null, dlgResolve = null, blipCount = 0;
+function say(sp, text, col, hold) {
+  return new Promise(res => {
+    if (dlgResolve) { const r = dlgResolve; dlgResolve = null; r(); }
+    dlg = { sp, text, col: col || '#fff', n: 0, done: false, hold: hold == null ? 1100 : hold, doneAt: 0, run: RUN };
+    dlgResolve = res;
+  });
+}
+function dlgAdvance() {
+  if (!dlg) return;
+  if (!dlg.done) { dlg.n = dlg.text.length; dlg.done = true; dlg.doneAt = GT; return; }
+  if (dlgResolve) { const r = dlgResolve; dlgResolve = null; r(); }
+}
+
+/* ---------- ターン進行 ---------- */
+function drawCards(n) {
+  coreDraw(G, n).forEach((id, i) => {
+    G.hand.push({ id, def: CARDS[id], x: 30, y: 960, tx: 0, ty: 0, uid: ++uid });
+    sndDraw(i * 0.08);
+  });
+}
+const INTENT_TXT = {
+  atk: '反論してくる',
+  alert: '警戒を強める',
+  wall: '心壁を固める',
+  retreat: '大きく後ずさる',
+};
+function startTurn() {
+  coreStartTurn(G, D); G.hint = null; G.log.push([]);
+  V.intentPulse = 1.2;
+  drawCards(4);
+  G.busy = false;
+  if (G.turn === 1) say('ヒント', '左上の「犯人の狙い」を見て対策を考えよう。まずは青の【証拠】で心壁を崩すのが定石だ。', '#9fd3ff');
+  else say(NN, `―― 第${G.turn}幕 ――　犯人の心境は「${MOODS[G.mood].name}」。崖の端まで、あと${G.crisis}歩。`, NC);
+}
+function playCard(card) {
+  if (G.busy || phase !== 'battle') return;
+  const d = card.def;
+  if (d.cost > G.ap) { sndBuzz(); addFloat(270, 620, 'APが足りない！', '#ff7b7b', 20); return; }
+  G.hand = G.hand.filter(c => c !== card); G.disc.push(card.id); G.totalPlayed++; G.log[G.log.length - 1].push(card.id);
+  G.hint = null;
+  V.flying.push({ c: card, t: 0, kind: 'play' });
+  sndSting(d.type);
+  const r = cardEffect(G, card.id, D);
+  say(DN, d.flav, DC);
+  const fx = V.cx, fy = 200;
+  if (r.shieldDmg) { addFloat(fx, fy, '心壁 −' + r.shieldDmg, '#8fc1ff', 26); V.cshake = 1; V.shake = Math.max(V.shake, 6); }
+  if (d.type === 'ev' && !r.shieldDmg && !r.sur) addFloat(fx, fy, '効かない！', '#aaa', 24);
+  if (r.sur) addFloat(fx, fy + 30, '自首 +' + r.sur, '#ffd56b', 26);
+  if (r.daze) { V.shakenT = 3; addFloat(fx, fy - 30, '動揺！', '#ffb36b', 26); }
+  if (r.draw) drawCards(r.draw);
+  if (r.ap) addFloat(400, 560, 'AP +' + r.ap, '#ffe07a');
+  if (r.heal) { addFloat(140, 570, 'メンタル +' + r.heal, '#7dffa8'); sndHeal(); }
+  if (r.alert < 0) addFloat(fx, fy + 60, '警戒 DOWN', '#cfe3ff', 18);
+  if (r.alert > 0) { addFloat(fx, fy + 60, '警戒 UP', '#ffb347', 18); sndAlert(); }
+  if (r.step) { addFloat(V.cx, 150, '犯人が1歩戻った！', '#9dffb0', 24); sndHeal(); }
+  if (r.hpCost) addFloat(140, 570, 'メンタル −' + r.hpCost, '#ff6b6b');
+  if (r.boostHu) addFloat(fx, fy + 90, '次の人情×1.5', '#b0ffc8', 18);
+  if (r.boostEv) addFloat(fx, fy + 90, '次の証拠×1.5', '#b0d8ff', 18);
+  if (r.tags.length) addFloat(fx - 10, fy - 58, r.tags.join(' '), '#ffe9b0', 15);
+  if (r.broke) shieldBreak();
+  if (r.stepBack) later(600, () => { banner('一歩、崖から離れた！', '#ffd56b'); addFloat(V.cx, 160, '危機 +1', '#9dffb0', 24); sndHeal(); }, 600);
+  if (G.sur >= 100) winSequence();
+}
+function shieldBreak() {
+  V.flash = 1; V.flashCol = '#ffffff'; V.shake = 22; V.shakenT = 4;
+  makeCracks(V.cx, 220); sndBreak(); banner('心壁崩壊!!', '#ff4a4a');
+}
+async function endTurn() {
+  if (G.busy || phase !== 'battle') return;
+  G.busy = true; G.hint = null;
+  G.hand.forEach(c => { V.flying.push({ c, t: 0, kind: 'discard' }); G.disc.push(c.id); });
+  G.hand = [];
+  await sleep(350);
+  await enemyTurn();
+  if (phase !== 'battle') return;
+  startTurn();
+}
+const LINES = {
+  angry: ['ウソだ！ そんなもん証拠になるか！', 'あっちへ行け！ 来るなっ！', '刑事なんかに、俺の何がわかるんや！', 'うるさい！ 黙れ黙れ！'],
+  shaken: ['ち、違う……！ 俺はやってない……！', 'うるさい！ 今さら何を言われても……！', 'やめてくれ……もう聞きたくない！'],
+  soft: ['……でも、もう遅いんや……', '俺なんか、帰る場所なんて……', '……なんで、そこまで言うてくれるんや……'],
+};
+async function enemyTurn() {
+  const stage = G.sur >= 60 ? 'soft' : (G.shield <= 0 ? 'shaken' : 'angry');
+  const rec = planEnemy(G, D);
+  if (rec.stun) {
+    V.shakenT = 2;
+    await say(CN, '……っ！（心壁を砕かれ、言葉が出てこない）', CC);
+  } else if (rec.type === 'atk') {
+    const p = say(CN, pick(LINES[stage]), CC);
+    await sleep(380);
+    G.hp = Math.max(0, G.hp - rec.dmg); rec.hpShown = true;   // (当たった瞬間に減らす。下の applyEnemy では二重に減らさない)
+    V.shake = 14; V.flash = 0.55; V.flashCol = '#ff2020'; sndHurt();
+    addFloat(140, 575, 'メンタル −' + rec.dmg, '#ff6b6b', 24);
+    if (rec.halved) addFloat(V.cx, 170, '(動揺で半減)', '#ffd27a', 18);
+    await p;
+  } else if (rec.type === 'alert') {
+    if (rec.canceled) await say(CN, '……（ソースの匂いに気を取られている）', CC, 800);
+    else { addFloat(V.cx, 200, '警戒 UP!', '#ffb347', 24); sndAlert(); await say(CN, pick(['刑事なんか信用できるか！ 近寄るな！', 'どうせ俺を捕まえたいだけやろ！']), CC); }
+  } else if (rec.type === 'wall') {
+    addFloat(V.cx, 200, '心壁 +' + rec.shield, '#8fc1ff', 24); sndShieldUp();
+    await say(CN, rec.rebuild ? 'まだや……まだ認めんぞ！ 俺は何もしとらん！' : '俺は何も知らん！ 何も喋らんぞ！', CC);
+  } else if (rec.type === 'retreat') {
+    if (rec.eaten) await say(CN, '……（口をもぐもぐさせながら、足が止まる）', CC, 800);
+    else { sndAlert(); await say(CN, '来るなって言うとるやろ！（大きく後ずさる）', CC); }
+  }
+  const crisisBefore = G.crisis;
+  applyEnemy(G, rec.hpShown ? Object.assign({}, rec, { dmg: 0 }) : rec);
+  if (rec.regen > 0) { addFloat(V.cx, 230, '心壁 回復 +' + rec.regen, '#8fc1ff', 20); sndShieldUp(); }
+  if (G.hp <= 0) { await lose('mental'); return; }
+  sndStep(); if (rec.crisis >= 2) later(250, sndStep);
+  if (G.crisis <= 0) { await lose('crisis'); return; }
+  if (G.crisis <= 2) sndHeart();
+  const steps = crisisBefore - G.crisis;
+  await say(NN, G.crisis <= 2 ? `男が${steps}歩、崖の端へ……！　残り${G.crisis}歩！` : `男が${steps}歩後ずさる。崖の端まで、あと${G.crisis}歩。`, G.crisis <= 2 ? '#ff9a9a' : NC, 700);
+}
+async function winSequence() {
+  phase = 'winning'; G.busy = true; G.hint = null;
+  bgmStop(0.04);
+  if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.85, t, 0.8); }
+  V.flash = 0.6; V.flashCol = '#fff4d6';
+  // 報酬（演出の途中でやり直されても確定させる）
+  lastReward = D.reward;
+  earnKan(lastReward);
+  const rank = G.turn <= 3 ? 3 : G.turn <= 4 ? 2 : G.turn <= 5 ? 1 : 0;
+  const prev = SAVE.clear[D.key];
+  newRecord = prev == null || rank > prev;
+  if (newRecord) SAVE.clear[D.key] = rank;
+  recordResult(true, rank);          // (戦績・自己ベスト。中で save する)
+  submitRank();
+  await sleep(900);
+  await say(CN, '……すんません……。俺が……俺が、やりました……', CC, 1300);
+  V.kneelT = 1; sndPiano();
+  await sleep(1200);
+  await say(CN, '自首します。……おっかちゃんに、ちゃんと謝らな……', CC, 1400);
+  await say(DN, 'ほやの。……寒いし、帰ろっさ。署であったかいそばでも食べよか。', DC, 1600);
+  phase = 'win'; resultT = 0;
+}
+async function lose(kind) {
+  loseKind = kind; phase = 'losing'; G.busy = true; G.hint = null;
+  recordResult(false);
+  bgmStop(1.2); sndLose();
+  if (kind === 'crisis') await say(NN, '吹き荒れる風の中、男の姿は見えなくなった――。説得は、届かなかった。', NC, 1500);
+  else {
+    await say(DN, '……あかん……言葉が……出てこん……', DC, 900);
+    await say(NN, '刑事の心が折れた。男は夕闇の中へ姿を消した――。', NC, 1500);
+  }
+  phase = 'lose'; resultT = 0;
+}
+// クリア可能と確認できた事件だけを出題する
+async function findSolvableSeed(diff, run) {
+  for (let tries = 1; tries <= 300; tries++) {
+    const seed = randomSeed();
+    if (playout(seed, diff).win) return { seed, tries };
+    await new Promise(r => setTimeout(r, 0)); // 画面を固めない
+    if (run !== RUN) return null;
+  }
+  return null;
+}
+async function beginGame(diff, seed) {
+  resetRun(); const run = RUN;
+  newGame(diff, 1); phase = 'battle'; bgmStart();
+  if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.55, t, 0.5); }
+  G.busy = true;
+  let verified = seed != null;
+  if (seed == null) {
+    say(NN, '事件ファイルを照合中……（この事件が推理でクリアできるか確認しています）', NC, 60000);
+    const found = await findSolvableSeed(diff, run);
+    if (run !== RUN) return;
+    seed = found ? found.seed : randomSeed(); verified = !!found;
+  }
+  newGame(diff, seed); G.verified = verified; G.busy = true; dlg = null; dlgResolve = null;
+  await say(NN, `【${D.name}】事件ファイル No.${caseNo(seed)}――福井県・東尋坊。荒れる日本海を望む断崖に、ひとりの男が追い詰められていた。`, NC, 900);
+  await say(CN, '来るな！ それ以上近づいたら……飛び降りるぞ！', CC, 800);
+  await say(DN, `（証拠で心の壁を崩して、人情で心を溶かす……。崖の端まで、あと${G.crisis}歩や）`, DC, 800);
+  startTurn();
+}
+
+/* ---------- 県民の勘（最善手ヒント） ---------- */
+function hintReason(seq) {
+  if (!seq.length) return '今は下手に動かんほうがええ。ここはターン終了やざ。';
+  const id = seq[0], d = CARDS[id], name = '【' + d.name + '】';
+  const s = makeSim(G); const r = cardEffect(s, id, D);
+  const it = G.intent.type;
+  if (s.sur >= 100) return name + 'で決まりや！ 一気に自首させるんやざ。';
+  if (r.step) return name + 'で犯人を1歩引き戻すんや。崖が近いときの命綱やざ。';
+  if (d.type === 'gu') {
+    if (r.boostHu) return 'まず' + name + 'で気持ちを緩ませとき。次の人情が1.5倍になるでの。';
+    if (r.boostEv) return 'まず' + name + 'で気を緩ませて、次の証拠を1.5倍にするんや。';
+    if (d.daze && it === 'atk' && !G.daze) return name + 'で動揺させとき。次の反論が半分になるでの。';
+    if (d.daze && it === 'alert' && !G.daze) return name + 'で動揺させれば、警戒を上げられんで済むざ。';
+    if (it === 'retreat' && !G.ate) return '大きく後ずさろうとしとる。先に' + name + 'を食べさせて足を止めねま。';
+    if (r.ap) return 'まず' + name + 'でAPを増やすんや。手数が増えるでの。';
+    if (r.draw) return name + 'で手札を増やしてから考えるんがええ。';
+    if (r.alert < 0) return name + 'で警戒をほぐしとこ。人情が届きやすなるざ。';
+    return name + 'がええ。';
+  }
+  if (d.type === 'ev') {
+    if (d.chainEv && G.lastType === 'ev') return '証拠を続けるなら今や。' + name + 'は「連携」で威力が上がるざ。';
+    if (d.pct && G.shield >= 60) return '心壁が厚い今こそ' + name + 'や。残りの割合で削るでの。';
+    if (r.broke) return name + 'で心壁を割れる！ 割れば犯人は固まって、次の「' + INTENT_TXT[it] + '」も止められるんや。';
+    if (G.shield <= 0) return '心壁はもうないけど、' + name + 'で追い込めば自首も少し進むざ。';
+    if (G.mood === 'guarded') return '頑なな今は小さい証拠が通らん。' + name + 'みたいな重い一撃を選ぶんや。';
+    if (G.mood === 'rage') return '激昂しとる今は証拠がよう刺さる。' + name + 'で心壁を削るんや。';
+    return name + 'で心壁を削るんや。心壁が残っとると人情が届かんでの。';
+  }
+  if (d.perHu && r.tags.some(t => t.startsWith('畳みかけ'))) return '人情を重ねた今や。' + name + 'で畳みかけるんやざ。';
+  if (d.crisisBonus && G.crisis <= 2) return '崖っぷちの今こそ' + name + 'や。2倍で届くざ。';
+  if (d.pierce && G.shield > 0) return name + 'は心壁を貫いて届く。心壁が残っとっても使えるざ。';
+  if (G.lastType === 'ev') return '証拠を見せた直後や。' + name + 'を重ねれば「緩急」で効果アップやざ。';
+  if (G.shield > 0) return name + '……心壁はまだ残っとるけど、今の手札ならこれが一番前に進むざ。';
+  if (G.mood === 'nostalgia') return '今は里心がついとる。' + name + 'がよう効くざ。';
+  if (seq.length > 1 && CARDS[seq[1]].type === 'hu') return name + 'から順に、気持ちを重ねていくんや。';
+  return name + 'で心に訴えるんや。';
+}
+function useKan() {
+  if (G.busy || phase !== 'battle') return;
+  if (G.hint) { say(KN, G.hint.text, KC); return; }
+  if (kanNow() <= 0) { sndBuzz(); addFloat(78, 850, 'クリアで入手！', '#ffb0b0', 18); say('ヒント', '「県民の勘」は説得に成功すると手に入る。難しい難易度ほどたくさんもらえるぞ。', '#9fd3ff'); return; }
+  spendKan(); G.kanUsed++; save();
+  const best = solve(G, D);
+  const first = best.seq[0] || null;
+  G.hint = { id: first, text: hintReason(best.seq) };
+  sndHint(); V.flash = 0.25; V.flashCol = '#fff2b0';
+  say(KN, G.hint.text, KC, 2500);
+}
+
+/* ---------- エフェクト ---------- */
+function makeCracks(cx, cy) {
+  V.cracks = [];
+  for (let i = 0; i < 12; i++) {
+    let a = i / 12 * Math.PI * 2 + rand(-0.2, 0.2), x = cx, y = cy;
+    const pts = [[x, y]], len = rand(160, 420);
+    for (let s = 0; s < 9; s++) {
+      a += rand(-0.45, 0.45); const l = len / 9;
+      x += Math.cos(a) * l; y += Math.sin(a) * l; pts.push([x, y]);
+      if (Math.random() < 0.25) {
+        const b = [[x, y]]; let ba = a + rand(-1.1, 1.1), bx = x, by = y;
+        for (let j = 0; j < 3; j++) { bx += Math.cos(ba) * l * 0.7; by += Math.sin(ba) * l * 0.7; ba += rand(-0.4, 0.4); b.push([bx, by]); }
+        V.cracks.push(b);
+      }
+    }
+    V.cracks.push(pts);
+  }
+  V.crackCenter = [cx, cy]; V.crackT = 2.8;
+}
+
+/* =========================================================
+   UPDATE
+   ========================================================= */
+function update(dt) {
+  if (paused || (rules && phase === 'battle')) return; // ポーズ中・バトル中のルール表示は時間を止める
+  T += dt; GT += dt;
+  tickWaiters();
+  V.shake = Math.max(0, V.shake - dt * 40);
+  V.flash = Math.max(0, V.flash - dt * 2.2);
+  V.cshake = Math.max(0, V.cshake - dt * 2.5);
+  V.shakenT = Math.max(0, V.shakenT - dt);
+  V.crackT = Math.max(0, V.crackT - dt);
+  V.intentPulse = Math.max(0, V.intentPulse - dt);
+  if (V.banner) { V.banner.t += dt; if (V.banner.t > 1.9) V.banner = null; }
+  const sTarget = (phase === 'winning' || phase === 'win') ? 1 : G.sur / 100;
+  V.sunset = lerp(V.sunset, sTarget, Math.min(1, dt * 1.2));
+  V.cx = lerp(V.cx, cliffX(Math.max(G.crisis, 0)), Math.min(1, dt * 3));
+  V.kneel = lerp(V.kneel, V.kneelT, Math.min(1, dt * 1.6));
+  if (phase === 'losing' || phase === 'lose') {
+    if (loseKind === 'crisis') V.culpritA = Math.max(0, V.culpritA - dt * 0.6);
+    V.dark = Math.min(0.62, V.dark + dt * 0.35);
+  }
+  BGM.tempo = 76 + clamp(6 - G.crisis, 0, 6) * 7;
+  BGM.tension = clamp(1 - G.crisis / 6, 0, 1);
+  const windMul = 1 - V.sunset * 0.6;
+  for (const w of V.wind) { w.x -= w.spd * dt * windMul; if (w.x < -80) { w.x = W + rand(0, 60); w.y = rand(20, 500); } }
+  for (const c of V.clouds) { c.x -= c.spd * dt; if (c.x < -c.w - 20) { c.x = W + rand(10, 80); c.y = rand(150, 270); } }
+  V.splashT -= dt;
+  if (V.splashT <= 0) {
+    for (let i = 0; i < 34; i++) V.parts.push({ x: rand(462, 535), y: 506, vx: rand(-60, 30), vy: -rand(90, 260), life: rand(0.8, 1.6), r: rand(2, 5), col: '#ffffff' });
+    sndCrash(); V.splashT = rand(3.5, 6);
+  }
+  for (const p of V.parts) { p.vy += 300 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+  V.parts = V.parts.filter(p => p.life > 0);
+  for (const f of V.floats) { f.life -= dt; f.y -= 34 * dt; }
+  V.floats = V.floats.filter(f => f.life > 0);
+  for (const f of V.flying) f.t += dt;
+  V.flying = V.flying.filter(f => f.t < 0.6);
+  if (dlg && !dlg.done) {
+    const prev = Math.floor(dlg.n);
+    dlg.n += dt * 32;
+    if (Math.floor(dlg.n) > prev && dlg.sp !== NN && (++blipCount % 2 === 0)) sndBlip();
+    if (dlg.n >= dlg.text.length) { dlg.n = dlg.text.length; dlg.done = true; dlg.doneAt = GT; }
+  } else if (dlg && dlg.done && dlgResolve && (GT - dlg.doneAt) * 1000 > dlg.hold) {
+    const r = dlgResolve; dlgResolve = null; r();
+  }
+  layoutHand();
+  for (const c of G.hand) { c.x = lerp(c.x, c.tx, Math.min(1, dt * 12)); c.y = lerp(c.y, c.ty, Math.min(1, dt * 12)); }
+  if (phase === 'win' || phase === 'lose') resultT += dt;
+}
+const CW = 118, CH = 190, HAND_Y = 636;
+function layoutHand() {
+  const n = G.hand.length; if (!n) return;
+  const sp = n > 1 ? Math.min(126, (W - 24 - CW) / (n - 1)) : 0;
+  const x0 = (W - (sp * (n - 1) + CW)) / 2;
+  G.hand.forEach((c, i) => { c.tx = x0 + i * sp; c.ty = HAND_Y + (c === hover ? -26 : 0); });
+}
+
+/* =========================================================
+   RENDER — SCENE
+   ========================================================= */
+function drawSky() {
+  const f = V.sunset;
+  const g = ctx.createLinearGradient(0, 0, 0, 300);
+  g.addColorStop(0, mix('#151a26', '#2b1f5e', f));
+  g.addColorStop(0.55, mix('#343b4b', '#c8484f', f));
+  g.addColorStop(1, mix('#5f6470', '#ffb24f', f));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 300);
+  const sx = 330, sy = 292 - f * 26, sr = 34;
+  const gl = ctx.createRadialGradient(sx, sy, 4, sx, sy, 180);
+  gl.addColorStop(0, `rgba(255,220,150,${0.15 + 0.6 * f})`); gl.addColorStop(1, 'rgba(255,140,60,0)');
+  ctx.fillStyle = gl; ctx.fillRect(0, 0, W, 300);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, 300); ctx.clip();
+  ctx.fillStyle = `rgba(${Math.round(lerp(200, 255, f))},${Math.round(lerp(200, 150, f))},${Math.round(lerp(190, 80, f))},${0.25 + 0.75 * f})`;
+  ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  for (const c of V.clouds) {
+    ctx.fillStyle = mix('#262b36', '#e07a86', f);
+    ctx.globalAlpha = 0.75;
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, c.w / 2, c.h / 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(c.x - c.w * 0.2, c.y - c.h * 0.35, c.w * 0.26, c.h * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = mix('#3a404d', '#ffc08a', f);
+    ctx.beginPath(); ctx.ellipse(c.x + c.w * 0.05, c.y + c.h * 0.22, c.w * 0.42, c.h * 0.18, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = mix('#1e222c', '#3a2442', f);
+  ctx.beginPath(); ctx.moveTo(40, 300); ctx.quadraticCurveTo(70, 284, 110, 286); ctx.quadraticCurveTo(150, 284, 175, 300); ctx.fill();
+}
+function drawSea() {
+  const f = V.sunset;
+  const g = ctx.createLinearGradient(0, 300, 0, SCENE_H);
+  g.addColorStop(0, mix('#3a4656', '#a0507a', f));
+  g.addColorStop(0.3, mix('#1d2a38', '#4a2e5e', f));
+  g.addColorStop(1, mix('#0d1620', '#231a3a', f));
+  ctx.fillStyle = g; ctx.fillRect(0, 300, W, SCENE_H - 300);
+  if (f > 0.03) {
+    for (let i = 0; i < 16; i++) {
+      const y = 302 + i * i * 0.9;
+      const w = 20 + i * 5 + Math.sin(T * 3 + i) * 8;
+      ctx.fillStyle = `rgba(255,190,110,${(0.55 - i * 0.03) * f})`;
+      ctx.fillRect(330 - w / 2 + Math.sin(T * 2 + i * 1.7) * 6, y, w, 1.6 + i * 0.12);
+    }
+  }
+  for (let r = 0; r < 11; r++) {
+    const y0 = 302 + r * r * 1.8 + 3, amp = 1 + r * 0.7, k = 0.03 - r * 0.0015;
+    ctx.strokeStyle = `rgba(220,235,255,${0.08 + r * 0.02})`; ctx.lineWidth = 1 + r * 0.15;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 8) {
+      const y = y0 + Math.sin(x * k + T * (1.2 + r * 0.15) + r) * amp + Math.sin(x * k * 2.3 - T * 1.7) * amp * 0.4;
+      x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+const CLIFF_TOP = [[0, 334], [60, 330], [140, 336], [220, 331], [300, 337], [380, 333], [452, 338]];
+function drawCliff() {
+  const f = V.sunset;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1]));
+  ctx.lineTo(462, 356); ctx.lineTo(472, 380); ctx.lineTo(462, 410); ctx.lineTo(477, 442); ctx.lineTo(467, 472); ctx.lineTo(481, 500); ctx.lineTo(475, SCENE_H); ctx.lineTo(0, SCENE_H); ctx.closePath();
+  const g = ctx.createLinearGradient(0, 340, 0, SCENE_H);
+  g.addColorStop(0, mix('#3d3a3a', '#5a3b3a', f)); g.addColorStop(1, mix('#171717', '#22161c', f));
+  ctx.fillStyle = g; ctx.fill(); ctx.clip();
+  for (let x = -4, i = 0; x < 490; x += 17, i++) {
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.18)';
+    ctx.beginPath(); ctx.moveTo(x, 356); ctx.lineTo(x + 17, 356); ctx.lineTo(x + 15 + (i % 3), SCENE_H); ctx.lineTo(x - 2 + (i % 2) * 3, SCENE_H); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(x, 356); ctx.lineTo(x - 2 + (i % 2) * 3, SCENE_H); ctx.stroke();
+    for (let y = 380 + (i % 3) * 13; y < SCENE_H; y += 40) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 17, y + 4); ctx.stroke(); }
+  }
+  ctx.fillStyle = `rgba(255,150,80,${0.18 * f})`; ctx.fillRect(420, 340, 70, 180);
+  ctx.restore();
+  ctx.beginPath(); ctx.moveTo(0, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1])); ctx.lineTo(462, 356); ctx.lineTo(0, 358); ctx.closePath();
+  const g2 = ctx.createLinearGradient(0, 330, 0, 358);
+  g2.addColorStop(0, mix('#6a6560', '#b07a62', f)); g2.addColorStop(1, mix('#45403d', '#6e4a42', f));
+  ctx.fillStyle = g2; ctx.fill();
+  ctx.strokeStyle = mix('#8a847c', '#ffc290', f); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1])); ctx.lineTo(462, 356); ctx.stroke();
+  ctx.fillStyle = 'rgba(240,248,255,0.75)';
+  ctx.beginPath(); ctx.moveTo(468, SCENE_H);
+  for (let x = 468; x <= W; x += 6) ctx.lineTo(x, 500 + Math.sin(x * 0.12 + T * 3) * 4 + Math.sin(T * 1.3) * 5);
+  ctx.lineTo(W, SCENE_H); ctx.fill();
+}
+function drawWind() {
+  ctx.lineCap = 'round';
+  for (const w of V.wind) {
+    ctx.strokeStyle = `rgba(230,240,255,${w.a * (1 - V.sunset * 0.5)})`; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(w.x + w.len, w.y + Math.sin(T * 4 + w.y) * 2); ctx.stroke();
+  }
+}
+function limb(pts, col, lw) {
+  ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+}
+function circle(x, y, r, col) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+function culpritExpr() {
+  if (phase === 'winning' || phase === 'win' || G.sur >= 60) return 'remorse';
+  if (phase === 'title') return 'angry';
+  if (G.shield <= 0 || G.daze || V.shakenT > 0) return 'shaken';
+  return 'angry';
+}
+function drawCulprit(x, y, expr, k, t, alpha) {
+  if (alpha <= 0.01) return;
+  ctx.save(); ctx.globalAlpha = alpha;
+  const sx = V.cshake > 0 ? (Math.random() - 0.5) * 12 * V.cshake : 0;
+  const tremble = expr === 'shaken' ? Math.sin(t * 45) * 1.3 : 0;
+  ctx.translate(x + sx + tremble, y);
+  const coat = '#3a3f4d', skin = expr === 'shaken' ? '#e2c4ad' : '#e8c3a0', pants = '#24262e';
+  const hipY = lerp(-64, -24, k);
+  const lean = (expr === 'angry' ? -5 : expr === 'remorse' ? -4 : 3) - 12 * k;
+  const shX = lean, shY = hipY - 50 + (expr === 'remorse' ? 4 : 0) + k * 3;
+  [[-7, -13, 10], [6, 9, -2]].forEach(([ox, fx, kx]) => {
+    const knee = [ox + lerp(kx * 0.2, -16, k), lerp(-31, -6, k)];
+    const foot = [lerp(fx, ox + 16, k), lerp(0, -2, k)];
+    limb([[ox, hipY], knee, foot], pants, 9);
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.ellipse(foot[0] - 3 * (1 - k), foot[1] - 1, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  });
+  const flap = -(Math.sin(t * 5.3) * 4 + 6) * (1 - V.sunset * 0.5);
+  ctx.fillStyle = coat;
+  ctx.beginPath(); ctx.moveTo(shX - 14, shY); ctx.lineTo(shX + 14, shY);
+  ctx.lineTo(17, hipY + 14 - k * 6); ctx.lineTo(-17 + flap, hipY + 16 - k * 6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f2f2f2'; ctx.beginPath(); ctx.moveTo(shX - 5, shY); ctx.lineTo(shX + 5, shY); ctx.lineTo(shX, shY + 14); ctx.fill();
+  ctx.strokeStyle = '#a3202a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(shX, shY + 2); ctx.lineTo(shX + 1 + Math.sin(t * 6) * 2, shY + 20); ctx.stroke();
+  const ls = [shX - 12, shY + 4], rs = [shX + 12, shY + 4];
+  let la, ra;
+  if (expr === 'angry') {
+    const w = Math.sin(t * 7) * 3;
+    la = [[shX - 28, shY + 8], [shX - 46, shY + w]];
+    ra = [[shX + 22, shY + 16], [shX + 18, shY - 6]];
+  } else if (expr === 'shaken') {
+    la = [[shX - 25, shY + 12], [shX - 13, shY - 16]];
+    ra = [[shX + 24, shY + 12], [shX + 10, shY - 12]];
+  } else {
+    const hang1 = [shX - 16, shY + 46], hang2 = [shX + 10, shY + 48];
+    la = [[shX - 18, shY + 24], [lerp(hang1[0], -30, k), lerp(hang1[1], -3, k)]];
+    ra = [[shX + 14, shY + 26], [lerp(hang2[0], -16, k), lerp(hang2[1], -3, k)]];
+  }
+  limb([rs, ra[0], ra[1]], '#30343f', 8); circle(ra[1][0], ra[1][1], 4.5, skin);
+  limb([ls, la[0], la[1]], coat, 8); circle(la[1][0], la[1][1], 4.5, skin);
+  const hx = shX - 1 + (expr === 'remorse' ? -3 : 0), hy = shY - 17 + (expr === 'remorse' ? 3 + k * 2 : 0);
+  ctx.save(); ctx.translate(hx, hy); if (expr === 'remorse') ctx.rotate(-0.18 - k * 0.15);
+  circle(0, 0, 14.5, skin);
+  ctx.fillStyle = '#16161c';
+  ctx.beginPath(); ctx.arc(0, -1, 15.5, Math.PI * 1.02, Math.PI * 1.98); ctx.lineTo(14, -2); ctx.lineTo(-14, -3); ctx.fill();
+  for (let i = 0; i < 4; i++) {
+    const wv = Math.sin(t * 9 + i) * 3;
+    ctx.beginPath(); ctx.moveTo(4 + i * 3, -14 + i * 2); ctx.lineTo(20 + i * 2 + wv, -15 + i * 4); ctx.lineTo(8 + i * 3, -9 + i * 3); ctx.fill();
+  }
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  if (expr === 'angry') {
+    ctx.beginPath(); ctx.moveTo(-10, -7); ctx.lineTo(-3, -3); ctx.moveTo(3, -3); ctx.lineTo(10, -7); ctx.stroke();
+    circle(-6, 0, 1.8, '#1a1a1a'); circle(6, 0, 1.8, '#1a1a1a');
+    ctx.fillStyle = '#4a1010'; ctx.beginPath(); ctx.ellipse(0, 8, 5 + Math.sin(t * 10) * 1, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(-3.5, 5.5, 7, 1.5);
+    ctx.strokeStyle = '#e8262b'; ctx.lineWidth = 2.2;
+    const ax = 13, ay = -14;
+    ctx.beginPath(); ctx.arc(ax - 3, ay - 3, 3, 0, Math.PI / 2); ctx.moveTo(ax + 3, ay - 3); ctx.arc(ax + 3, ay - 3, 3, Math.PI / 2, Math.PI);
+    ctx.moveTo(ax + 3, ay + 6); ctx.arc(ax + 3, ay + 3, 3, Math.PI, Math.PI * 1.5); ctx.moveTo(ax - 3, ay + 6); ctx.arc(ax - 3, ay + 3, 3, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+  } else if (expr === 'shaken') {
+    ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-3, -8); ctx.moveTo(3, -8); ctx.lineTo(10, -5); ctx.stroke();
+    circle(-6, 0, 3.4, '#fff'); circle(6, 0, 3.4, '#fff'); circle(-6, 0.5, 1.3, '#111'); circle(6, 0.5, 1.3, '#111');
+    ctx.beginPath(); ctx.moveTo(-5, 9); for (let i = 0; i <= 10; i++) ctx.lineTo(-5 + i, 9 + Math.sin(i * 1.6 + t * 20) * 1.2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(80,120,220,0.7)'; ctx.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-6 + i * 5, -12); ctx.lineTo(-6 + i * 5, -7); ctx.stroke(); }
+    ctx.fillStyle = '#8fd0ff';
+    const sy = -2 + ((t * 30) % 14);
+    ctx.beginPath(); ctx.moveTo(16, sy - 5); ctx.quadraticCurveTo(20, sy + 1, 16, sy + 2); ctx.quadraticCurveTo(12, sy + 1, 16, sy - 5); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.moveTo(-10, -6); ctx.lineTo(-3, -8); ctx.moveTo(3, -8); ctx.lineTo(10, -6); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-6, 0, 3, 0.1 * Math.PI, 0.9 * Math.PI); ctx.moveTo(9, 1); ctx.arc(6, 0, 3, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 12, 4, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();
+    ctx.strokeStyle = 'rgba(140,200,255,0.85)'; ctx.lineWidth = 1.8;
+    const tl = 6 + ((t * 8) % 8);
+    ctx.beginPath(); ctx.moveTo(-6, 3); ctx.lineTo(-7, 3 + tl); ctx.moveTo(6, 3); ctx.lineTo(7, 3 + tl); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.restore();
+}
+function drawDetective(x, y, t) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(1.2, 1.2);
+  const flap = -(Math.sin(t * 5 + 1) * 3 + 5) * (1 - V.sunset * 0.5);
+  limb([[-6, -56], [-8, -28], [-10, 0]], '#2e261f', 9);
+  limb([[6, -56], [8, -28], [10, 0]], '#2e261f', 9);
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.ellipse(-8, -1, 7, 3.5, 0, 0, Math.PI * 2); ctx.ellipse(13, -1, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  const cg = ctx.createLinearGradient(-20, -100, 20, -30);
+  cg.addColorStop(0, mix('#b39566', '#e2a46c', V.sunset)); cg.addColorStop(1, '#7d6440');
+  ctx.fillStyle = cg;
+  ctx.beginPath(); ctx.moveTo(-15, -101); ctx.lineTo(15, -101); ctx.lineTo(20, -34); ctx.lineTo(-19 + flap, -32); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#5c4528'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-16, -66); ctx.lineTo(17, -66); ctx.stroke();
+  const reach = Math.sin(t * 1.6) * 2;
+  limb([[12, -94], [28, -84], [46, -88 + reach]], '#a78958', 8); circle(48, -88 + reach, 4.5, '#e2bb95');
+  limb([[-12, -94], [-18, -72], [-16, -52]], '#a78958', 8); circle(-16, -50, 4.5, '#e2bb95');
+  circle(3, -114, 13, '#e2bb95');
+  ctx.fillStyle = '#1e1a16'; ctx.beginPath(); ctx.arc(0, -114, 13.5, Math.PI * 0.5, Math.PI * 1.5); ctx.fill();
+  circle(6, -112, 2.5, '#d4a985');
+  ctx.fillStyle = '#4a3a2a'; ctx.beginPath(); ctx.ellipse(2, -123, 22, 5, -0.05, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-11, -123); ctx.lineTo(-9, -138); ctx.quadraticCurveTo(2, -142, 13, -138); ctx.lineTo(14, -123); ctx.fill();
+  ctx.fillStyle = '#2a2018'; ctx.fillRect(-11, -128, 25, 4);
+  ctx.restore();
+}
+function bar(x, y, w, h, v, max, c1, c2) {
+  rr(x, y, w, h, h / 2); ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1; ctx.stroke();
+  const p = clamp(v / max, 0, 1);
+  if (p > 0) {
+    rr(x + 2, y + 2, (w - 4) * p, h - 4, (h - 4) / 2);
+    const g = ctx.createLinearGradient(x, y, x, y + h); g.addColorStop(0, c1); g.addColorStop(1, c2);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(x + 4, y + 3, (w - 8) * p, 2);
+  }
+}
+function drawGauges() {
+  rr(10, 10, 520, 86, 12); ctx.fillStyle = 'rgba(8,10,18,0.62)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.font = `bold 16px ${MINCHO}`;
+  ctx.fillStyle = '#9cc6ff'; ctx.fillText('心壁', 22, 33);
+  bar(66, 23, 270, 20, G.shield, G.maxShield, '#7fb2ff', '#2a5bc4');
+  ctx.font = `bold 13px ${GOTH}`; ctx.textAlign = 'right';
+  outlineText(G.shield > 0 ? `${G.shield} / ${G.maxShield}` : '崩壊', 330, 33, G.shield > 0 ? '#fff' : '#ff8080', '#000', 3);
+  ctx.textAlign = 'left'; ctx.font = `bold 16px ${MINCHO}`;
+  ctx.fillStyle = '#ffd36b'; ctx.fillText('自首', 22, 69);
+  bar(66, 59, 270, 20, G.sur, 100, '#ffe28a', '#e2862a');
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.moveTo(66 + 135, 59); ctx.lineTo(66 + 135, 79); ctx.stroke();
+  ctx.font = `bold 13px ${GOTH}`; ctx.textAlign = 'right';
+  outlineText(`${G.sur} / 100`, 330, 69, '#fff', '#000', 3);
+  const danger = G.crisis <= 2 && phase === 'battle';
+  const pulse = danger ? 0.5 + 0.5 * Math.sin(T * 8) : 0;
+  rr(350, 18, 170, 70, 10);
+  ctx.fillStyle = danger ? `rgba(${120 + pulse * 100},20,20,0.75)` : 'rgba(60,20,20,0.6)'; ctx.fill();
+  ctx.strokeStyle = danger ? '#ff5a5a' : 'rgba(255,120,120,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd0d0';
+  ctx.fillText('崖の端まで（危機）', 435, 31);
+  ctx.font = `bold 36px ${MINCHO}`; outlineText(String(Math.max(0, G.crisis)), 420, 62, danger ? '#ffecec' : '#fff', '#400', 4);
+  ctx.font = `bold 15px ${MINCHO}`; ctx.fillStyle = '#ffd0d0'; ctx.fillText('歩', 452, 66);
+  for (let i = 0; i < Math.min(G.crisis, 8); i++) { ctx.fillStyle = 'rgba(255,220,220,0.6)'; ctx.beginPath(); ctx.ellipse(366 + i * 7, 80 + (i % 2) * 3, 2, 3, 0, 0, Math.PI * 2); ctx.fill(); }
+}
+// 犯人の狙い・心境パネル
+function intentInfo() {
+  const it = G.intent, rec = planEnemy(G, D);
+  let main, sub, col = '#ffb0a0', icon = '!';
+  if (it.type === 'atk') {
+    main = `反論 メンタル −${rec.dmg}`;
+    sub = G.daze ? '動揺中：半減済み' : '対策：動揺で半減／心壁破壊で阻止';
+    if (rec.dmg >= G.hp) col = '#ff4040';
+    icon = '怒';
+  } else if (it.type === 'alert') {
+    main = '警戒を強める（警戒+1）'; sub = rec.canceled ? (G.stun ? '心壁破壊で阻止！' : '動揺中：阻止できる') : '対策：動揺させる／心壁破壊'; col = '#ffc070'; icon = '疑';
+  } else if (it.type === 'wall') {
+    main = G.shield === 0 ? `心壁を再構築 +${D.wallAmt}` : `心壁を固める +${D.wallAmt}`; sub = rec.stun ? '心壁破壊で阻止！' : '対策：このターンに心壁を割る'; col = '#9fc4ff'; icon = '壁';
+  } else {
+    main = '大きく後ずさる（2歩）'; sub = rec.eaten ? 'グルメで1歩に抑えた！' : (rec.stun ? '硬直で1歩に' : '対策：グルメを食べさせる'); col = '#ff8a8a'; icon = '退';
+  }
+  if (rec.stun) sub = '心壁破壊で行動を阻止！';
+  return { main, sub, col, icon, regen: rec.regen };
+}
+function drawIntentPanel() {
+  if (phase !== 'battle' || G.turn === 0) return;
+  const inf = intentInfo();
+  const p = V.intentPulse > 0 ? Math.sin(V.intentPulse * 12) * 0.5 + 0.5 : 0;
+  rr(10, 102, 316, 46, 10); ctx.fillStyle = `rgba(40,8,8,${0.75 + p * 0.2})`; ctx.fill();
+  ctx.strokeStyle = inf.col; ctx.lineWidth = 1.5 + p * 2; ctx.stroke();
+  circle(32, 125, 15, inf.col);
+  ctx.font = `bold 16px ${MINCHO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#200'; ctx.fillText(inf.icon, 32, 126);
+  ctx.textAlign = 'left'; ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#d8b0b0'; ctx.fillText('犯人の狙い', 54, 112);
+  ctx.font = `bold 15px ${GOTH}`; ctx.fillStyle = inf.col; ctx.fillText(inf.main, 118, 113);
+  ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#eee';
+  ctx.fillText(inf.sub + (inf.regen ? `　※心壁+${inf.regen}回復` : ''), 54, 135);
+  const md = MOODS[G.mood];
+  rr(332, 102, 198, 46, 10); ctx.fillStyle = 'rgba(10,14,30,0.78)'; ctx.fill();
+  ctx.strokeStyle = md.col; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#aab'; ctx.fillText('心境', 344, 113);
+  ctx.font = `bold 16px ${MINCHO}`; ctx.fillStyle = md.col; ctx.fillText(md.name, 378, 114);
+  ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#eee'; ctx.fillText(md.desc, 344, 135);
+}
+function drawDialogue() {
+  if (!dlg) return;
+  const x = 12, y = 422, w = 516, h = 92;
+  rr(x, y, w, h, 10); ctx.fillStyle = 'rgba(6,8,16,0.82)'; ctx.fill();
+  ctx.strokeStyle = dlg.sp === KN ? KC : 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.font = `bold 14px ${GOTH}`; const sw = ctx.measureText(dlg.sp).width + 22;
+  rr(x + 12, y - 12, sw, 24, 6); ctx.fillStyle = '#0b0d18'; ctx.fill(); ctx.strokeStyle = dlg.col; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = dlg.col; ctx.fillText(dlg.sp, x + 23, y);
+  ctx.font = `17px ${MINCHO}`; ctx.fillStyle = '#f4f1ea';
+  const shown = dlg.text.slice(0, Math.floor(dlg.n));
+  const lines = wrap(shown, w - 36).slice(0, 3);
+  lines.forEach((l, i) => ctx.fillText(l, x + 18, y + 28 + i * 24));
+  if (dlg.done && dlgResolve && G.busy) {
+    ctx.fillStyle = `rgba(255,255,255,${0.5 + 0.5 * Math.sin(T * 6)})`;
+    ctx.beginPath(); ctx.moveTo(x + w - 22, y + h - 18); ctx.lineTo(x + w - 12, y + h - 18); ctx.lineTo(x + w - 17, y + h - 11); ctx.fill();
+  }
+}
+function drawScene() {
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, SCENE_H); ctx.clip();
+  drawSky(); drawSea(); drawCliff();
+  for (const p of V.parts) { ctx.globalAlpha = clamp(p.life, 0, 1) * 0.85; circle(p.x, p.y, p.r, p.col); }
+  ctx.globalAlpha = 1;
+  drawDetective(105, 356, T);
+  drawCulprit(V.cx, 340, culpritExpr(), V.kneel, T, V.culpritA);
+  drawWind();
+  if (phase === 'battle' && G.crisis <= 2) {
+    const a = 0.25 + 0.15 * Math.sin(T * 6);
+    const vg = ctx.createRadialGradient(W / 2, 260, 150, W / 2, 260, 420);
+    vg.addColorStop(0, 'rgba(120,0,0,0)'); vg.addColorStop(1, `rgba(150,0,0,${a})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, SCENE_H);
+  }
+  const fg = ctx.createLinearGradient(0, SCENE_H - 30, 0, SCENE_H); fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, 'rgba(0,0,0,0.6)');
+  ctx.fillStyle = fg; ctx.fillRect(0, SCENE_H - 30, W, 30);
+  if (phase !== 'title') { drawGauges(); drawIntentPanel(); }
+  ctx.restore();
+}
+
+/* =========================================================
+   RENDER — UI
+   ========================================================= */
+let hover = null, mouse = { x: -1, y: -1 }, hoverBtn = null;
+const BTN = { x: 150, y: 872, w: 240, h: 62 };
+const KAN = { x: 14, y: 872, w: 126, h: 62 };
+const PAUSE = { x: 400, y: 872, w: 126, h: 62 };
+// ポーズメニュー
+const PM = {
+  resume:  { x: 110, y: 300, w: 320, h: 66 },
+  restart: { x: 110, y: 384, w: 320, h: 66 },
+  diff:    { x: 110, y: 468, w: 320, h: 66 },
+  rules:   { x: 110, y: 552, w: 155, h: 56 },
+  sound:   { x: 275, y: 552, w: 155, h: 56 },
+};
+let pmConfirm = null; // 'restart' | 'diff'（2回タップで実行）
+function setDuck(on) {
+  if (!SND.master || SND.muted) return;
+  const t = SND.ctx.currentTime; SND.master.gain.cancelScheduledValues(t);
+  SND.master.gain.setTargetAtTime(on ? 0.25 : 0.8, t, 0.08);
+}
+function openPause() {
+  if (phase !== 'battle' || paused) return;
+  paused = true; pmConfirm = null; sndClick(); setDuck(true);
+}
+function closePause() { paused = false; pmConfirm = null; sndClick(); setDuck(false); }
+function drawPause() {
+  if (!paused) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0, 0, W, H);
+  rr(70, 150, 400, 500, 18); ctx.fillStyle = 'rgba(16,16,26,0.97)'; ctx.fill();
+  ctx.strokeStyle = '#8a6b3a'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `bold 34px ${MINCHO}`; outlineText('一時停止', W / 2, 200, '#ffe2a0', '#000', 5);
+  ctx.font = `13px ${GOTH}`; ctx.fillStyle = '#aaa';
+  ctx.fillText(`【${D.name}】 No.${caseNo(G.seed)}　第${G.turn}幕　自首 ${G.sur}/100　崖まで ${G.crisis}歩`, W / 2, 250);
+  button(PM.resume, '再開する', null, '#2e8a50', '#14482a', true, false, hoverBtn === 'pm_resume');
+  const cr = pmConfirm === 'restart', cd = pmConfirm === 'diff';
+  button(PM.restart, cr ? '本当にやり直す？' : '最初からやり直す', cr ? 'もう一度タップで実行' : '同じ事件を1ターン目から', cr ? '#c43a2a' : '#7a4a1a', cr ? '#6a1410' : '#3a2008', true, cr, hoverBtn === 'pm_restart');
+  button(PM.diff, cd ? '本当に戻る？' : '難易度を選び直す', cd ? 'もう一度タップで実行' : 'タイトル画面へ戻る', cd ? '#c43a2a' : '#2a4a7a', cd ? '#6a1410' : '#152540', true, cd, hoverBtn === 'pm_diff');
+  button(PM.rules, 'ルール', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'pm_rules');
+  button(PM.sound, SND.muted ? '音：OFF' : '音：ON', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'pm_sound');
+  ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888';
+  ctx.fillText('※やり直しても、使った県民の勘は戻りません', W / 2, 628);
+}
+const MUTE = { x: 488, y: 528, w: 42, h: 34 };
+function drawIcon(type, x, y) {
+  ctx.save(); ctx.translate(x, y); ctx.lineWidth = 3; ctx.lineCap = 'round';
+  if (type === 'ev') {
+    ctx.strokeStyle = '#1d3f8a'; ctx.beginPath(); ctx.arc(-3, -3, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(120,180,255,0.35)'; ctx.fill();
+    ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(13, 13); ctx.stroke();
+  } else if (type === 'hu') {
+    ctx.fillStyle = '#e0505f';
+    ctx.beginPath(); ctx.moveTo(0, 12); ctx.bezierCurveTo(-18, 0, -12, -16, 0, -6); ctx.bezierCurveTo(12, -16, 18, 0, 0, 12); ctx.fill();
+  } else {
+    ctx.strokeStyle = 'rgba(150,80,60,0.7)'; ctx.lineWidth = 2;
+    for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(i * 6, -4); ctx.quadraticCurveTo(i * 6 + 4, -10, i * 6, -15); ctx.stroke(); }
+    ctx.fillStyle = '#8a2a20'; ctx.beginPath(); ctx.moveTo(-15, -1); ctx.lineTo(15, -1); ctx.quadraticCurveTo(13, 13, 0, 13); ctx.quadraticCurveTo(-13, 13, -15, -1); ctx.fill();
+    ctx.fillStyle = '#e8b04a'; ctx.fillRect(-13, -3, 26, 3);
+  }
+  ctx.restore();
+}
+const TYPE = {
+  ev: { label: '証拠', col: '#2f6fd6', dark: '#173a7a' },
+  hu: { label: '人情', col: '#2e9e5b', dark: '#155a32' },
+  gu: { label: 'グルメ', col: '#d6453a', dark: '#7a1d17' },
+};
+// 現在の状況で使ったときの実際の効果をプレビュー
+function previewLines(id) {
+  const s = makeSim(G); const r = cardEffect(s, id, D); const d = CARDS[id];
+  const L = [];
+  if (r.shieldDmg) L.push([(r.broke ? '心壁 −' + r.shieldDmg + ' 破壊!' : '心壁 −' + r.shieldDmg), r.broke ? '#c0161e' : '#1d3f8a']);
+  if (r.sur) L.push(['自首 +' + r.sur, '#1c6b3c']);
+  if (r.step) L.push(['犯人を1歩戻す', '#1c6b3c']);
+  if (r.daze) L.push(['動揺させる', '#8a2a20']);
+  if (r.boostHu) L.push(['次の人情×1.5', '#1c6b3c']);
+  if (r.boostEv) L.push(['次の証拠×1.5', '#1d3f8a']);
+  if (r.hpCost) L.push(['メンタル −' + r.hpCost, '#b0101a']);
+  if (r.heal) L.push(['メンタル +' + r.heal, '#1c6b3c']);
+  if (r.ap) L.push(['AP +' + r.ap, '#7a5a00']);
+  if (r.draw) L.push([r.draw + '枚ドロー', '#333']);
+  if (r.alert) L.push(['警戒 ' + (r.alert > 0 ? '+' : '') + r.alert, r.alert > 0 ? '#b03000' : '#333']);
+  if (!L.length) L.push(['効果なし…', '#a32020']);
+  return { L: L.slice(0, 4), tags: r.tags };
+}
+function drawCard(c, x, y, sc, alpha, isHover, usable, glow) {
+  const d = c.def, ty = TYPE[d.type];
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.translate(x + CW / 2, y + CH / 2); ctx.scale(sc, sc); ctx.translate(-CW / 2, -CH / 2);
+  if (glow) { ctx.shadowColor = '#ffd84a'; ctx.shadowBlur = 22 + Math.sin(T * 6) * 8; }
+  else { ctx.shadowColor = isHover ? ty.col : 'rgba(0,0,0,0.6)'; ctx.shadowBlur = isHover ? 18 : 8; }
+  ctx.shadowOffsetY = 3;
+  rr(0, 0, CW, CH, 10);
+  const g = ctx.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, ty.col); g.addColorStop(1, ty.dark);
+  ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = glow ? '#ffd84a' : (isHover ? '#fff' : 'rgba(255,255,255,0.5)'); ctx.lineWidth = glow ? 4 : (isHover ? 2.5 : 1.5); ctx.stroke();
+  rr(6, 28, CW - 12, CH - 34, 6); ctx.fillStyle = '#f4ecd8'; ctx.fill();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `bold 13px ${GOTH}`; ctx.fillStyle = '#fff'; ctx.fillText('【' + ty.label + '】', CW / 2 + 8, 15);
+  circle(15, 15, 12, '#2a2010'); circle(15, 15, 10.5, '#f0c84a');
+  ctx.font = `bold 15px ${GOTH}`; ctx.fillStyle = '#2a2010'; ctx.fillText(d.cost, 15, 16);
+  drawIcon(d.type, CW / 2, 50);
+  if (d.r === 3) { ctx.font = `bold 13px ${GOTH}`; ctx.fillStyle = '#c08a00'; ctx.fillText('★レア', CW - 26, 40); }
+  else if (d.r === 2) { ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#8a7a5a'; ctx.fillText('◆', CW - 16, 40); }
+  ctx.font = `bold 13px ${MINCHO}`; ctx.fillStyle = '#1b1b1b';
+  const nl = wrap(d.name, CW - 18).slice(0, 2);
+  nl.forEach((l, i) => ctx.fillText(l, CW / 2, 78 + i * 16));
+  const ly = 78 + nl.length * 16 - 4;
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(14, ly); ctx.lineTo(CW - 14, ly); ctx.stroke();
+  const pv = previewLines(c.id);
+  ctx.font = `bold 12px ${GOTH}`;
+  pv.L.forEach((l, i) => { ctx.fillStyle = l[1]; ctx.fillText(l[0], CW / 2, ly + 13 + i * 15); });
+  if (pv.tags.length) {
+    ctx.font = `10px ${GOTH}`; ctx.fillStyle = '#9a5a00';
+    const tl = wrap(pv.tags.join(' '), CW - 14).slice(0, 2);
+    tl.forEach((t, i) => ctx.fillText(t, CW / 2, CH - 22 + i * 12 - (tl.length - 1) * 12));
+  }
+  if (glow) {
+    rr(CW - 30, -10, 38, 24, 12); ctx.fillStyle = '#ffd84a'; ctx.fill();
+    ctx.font = `bold 13px ${MINCHO}`; ctx.fillStyle = '#4a2a00'; ctx.fillText('勘!', CW - 11, 3);
+  }
+  if (!usable) { rr(0, 0, CW, CH, 10); ctx.fillStyle = 'rgba(20,20,30,0.5)'; ctx.fill(); }
+  ctx.restore();
+}
+function button(r, label, sub, c1, c2, enabled, glow, hov) {
+  ctx.save();
+  if (glow) { ctx.shadowColor = '#ffd84a'; ctx.shadowBlur = 18 + Math.sin(T * 6) * 8; }
+  else if (enabled && hov) { ctx.shadowColor = c1; ctx.shadowBlur = 16; }
+  rr(r.x, r.y, r.w, r.h, 14);
+  const bg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+  if (enabled) { bg.addColorStop(0, c1); bg.addColorStop(1, c2); } else { bg.addColorStop(0, '#444'); bg.addColorStop(1, '#222'); }
+  ctx.fillStyle = bg; ctx.fill(); ctx.restore();
+  ctx.strokeStyle = glow ? '#ffd84a' : (enabled ? 'rgba(255,255,255,0.6)' : '#555'); ctx.lineWidth = glow ? 3 : 2; rr(r.x, r.y, r.w, r.h, 14); ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (sub) {
+    ctx.font = `bold 18px ${MINCHO}`; outlineText(label, r.x + r.w / 2, r.y + r.h / 2 - 9, enabled ? '#fff' : '#999', '#000', 4);
+    ctx.font = `bold 12px ${GOTH}`; ctx.fillStyle = enabled ? '#ffe9b0' : '#888'; ctx.fillText(sub, r.x + r.w / 2, r.y + r.h / 2 + 14);
+  } else {
+    ctx.font = `bold 21px ${MINCHO}`; outlineText(label, r.x + r.w / 2, r.y + r.h / 2 + 1, enabled ? '#fff' : '#999', '#000', 4);
+  }
+}
+function drawUI() {
+  const bg = ctx.createLinearGradient(0, SCENE_H, 0, H);
+  bg.addColorStop(0, '#1a1d28'); bg.addColorStop(1, '#0b0c12');
+  ctx.fillStyle = bg; ctx.fillRect(0, SCENE_H, W, H - SCENE_H);
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let y = SCENE_H; y < H; y += 6) ctx.fillRect(0, y, W, 1);
+  ctx.strokeStyle = '#8a6b3a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, SCENE_H + 1); ctx.lineTo(W, SCENE_H + 1); ctx.stroke();
+  if (phase === 'title') return;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `bold 14px ${GOTH}`;
+  ctx.fillStyle = '#ffb0b0'; ctx.fillText('メンタル', 16, 546);
+  bar(86, 536, 190, 20, G.hp, G.maxHp, '#ff8a8a', '#c42a3a');
+  ctx.font = `bold 12px ${GOTH}`; ctx.textAlign = 'center'; outlineText(`${G.hp} / ${G.maxHp}`, 181, 546, '#fff', '#000', 3);
+  ctx.textAlign = 'left'; ctx.font = `bold 16px ${GOTH}`; ctx.fillStyle = '#ffe07a'; ctx.fillText('AP', 296, 546);
+  const n = Math.min(4, Math.max(3, G.ap));
+  if (G.ap > 4) { ctx.font = `bold 15px ${GOTH}`; ctx.fillStyle = '#ffe07a'; ctx.fillText('×' + G.ap, 334 + 4 * 24 - 8, 546); }
+  for (let i = 0; i < n; i++) {
+    const ox = 334 + i * 24, on = i < G.ap;
+    circle(ox, 546, 11, on ? '#5a4000' : '#222');
+    if (on) { const gg = ctx.createRadialGradient(ox - 3, 543, 1, ox, 546, 11); gg.addColorStop(0, '#fff6c0'); gg.addColorStop(1, '#e8a820'); circle(ox, 546, 9, gg); }
+    else { ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ox, 546, 9, 0, Math.PI * 2); ctx.stroke(); }
+  }
+  rr(MUTE.x, MUTE.y, MUTE.w, MUTE.h, 8); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+  ctx.textAlign = 'center'; ctx.font = `bold 16px ${GOTH}`; ctx.fillStyle = SND.muted ? '#777' : '#ddd';
+  ctx.fillText(SND.muted ? '✕' : '♪', MUTE.x + MUTE.w / 2, MUTE.y + MUTE.h / 2 + 1);
+  ctx.textAlign = 'left'; ctx.font = `bold 13px ${GOTH}`;
+  let sx = 16;
+  const chip = (txt, col, bgc) => { const w = ctx.measureText(txt).width + 16; rr(sx, 572, w, 24, 12); ctx.fillStyle = bgc; ctx.fill(); ctx.fillStyle = col; ctx.fillText(txt, sx + 8, 585); sx += w + 6; };
+  chip(D.name, D.col, 'rgba(255,255,255,0.1)');
+  chip(`TURN ${G.turn}`, '#ddd', 'rgba(255,255,255,0.1)');
+  chip(`警戒 Lv.${G.alert}`, G.alert >= 2 ? '#ffb347' : '#ccc', G.alert >= 2 ? 'rgba(160,80,0,0.4)' : 'rgba(255,255,255,0.08)');
+  if (G.daze) chip('動揺中', '#ffd0a0', 'rgba(200,60,40,0.45)');
+  if (G.ate) chip('満腹', '#ffd0a0', 'rgba(200,100,40,0.35)');
+  if (G.lastType === 'ev' && phase === 'battle') chip('緩急', '#b0ffc8', 'rgba(40,140,80,0.4)');
+  if (G.boostHu) chip('人情↑', '#b0ffc8', 'rgba(40,140,80,0.4)');
+  if (G.boostEv) chip('証拠↑', '#b0d8ff', 'rgba(40,80,160,0.45)');
+  ctx.textAlign = 'right'; ctx.fillStyle = '#999'; ctx.font = `11px ${GOTH}`;
+  ctx.fillText(`山札${G.deck.length} 捨札${G.disc.length}`, 526, 585);
+  const usableAll = !G.busy && phase === 'battle';
+  const hintCard = G.hint && G.hint.id ? G.hand.find(c => c.id === G.hint.id) : null;
+  for (const c of G.hand) if (c !== hover) drawCard(c, c.x, c.y, 1, 1, false, usableAll && c.def.cost <= G.ap, c === hintCard);
+  if (hover && G.hand.includes(hover)) drawCard(hover, hover.x, hover.y, 1.06, 1, true, usableAll && hover.def.cost <= G.ap, hover === hintCard);
+  for (const f of V.flying) {
+    const p = clamp(f.t / 0.55, 0, 1), e = 1 - Math.pow(1 - p, 3);
+    if (f.kind === 'play') drawCard(f.c, lerp(f.c.x, W / 2 - CW / 2, e), lerp(f.c.y, 150, e), 1 + 0.35 * e, 1 - p * p, true, true, false);
+    else drawCard(f.c, lerp(f.c.x, W - 40, e), lerp(f.c.y, 900, e), 1 - 0.5 * e, 1 - p, false, true, false);
+  }
+  ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#9aa';
+  let hint = 'カードをタップして使用（数値は今の状況での効果）';
+  if (G.busy) hint = '……';
+  else if (G.ap === 0 || !G.hand.some(c => c.def.cost <= G.ap)) hint = '使えるカードがない。ターン終了しよう';
+  ctx.fillText(hint, W / 2, 852);
+  const en = !G.busy && phase === 'battle';
+  button(KAN, '県民の勘', `残り ×${kanNow()}`, '#8a6a10', '#4a3500', en && kanNow() > 0 || (en && !!G.hint), false, hoverBtn === 'kan');
+  button(BTN, G.turn === 0 ? '開幕前' : (G.busy ? '犯人のターン' : 'ターン終了'), null, '#c43a2a', '#6a1410', en, !!(G.hint && !G.hint.id), hoverBtn === 'end');
+  button(PAUSE, 'ポーズ', 'やり直し・設定', '#2a4a7a', '#152540', phase === 'battle', false, hoverBtn === 'pause');
+}
+
+/* =========================================================
+   RENDER — OVERLAYS
+   ========================================================= */
+function drawFloats() {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const f of V.floats) {
+    const a = clamp(f.life / f.max * 1.6, 0, 1);
+    const s = 1 + Math.max(0, (f.life - f.max + 0.15)) * 4;
+    ctx.globalAlpha = a; ctx.font = `bold ${Math.round(f.size * s)}px ${GOTH}`;
+    outlineText(f.text, f.x, f.y, f.col, '#000', 5);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawCracks() {
+  if (V.crackT <= 0 || !V.cracks.length) return;
+  const a = Math.min(1, V.crackT / 1.0);
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const pts of V.cracks) {
+    ctx.strokeStyle = `rgba(0,0,0,${0.6 * a})`; ctx.lineWidth = 4;
+    ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0] + 1.5, p[1] + 1.5) : ctx.moveTo(p[0] + 1.5, p[1] + 1.5)); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${0.95 * a})`; ctx.lineWidth = 1.8;
+    ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke();
+  }
+  const [cx, cy] = V.crackCenter;
+  ctx.strokeStyle = `rgba(255,255,255,${0.8 * a})`; ctx.lineWidth = 2;
+  ctx.beginPath(); for (let i = 0; i <= 12; i++) { const an = i / 12 * Math.PI * 2, r = 26 + (i % 2) * 10; i ? ctx.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r) : ctx.moveTo(cx + r, cy); } ctx.stroke();
+  ctx.restore();
+}
+function drawBanner() {
+  if (!V.banner) return;
+  const b = V.banner, t = b.t;
+  const s = t < 0.18 ? lerp(2.4, 1, t / 0.18) : 1;
+  const a = t > 1.4 ? 1 - (t - 1.4) / 0.5 : 1;
+  ctx.save(); ctx.globalAlpha = clamp(a, 0, 1);
+  ctx.translate(W / 2, 270); ctx.scale(s, s); ctx.rotate(-0.06);
+  rr(-200, -38, 400, 76, 6); ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fill();
+  ctx.strokeStyle = b.col; ctx.lineWidth = 3; ctx.stroke();
+  ctx.font = `bold 40px ${MINCHO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  outlineText(b.text, 0, 2, b.col, '#000', 7);
+  ctx.restore();
+}
+// タイトル：難易度選択
+const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 330 + i * 92, w: 460, h: 80, d }));
+const T_RULE = { x: 40, y: 712, w: 146, h: 56 }, T_MY = { x: 197, y: 712, w: 146, h: 56 }, T_RANK = { x: 354, y: 712, w: 146, h: 56 };
+function drawTitle() {
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `bold 20px ${MINCHO}`; outlineText('東尋坊サスペンス劇場', W / 2, 90, '#ffe2a0', '#000', 5);
+  ctx.save(); ctx.translate(W / 2, 150); ctx.rotate(-0.04);
+  ctx.font = `bold 52px ${MINCHO}`; outlineText('崖っぷち説得隊', 0, 0, '#ff4a3a', '#1a0000', 9);
+  ctx.restore();
+  ctx.font = `14px ${GOTH}`; ctx.fillStyle = '#ddd'; ctx.fillText('〜 証拠と人情と福井グルメで、犯人を自首させろ 〜', W / 2, 202);
+  ctx.font = `bold 18px ${MINCHO}`; outlineText('― 難易度を選んで開幕 ―', W / 2, 300, '#fff', '#000', 4);
+  DIFF_BTNS.forEach((b, i) => {
+    const d = b.d, hov = hoverBtn === 'd' + i;
+    ctx.save();
+    if (hov) { ctx.shadowColor = d.col; ctx.shadowBlur = 20; }
+    rr(b.x, b.y, b.w, b.h, 14); ctx.fillStyle = hov ? 'rgba(30,22,16,0.95)' : 'rgba(14,12,20,0.9)'; ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = d.col; ctx.lineWidth = hov ? 3 : 1.5; rr(b.x, b.y, b.w, b.h, 14); ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.font = `bold 26px ${MINCHO}`; outlineText(d.name, b.x + 20, b.y + 28, d.col, '#000', 4);
+    // 難易度の星
+    ctx.font = `14px ${GOTH}`; ctx.fillStyle = d.col; ctx.fillText('★'.repeat(i + 1) + '☆'.repeat(3 - i), b.x + 172, b.y + 29);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ccc'; ctx.fillText(d.sub, b.x + 20, b.y + 58);
+    ctx.textAlign = 'right';
+    const cl = SAVE.clear[d.key];
+    ctx.font = `bold 13px ${GOTH}`;
+    if (cl != null) { ctx.fillStyle = '#ffd56b'; ctx.fillText('クリア済　ランク ' + RANKS[cl], b.x + b.w - 16, b.y + 28); }
+    else { ctx.fillStyle = '#777'; ctx.fillText('未クリア', b.x + b.w - 16, b.y + 28); }
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('勘 +' + d.reward, b.x + b.w - 16, b.y + 58);
+  });
+  button(T_RULE, 'ルール説明', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'trule');
+  button(T_MY, 'マイページ', null, '#2e6a50', '#14382a', true, false, hoverBtn === 'tmy');
+  button(T_RANK, '番付', null, '#8a6a10', '#4a3500', true, false, hoverBtn === 'trank');
+  rr(40, 780, 460, 48, 12); ctx.fillStyle = 'rgba(40,30,8,0.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,213,107,0.6)'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.font = `bold 15px ${MINCHO}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('県民の勘', 58, 805);
+  ctx.font = `bold 19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 805, '#fff', '#000', 4);
+  const acc = typeof SyncManager !== 'undefined' && SyncManager ? SyncManager.account() : null;
+  ctx.textAlign = 'right'; ctx.font = `13px ${GOTH}`; ctx.fillStyle = acc ? '#b0ffc8' : '#aaa';
+  ctx.fillText(acc ? `${displayName()}　ログイン中` : `${displayName()}　未ログイン`, 484, 805);
+  ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#999';
+  ctx.fillText('県民の勘：クリアで入手。バトル中に使うと、その場の最善手を1つ教えてくれる', W / 2, 852);
+  ctx.fillText('※音が出ます', W / 2, 876);
+}
+// ルール説明
+const RULE_PAGES = [
+  { title: '目的', items: [
+    ['#ffd56b', '崖に追い詰められた犯人を説得し、「自首メーター」を100にすれば勝ち。'],
+    ['#ff9a9a', '「崖の端まで（危機）」が0歩になるか、刑事の「メンタル」が0になると失敗。'],
+    ['#ddd', '毎ターン AP が回復し、カードを4枚引く。使わなかった手札はターン終了で捨てられる。'],
+    ['#ddd', '犯人は毎ターン1歩ずつ崖へ下がる。自首メーターが50を超えると、一度だけ1歩戻ってくる。'],
+    ['#9fc4ff', '右下の「ポーズ」で一時停止。最初からやり直す・難易度を選び直すこともできる（PCは Esc キーでも可）。'],
+  ] },
+  { title: '3つのカード', items: [
+    ['#7fb2ff', '【証拠】（青）　犯人の「心壁」を削る。心壁を割ると犯人は硬直し、その次の行動を止められる。'],
+    ['#6bd98f', '【人情】（緑）　自首メーターを上げる。ただし心壁が残っていると大きく弱まる（難易度が高いほど効かない）。'],
+    ['#ff7a6a', '【グルメ】（赤）　動揺させる・AP回復・ドローなど。食べさせると犯人の足も止まりやすい。'],
+    ['#b0ffc8', '「緩急」：証拠を使った直後の人情は ×1.3。カードを使う順番も大事！'],
+    ['#ffe9b0', 'カードは全48種類。毎回ランダムに山札が組まれる。★レアは強力、◆はときどき出るカード。'],
+  ] },
+  { title: 'カードの特殊効果', items: [
+    ['#7fb2ff', '連携：直前に証拠を使っていると追加ダメージ。'],
+    ['#7fb2ff', '割合：残り心壁の◯%を削る。心壁が厚いほど強い。'],
+    ['#7fb2ff', '破壊ボーナス：そのカードで心壁を割ると自首も上がる。'],
+    ['#6bd98f', '畳みかけ：そのターンに使った人情の枚数だけ強くなる。'],
+    ['#6bd98f', '貫く：心壁が残っていても弱まらない。'],
+    ['#6bd98f', '崖っぷち：残り2歩以下で×2。「一歩、話そっさ」は犯人を1歩引き戻す。'],
+    ['#ff7a6a', '次の人情・証拠×1.5：グルメで気を緩ませてから使うと効果アップ。'],
+    ['#ff9a9a', '一部の強いカードは刑事のメンタルを削る。使いどころに注意。'],
+  ] },
+  { title: '犯人を読め', items: [
+    ['#ffb0a0', '画面左上の「犯人の狙い」に、次の行動と対策が出る。反論→動揺で半減／警戒→動揺で阻止／心壁を固める→このターンに割る／後ずさる→グルメで1歩に。'],
+    ['#cfd8e8', '「心境」は毎ターン変わる。郷愁なら人情、激昂なら証拠が効く。頑なだと小さな証拠は通らない。'],
+    ['#ffe9b0', 'カードに書かれた数値は「今使ったらどうなるか」。心境や心壁による増減も反映済み。'],
+    ['#ff9a5a', 'むずかしい以上：心壁が毎ターン回復／同じカード2枚目は半減／警戒が高いほど人情が効かない。'],
+  ] },
+  { title: '県民の勘', items: [
+    ['#ffd56b', '説得に成功すると「県民の勘」が手に入る（かんたん・ふつう +1、むずかしい +2、崖っぷち +3）。'],
+    ['#ffd56b', 'バトル中に左下の「県民の勘」を押すと1つ消費して、その場で一番良い一手を教えてくれる。おすすめのカードが金色に光る。'],
+    ['#ddd', '勘は手札の範囲で最善を計算する。引いてくるカードまでは読めないので、ここぞという場面で使おう。'],
+    ['#ddd', '勘は保存され、次のプレイにも持ち越せる。マイページでログインすると、ほかの端末とも同期できる。'],
+    ['#ffd56b', 'タイトルの「番付」では、難易度ごとの説得スコアを競える（ログインして参加した人だけ）。'],
+    ['#b0ffc8', 'どの事件も「その場で見えている情報だけで正しく打てばクリアできる」ことを開始前に確認済み。運任せの事件は出ない。'],
+  ] },
+];
+const R_PREV = { x: 40, y: 830, w: 140, h: 54 }, R_NEXT = { x: 360, y: 830, w: 140, h: 54 }, R_SKIP = { x: 200, y: 830, w: 140, h: 54 };
+function drawRules() {
+  if (!rules) return;
+  const pg = RULE_PAGES[rules.page];
+  ctx.fillStyle = 'rgba(0,0,0,0.78)'; ctx.fillRect(0, 0, W, H);
+  rr(24, 70, 492, 740, 16); ctx.fillStyle = 'rgba(16,16,26,0.96)'; ctx.fill();
+  ctx.strokeStyle = '#8a6b3a'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `13px ${GOTH}`; ctx.fillStyle = '#aaa'; ctx.fillText(`ルール説明　${rules.page + 1} / ${RULE_PAGES.length}`, W / 2, 104);
+  ctx.font = `bold 34px ${MINCHO}`; outlineText(pg.title, W / 2, 148, '#ffe2a0', '#000', 5);
+  let y = 210;
+  ctx.textAlign = 'left';
+  for (const [col, text] of pg.items) {
+    ctx.font = `16px ${GOTH}`;
+    const lines = wrap(text, 420);
+    circle(56, y + 2, 5, col);
+    ctx.fillStyle = col === '#ddd' ? '#eee' : col;
+    lines.forEach((l, i) => ctx.fillText(l, 72, y + i * 26));
+    y += lines.length * 26 + 26;
+  }
+  // 小さな図解：1ページ目は危機、2ページ目はカード
+  if (rules.page === 1) {
+    ['ev', 'hu', 'gu'].forEach((t, i) => {
+      const x = 96 + i * 130, yy = 700;
+      rr(x, yy, 90, 70, 10); ctx.fillStyle = TYPE[t].col; ctx.fill();
+      drawIcon(t, x + 45, yy + 28);
+      ctx.textAlign = 'center'; ctx.font = `bold 14px ${GOTH}`; ctx.fillStyle = '#fff'; ctx.fillText(TYPE[t].label, x + 45, yy + 56);
+    });
+  }
+  ctx.textAlign = 'center';
+  ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888'; ctx.fillText('画面外をタップしても進めます', W / 2, 790);
+  button(R_PREV, '前へ', null, '#3a3a4a', '#20202a', rules.page > 0, false, hoverBtn === 'rprev');
+  button(R_SKIP, rules.fromTitle ? 'とばす' : 'とじる', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'rskip');
+  const last = rules.page === RULE_PAGES.length - 1;
+  button(R_NEXT, last ? (rules.fromTitle ? 'はじめる' : 'とじる') : '次へ', null, '#c43a2a', '#6a1410', true, false, hoverBtn === 'rnext');
+}
+function openRules(fromTitle, onClose) { rules = { page: 0, fromTitle, onClose }; }
+function closeRules() { const cb = rules && rules.onClose; rules = null; SAVE.seenRules = true; save(); if (cb) cb(); }
+
+const RETRY = { x: 40, y: 680, w: 220, h: 60 }, NEWCASE = { x: 280, y: 680, w: 220, h: 60 }, TOTITLE = { x: 150, y: 756, w: 240, h: 56 };
+function drawResult() {
+  const a = clamp(resultT / 1.0, 0, 1);
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.fillStyle = phase === 'win' ? 'rgba(40,15,0,0.55)' : 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (phase === 'win') {
+    ctx.font = `bold 22px ${MINCHO}`; outlineText(`―― 事件解決【${D.name}】――`, W / 2, 260, '#ffe2a0', '#000', 5);
+    ctx.font = `bold 60px ${MINCHO}`; outlineText('自首成立', W / 2, 330, '#ffcf5a', '#3a1500', 9);
+    const rank = G.turn <= 3 ? 'S' : G.turn <= 4 ? 'A' : G.turn <= 5 ? 'B' : 'C';
+    ctx.font = `16px ${GOTH}`; ctx.fillStyle = '#fff';
+    ctx.fillText(`かかったターン：${G.turn}　残りメンタル：${G.hp}　使った勘：${G.kanUsed}`, W / 2, 386);
+    ctx.font = `bold 18px ${GOTH}`; outlineText(`説得スコア ${rankScore(D.key, G.turn, G.hp).toLocaleString()}` + (G.bestUp ? '（自己ベスト！）' : ''), W / 2, 414, G.bestUp ? '#ffe86a' : '#fff', '#000', 4);
+    ctx.font = `bold 34px ${MINCHO}`; outlineText(`説得ランク ${rank}` + (newRecord ? '  NEW!' : ''), W / 2, 450, rank === 'S' ? '#ffe86a' : '#fff', '#000', 6);
+    const pop = clamp((resultT - 0.8) * 3, 0, 1);
+    ctx.save(); ctx.translate(W / 2, 530); ctx.scale(0.6 + pop * 0.4, 0.6 + pop * 0.4);
+    rr(-190, -36, 380, 72, 14); ctx.fillStyle = 'rgba(80,56,8,0.9)'; ctx.fill(); ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = `bold 24px ${MINCHO}`; outlineText(`県民の勘 +${lastReward} 獲得！`, 0, -8, '#ffd56b', '#000', 5);
+    ctx.font = `13px ${GOTH}`; ctx.fillStyle = '#fff'; ctx.fillText(`所持数 ${kanNow()}`, 0, 20);
+    ctx.restore();
+    ctx.font = `14px ${MINCHO}`; ctx.fillStyle = '#ffe9c8'; ctx.fillText('夕日に染まる東尋坊に、波の音だけが響いていた――', W / 2, 604);
+    if (G.rankMsg) { ctx.font = `bold 13px ${GOTH}`; ctx.fillStyle = /送信しました/.test(G.rankMsg) ? '#b0ffc8' : '#ccc'; ctx.fillText(G.rankMsg, W / 2, 640); }
+  } else {
+    ctx.font = `bold 56px ${MINCHO}`; outlineText('説得失敗', W / 2, 330, '#ff5a5a', '#200', 9);
+    ctx.font = `16px ${GOTH}`; ctx.fillStyle = '#ddd';
+    ctx.fillText(loseKind === 'crisis' ? '崖の端まで、時間が足りなかった……' : '刑事のメンタルが尽きてしまった……', W / 2, 410);
+    ctx.font = `14px ${GOTH}`; ctx.fillStyle = '#aaa';
+    ctx.fillText('この事件は、推理でクリアできることを確認済み。', W / 2, 460);
+    ctx.fillText('「同じ事件に再挑戦」で、打ち筋を見直してみよう。', W / 2, 484);
+    if (kanNow() > 0) { ctx.fillStyle = '#ffd56b'; ctx.fillText(`「県民の勘」を ${kanNow()} 個持っている。迷ったら使ってみよう。`, W / 2, 530); }
+    ctx.fillStyle = '#888'; ctx.font = `12px ${GOTH}`; ctx.fillText(`事件ファイル No.${caseNo(G.seed)}`, W / 2, 640);
+  }
+  if (resultT > 1.0) {
+    button(RETRY, '同じ事件に再挑戦', '同じ山札・同じ展開', phase === 'win' ? '#b8761c' : '#8a2a20', '#3a1500', true, false, hoverBtn === 'retry');
+    button(NEWCASE, '新しい事件へ', '別の山札で挑む', '#2e8a50', '#14482a', true, false, hoverBtn === 'newcase');
+    button(TOTITLE, '難易度を選ぶ', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'totitle');
+  }
+  ctx.restore();
+}
+
+/* =========================================================
+   MAIN LOOP
+   ========================================================= */
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, offX * dpr, offY * dpr);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
+  if (V.shake > 0) ctx.translate((Math.random() - 0.5) * V.shake, (Math.random() - 0.5) * V.shake);
+  drawScene();
+  drawUI();
+  if (phase !== 'title') drawDialogue();
+  drawFloats();
+  drawBanner();
+  drawCracks();
+  if (V.dark > 0) { ctx.fillStyle = `rgba(0,0,0,${V.dark})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
+  if (V.flash > 0) { ctx.globalAlpha = Math.min(1, V.flash); ctx.fillStyle = V.flashCol; ctx.fillRect(-20, -20, W + 40, H + 40); ctx.globalAlpha = 1; }
+  if (phase === 'title') drawTitle();
+  if (phase === 'win' || phase === 'lose') drawResult();
+  drawPause();
+  drawRules();
+  ctx.restore();
+}
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  updateHover();
+  update(dt); render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+const inRect = (p, r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+function toLogical(e) { return { x: (e.clientX - offX) / scale, y: (e.clientY - offY) / scale }; }
+function cardAt(p) {
+  for (let i = G.hand.length - 1; i >= 0; i--) {
+    const c = G.hand[i];
+    if (c === hover && p.x >= c.x && p.x <= c.x + CW && p.y >= c.y - 10 && p.y <= c.y + CH) return c;
+  }
+  for (let i = G.hand.length - 1; i >= 0; i--) {
+    const c = G.hand[i];
+    if (p.x >= c.x && p.x <= c.x + CW && p.y >= c.y && p.y <= c.y + CH + 26) return c;
+  }
+  return null;
+}
+function updateHover() {
+  hoverBtn = null; hover = null;
+  if (rules) {
+    if (inRect(mouse, R_PREV)) hoverBtn = 'rprev'; else if (inRect(mouse, R_NEXT)) hoverBtn = 'rnext'; else if (inRect(mouse, R_SKIP)) hoverBtn = 'rskip';
+    return;
+  }
+  if (paused) {
+    for (const k in PM) if (inRect(mouse, PM[k])) hoverBtn = 'pm_' + k;
+    return;
+  }
+  if (phase === 'title') {
+    DIFF_BTNS.forEach((b, i) => { if (inRect(mouse, b)) hoverBtn = 'd' + i; });
+    if (inRect(mouse, T_RULE)) hoverBtn = 'trule'; else if (inRect(mouse, T_MY)) hoverBtn = 'tmy'; else if (inRect(mouse, T_RANK)) hoverBtn = 'trank';
+    return;
+  }
+  if (phase === 'win' || phase === 'lose') {
+    if (inRect(mouse, RETRY)) hoverBtn = 'retry'; else if (inRect(mouse, NEWCASE)) hoverBtn = 'newcase'; else if (inRect(mouse, TOTITLE)) hoverBtn = 'totitle';
+    return;
+  }
+  if (inRect(mouse, PAUSE)) hoverBtn = 'pause';
+  if (phase !== 'battle' || G.busy) return;
+  hover = cardAt(mouse);
+  if (inRect(mouse, BTN)) hoverBtn = 'end';
+  else if (inRect(mouse, KAN)) hoverBtn = 'kan';
+}
+function goTitle() {
+  resetRun(); phase = 'title'; bgmStop(0.5);
+  newGame(D); V.sunset = 0;
+}
+cv.addEventListener('pointermove', e => { mouse = toLogical(e); });
+cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') mouse = { x: -1, y: -1 }; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  audioInit();
+  const p = toLogical(e);
+  if (e.pointerType !== 'mouse') mouse = p;
+  if (rules) {
+    if (inRect(p, R_PREV)) { if (rules.page > 0) { rules.page--; sndClick(); } return; }
+    if (inRect(p, R_SKIP)) { sndClick(); closeRules(); return; }
+    sndClick();
+    if (rules.page < RULE_PAGES.length - 1) rules.page++; else closeRules();
+    return;
+  }
+  if (paused) {
+    if (inRect(p, PM.resume)) { closePause(); return; }
+    if (inRect(p, PM.restart)) {
+      if (pmConfirm === 'restart') { sndClick(); beginGame(D, G.seed); } else { pmConfirm = 'restart'; sndClick(); }
+      return;
+    }
+    if (inRect(p, PM.diff)) {
+      if (pmConfirm === 'diff') { sndClick(); goTitle(); } else { pmConfirm = 'diff'; sndClick(); }
+      return;
+    }
+    if (inRect(p, PM.rules)) { sndClick(); pmConfirm = null; openRules(false, null); return; }
+    if (inRect(p, PM.sound)) { toggleMute(); pmConfirm = null; return; }
+    pmConfirm = null;
+    return;
+  }
+  if (phase === 'title') {
+    for (const b of DIFF_BTNS) if (inRect(p, b)) {
+      sndClick();
+      if (!SAVE.seenRules) openRules(true, () => beginGame(b.d));
+      else beginGame(b.d);
+      return;
+    }
+    if (inRect(p, T_RULE)) { sndClick(); openRules(false, null); }
+    else if (inRect(p, T_MY)) { sndClick(); openMypage(); }
+    else if (inRect(p, T_RANK)) { sndClick(); openRanking(); }
+    return;
+  }
+  if (inRect(p, MUTE) && phase !== 'win' && phase !== 'lose') { toggleMute(); return; }
+  if (phase === 'win' || phase === 'lose') {
+    if (resultT > 1.0 && inRect(p, RETRY)) { sndClick(); beginGame(D, G.seed); }
+    else if (resultT > 1.0 && inRect(p, NEWCASE)) { sndClick(); beginGame(D); }
+    else if (resultT > 1.0 && inRect(p, TOTITLE)) { sndClick(); goTitle(); }
+    return;
+  }
+  if (inRect(p, PAUSE) && phase === 'battle') { openPause(); return; }
+  if (G.busy) { dlgAdvance(); return; }
+  if (phase !== 'battle') return;
+  if (inRect(p, KAN)) { useKan(); return; }
+  const c = cardAt(p);
+  if (c) { playCard(c); return; }
+  if (inRect(p, BTN)) { endTurn(); return; }
+  if (p.y < SCENE_H) dlgAdvance();
+});
+function toggleMute() {
+  SND.muted = !SND.muted;
+  if (SND.master) { const t = SND.ctx.currentTime; SND.master.gain.cancelScheduledValues(t); SND.master.gain.value = SND.muted ? 0 : (paused ? 0.25 : 0.8); }
+  if (!SND.muted) sndClick();
+}
+// PC：Esc / P でポーズ
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+    if (rules) { closeRules(); return; }
+    if (paused) closePause(); else openPause();
+  }
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && phase === 'battle' && !paused) { paused = true; pmConfirm = null; setDuck(true); }
+  if (!SND.ctx) return;
+  if (document.hidden) SND.ctx.suspend(); else SND.ctx.resume();
+});
+
+/* =========================================================
+   アカウントとクラウド同期（無限そば道斬と同じ方式・ローカルファースト）
+   ゲームはいつもこの端末のセーブで遊ぶ。ログインすると、ログイン時に端末とクラウドのよいほうを合わせ、
+   そのあとセーブを書くたび（クリア・勘の使用・名前の変更など）と「今すぐ同期」で、合わせたセーブを送る。
+   フォームから出ていくのはユーザー名と、パスワードを SHA-256 にした値だけ（メールアドレスなどは集めない）。
+   ========================================================= */
+var SYNC_CONFIG = { adapter: 'rest', endpoint: 'https://tojinbo-sync.yfhmbvzk72.workers.dev' };   // Cloudflare の Worker「tojinbo-sync」（{adapter:'rest', endpoint:''} にすると、この端末の疑似クラウド）
+var MOCK_CLOUD_KEY = 'tojinboSuspense.mockCloud';
+var SYNC_DEBOUNCE_MS = 1500, SYNC_TIMEOUT_MS = 15000;
+
+// --- SHA-256: Web Crypto があればそれ、なければ同じ計算を JavaScript で ---
+function sha256Fallback(text) {
+  const K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+  const bytes = unescape(encodeURIComponent(text)), m = [];
+  for (let i = 0; i < bytes.length; i++) m.push(bytes.charCodeAt(i));
+  const bitLen = m.length * 8;
+  m.push(0x80);
+  while (m.length % 64 !== 56) m.push(0);
+  for (let i = 7; i >= 0; i--) m.push(i >= 4 ? 0 : (bitLen >>> (i * 8)) & 255);
+  const H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19], w = new Array(64);
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+  for (let off = 0; off < m.length; off += 64) {
+    for (let i = 0; i < 16; i++) w[i] = (m[off + i * 4] << 24) | (m[off + i * 4 + 1] << 16) | (m[off + i * 4 + 2] << 8) | m[off + i * 4 + 3];
+    for (let i = 16; i < 64; i++) {
+      const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3), s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+    }
+    let [a, b, c, d, e, f, g, hh] = H;
+    for (let i = 0; i < 64; i++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25), ch = (e & f) ^ (~e & g), t1 = (hh + S1 + ch + K[i] + w[i]) | 0;
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22), mj = (a & b) ^ (a & c) ^ (b & c), t2 = (S0 + mj) | 0;
+      hh = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0; H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + hh) | 0;
+  }
+  return H.map(x => (x >>> 0).toString(16).padStart(8, '0')).join('');
+}
+function sha256Hex(text) {
+  try {
+    if (window.crypto && crypto.subtle && typeof TextEncoder === 'function') {
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+        .then(buf => Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, '0')).join(''), () => sha256Fallback(text));
+    }
+  } catch (e) { }
+  return Promise.resolve(sha256Fallback(text));
+}
+// パスワードは入力したまま外に出さない。ユーザー名を塩にしてこの端末でハッシュにする
+function passwordHash(user, pass) { return sha256Hex('tojinbo-suspense:' + user.toLowerCase() + ':' + pass); }
+// 番付の週：日本時間の月曜（サーバーも同じ数え方）
+function rankWeekKey(now) {
+  const d = new Date(now + 9 * 3600 * 1000);
+  d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
+  return d.toISOString().slice(0, 10);
+}
+
+// --- 疑似クラウド：サーバー未設定のあいだ、この端末の別のキーがクラウドの代わりをする ---
+var MockCloudAdapter = {
+  id: 'mock', label: 'この端末の疑似クラウド（サーバー未設定）',
+  read() { try { const o = JSON.parse(lsGet(MOCK_CLOUD_KEY) || '{}'); return isObj(o) && isObj(o.users) ? o : { users: {} }; } catch (e) { return { users: {} }; } },
+  write(db) { return lsSet(MOCK_CLOUD_KEY, JSON.stringify(db)); },
+  later(fn) { return new Promise(res => setTimeout(() => { try { res(fn()); } catch (e) { res({ ok: false, error: 'storage' }); } }, 250)); },
+  // 本物のサーバーと同じく、端末ごとにログインを持てる（最近の10件まで）
+  byToken(db, token) { for (const k in db.users) { const u = db.users[k]; if (Array.isArray(u.tokens) && u.tokens.includes(token)) return u; } return null; },
+  register(name, hash) {
+    return this.later(() => {
+      const db = this.read(), k = name.toLowerCase();
+      if (db.users[k]) return { ok: false, error: 'taken' };
+      const token = randHex(32);
+      db.users[k] = { name, hash, tokens: [token], data: null, updatedAt: 0 };
+      return this.write(db) ? { ok: true, user: name, token } : { ok: false, error: 'storage' };
+    });
+  },
+  login(name, hash) {
+    return this.later(() => {
+      const db = this.read(), u = db.users[name.toLowerCase()];
+      if (!u || u.hash !== hash) return { ok: false, error: 'auth' };
+      const token = randHex(32);
+      u.tokens = (Array.isArray(u.tokens) ? u.tokens : []).concat([token]).slice(-10);
+      return this.write(db) ? { ok: true, user: u.name, token } : { ok: false, error: 'storage' };
+    });
+  },
+  load(token) { return this.later(() => { const u = this.byToken(this.read(), token); return u ? { ok: true, data: u.data, updatedAt: u.updatedAt } : { ok: false, error: 'session' }; }); },
+  save(token, data) {
+    return this.later(() => {
+      const db = this.read(), u = this.byToken(db, token);
+      if (!u) return { ok: false, error: 'session' };
+      u.data = data; u.updatedAt = Date.now();
+      return this.write(db) ? { ok: true, updatedAt: u.updatedAt } : { ok: false, error: 'storage' };
+    });
+  },
+  remove(token, hash) {
+    return this.later(() => {
+      const db = this.read(), u = this.byToken(db, token);
+      if (!u) return { ok: false, error: 'session' };
+      if (u.hash !== hash) return { ok: false, error: 'auth' };
+      const uid = u.name.toLowerCase();
+      delete db.users[uid];
+      if (isObj(db.ranking)) for (const k in db.ranking) db.ranking[k] = db.ranking[k].filter(e => e.uid !== uid);
+      return this.write(db) ? { ok: true } : { ok: false, error: 'storage' };
+    });
+  },
+  // 番付（この端末の中だけ。本物のサーバーと同じく、打ち手の記録を再生して確かめる）
+  rankSubmit(token, b) {
+    return this.later(() => {
+      const db = this.read(), u = this.byToken(db, token);
+      if (!u) return { ok: false, error: 'session' };
+      const D = isObj(b) ? diffByKey(b.course) : null, r = D ? replayLog(D, b.seed, b.log) : null;
+      if (!r || !r.win) return { ok: false, error: 'rejected' };
+      db.ranking = isObj(db.ranking) ? db.ranking : {};
+      const e = { uid: u.name.toLowerCase(), name: cleanName(b.name) || DEFAULT_PLAYER_NAME, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, at: Date.now() };
+      [b.course + ':all', b.course + ':w' + rankWeekKey(Date.now())].forEach(k => {
+        let list = (db.ranking[k] || []).filter(x => x.uid !== e.uid || x.score >= e.score);
+        const mine = list.find(x => x.uid === e.uid);
+        if (mine) mine.name = e.name; else list.push(e);
+        list.sort((x, y) => y.score - x.score || x.at - y.at);
+        db.ranking[k] = list.slice(0, 50);
+      });
+      return this.write(db) ? { ok: true, score: r.score } : { ok: false, error: 'storage' };
+    });
+  },
+  rankGet(token, course, period) {
+    return this.later(() => {
+      const db = this.read(), u = this.byToken(db, token), week = rankWeekKey(Date.now());
+      const list = (isObj(db.ranking) && db.ranking[course + ':' + (period === 'all' ? 'all' : 'w' + week)]) || [];
+      return { ok: true, course, period, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, me: !!u && e.uid === u.name.toLowerCase() })) };
+    });
+  },
+  rankLeave(token) {
+    return this.later(() => {
+      const db = this.read(), u = this.byToken(db, token);
+      if (!u) return { ok: false, error: 'session' };
+      if (isObj(db.ranking)) for (const k in db.ranking) db.ranking[k] = db.ranking[k].filter(e => e.uid !== u.name.toLowerCase());
+      return this.write(db) ? { ok: true } : { ok: false, error: 'storage' };
+    });
+  }
+};
+// --- サーバー（REST）: POST /register・/login {user, hash} → {ok, user, token}／GET・PUT /save／DELETE /account {hash}／
+//     POST /ranking {course, seed, log, name}／GET /ranking?course=&period=week|all／DELETE /ranking。トークンは Authorization: Bearer ---
+var RestAdapter = {
+  id: 'rest', label: 'クラウド',
+  call(path, method, body, token) {
+    if (!SYNC_CONFIG.endpoint || typeof fetch !== 'function') return Promise.resolve({ ok: false, error: 'offline' });
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    let ctrl = null, timer = 0;
+    try { ctrl = new AbortController(); } catch (e) { }
+    const late = new Promise(res => { timer = setTimeout(() => { try { ctrl && ctrl.abort(); } catch (e) { } res({ ok: false, error: 'offline' }); }, SYNC_TIMEOUT_MS); });
+    const req = fetch(SYNC_CONFIG.endpoint.replace(/\/+$/, '') + path, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctrl ? ctrl.signal : undefined })
+      .then(r => r.json().then(j => (r.ok && isObj(j)) ? j : { ok: false, error: (isObj(j) && j.error) || ('http' + r.status) }, () => ({ ok: false, error: 'http' + r.status })),
+        () => ({ ok: false, error: 'offline' }));
+    return Promise.race([req, late]).then(res => { clearTimeout(timer); return res; });
+  },
+  register(name, hash) { return this.call('/register', 'POST', { user: name, hash }); },
+  login(name, hash) { return this.call('/login', 'POST', { user: name, hash }); },
+  load(token) { return this.call('/save', 'GET', null, token); },
+  save(token, data) { return this.call('/save', 'PUT', { data }, token); },
+  remove(token, hash) { return this.call('/account', 'DELETE', { hash }, token); },
+  rankSubmit(token, payload) { return this.call('/ranking', 'POST', payload, token); },
+  rankGet(token, course, period) { return this.call('/ranking?course=' + encodeURIComponent(course) + '&period=' + (period === 'all' ? 'all' : 'week'), 'GET', null, token); },
+  rankLeave(token) { return this.call('/ranking', 'DELETE', null, token); }
+};
+
+var SYNC_ERRORS = {
+  taken: 'そのユーザー名はすでに使われています。別の名前にしてください。',
+  auth: 'ユーザー名かパスワードが違います。',
+  session: 'ログインの有効期限が切れました。もう一度ログインしてください。',
+  offline: 'クラウドにつながりませんでした。通信できる状態で、もう一度試してください。',
+  storage: '保存できませんでした。ブラウザの保存容量や設定を確かめてください。',
+  nologin: 'ログインしていません。',
+  rejected: '番付に載せられない記録でした。',
+  notfound: '同期サーバーがこの操作に対応していません（サーバーの更新が必要です）。',
+  user: 'ユーザー名は3〜16文字の英数字・かな・漢字・_ - で入力してください。',
+  pass: 'パスワードは6文字以上で入力してください。'
+};
+function syncErrorText(code) { return SYNC_ERRORS[code] || 'うまくいきませんでした。もう一度試してください。'; }
+var USER_RE = /^[A-Za-z0-9_\-ぁ-ゖァ-ヺー一-鿿々]{3,16}$/;
+var SyncManager = {
+  adapter: (SYNC_CONFIG.adapter === 'rest' && SYNC_CONFIG.endpoint) ? RestAdapter : MockCloudAdapter,
+  busy: null, timer: 0, applying: false, lastError: '', listeners: [],
+  account() {
+    try {
+      const a = JSON.parse(lsGet(ACCOUNT_KEY) || 'null');
+      if (isObj(a) && typeof a.user === 'string' && typeof a.token === 'string' && a.adapter === this.adapter.id) return { user: a.user, token: a.token, adapter: a.adapter, lastSync: cInt(a.lastSync, 0, 1e15) };
+    } catch (e) { }
+    return null;
+  },
+  isLoggedIn() { return !!this.account(); },
+  setAccount(a) { if (a) lsSet(ACCOUNT_KEY, JSON.stringify(a)); else lsDel(ACCOUNT_KEY); this.notify(); },
+  onChange(fn) { this.listeners.push(fn); },
+  notify() { this.listeners.forEach(fn => { try { fn(); } catch (e) { } }); },
+  check(user, pass) { if (!USER_RE.test(user)) return 'user'; if (typeof pass !== 'string' || pass.length < 6) return 'pass'; return ''; },
+  // 作成またはログインして、すぐにこの端末とクラウドのセーブを合わせる
+  enter(kind, user, pass) {
+    const bad = this.check(user, pass);
+    if (bad) return Promise.resolve({ ok: false, error: bad });
+    return passwordHash(user, pass).then(hash => kind === 'register' ? this.adapter.register(user, hash) : this.adapter.login(user, hash))
+      .then(res => {
+        if (!res || !res.ok) return { ok: false, error: (res && res.error) || 'offline' };
+        this.setAccount({ user: res.user || user, token: res.token, adapter: this.adapter.id, lastSync: 0 });
+        return this.syncNow().then(r => {
+          if (r.ok && !SAVE.profile.name) setDisplayName(res.user || user);   // 名前がまだなければ、ユーザー名を表示名に
+          return r;
+        });
+      }, () => ({ ok: false, error: 'offline' }));
+  },
+  logout() { if (this.timer) { clearTimeout(this.timer); this.timer = 0; } this.setAccount(null); },   // この端末のセーブはそのまま
+  deleteAccount(pass) {
+    const acc = this.account();
+    if (!acc) return Promise.resolve({ ok: false, error: 'nologin' });
+    if (typeof pass !== 'string' || pass.length < 6) return Promise.resolve({ ok: false, error: 'pass' });
+    return passwordHash(acc.user, pass).then(hash => this.adapter.remove(acc.token, hash)).then(res => {
+      if (!res || !res.ok) return { ok: false, error: (res && res.error) || 'offline' };
+      this.logout(); return { ok: true };
+    }, () => ({ ok: false, error: 'offline' }));
+  },
+  rank(fn, ...args) {
+    const acc = this.account();
+    if (!acc) return Promise.resolve({ ok: false, error: 'nologin' });
+    return this.adapter[fn](acc.token, ...args).then(r => {
+      r = r || { ok: false, error: 'offline' };
+      if (r.error === 'session') this.setAccount(null);
+      return r;
+    }, () => ({ ok: false, error: 'offline' }));
+  },
+  // セーブを書いたら、少しあとで送る（ログイン中だけ。同期そのものの書き込みでは送らない）
+  request() {
+    if (this.applying || !this.isLoggedIn()) return;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => { this.timer = 0; this.syncNow(); }, SYNC_DEBOUNCE_MS);
+  },
+  syncNow() {
+    const acc = this.account();
+    if (!acc) return Promise.resolve({ ok: false, error: 'nologin' });
+    if (this.busy) return this.busy;
+    this.busy = this.adapter.load(acc.token).then(res => {
+      if (!res || !res.ok) return { ok: false, error: (res && res.error) || 'offline' };
+      SAVE = mergeSaves(SAVE, res.data);
+      this.applying = true; save(); this.applying = false;     // まずこの端末へ（ゲームは通信を待たない）
+      return this.adapter.save(acc.token, SAVE).then(r2 => {
+        if (!r2 || !r2.ok) return { ok: false, error: (r2 && r2.error) || 'offline' };
+        const a = this.account(); if (a) { a.lastSync = Date.now(); lsSet(ACCOUNT_KEY, JSON.stringify(a)); }
+        return { ok: true };
+      });
+    }, () => ({ ok: false, error: 'offline' })).then(r => {
+      this.busy = null; this.applying = false;
+      this.lastError = r.ok ? '' : r.error;
+      if (r.error === 'session') this.setAccount(null);
+      this.notify();
+      return r;
+    });
+    this.notify();
+    return this.busy;
+  }
+};
+function agoText(t) {
+  if (!t) return '未同期';
+  const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (s < 60) return '最終同期: たった今';
+  if (s < 3600) return '最終同期: ' + Math.floor(s / 60) + '分前';
+  if (s < 86400) return '最終同期: ' + Math.floor(s / 3600) + '時間前';
+  return '最終同期: ' + Math.floor(s / 86400) + '日前';
+}
+
+/* ---------- 戦績と番付への送信（勝ち負けが決まったとき） ---------- */
+function recordResult(win, rankIdx) {
+  const dev = myDev();
+  dev.plays[D.key] = Math.min(COUNT_MAX, dev.plays[D.key] + 1);
+  if (win) {
+    dev.wins[D.key] = Math.min(COUNT_MAX, dev.wins[D.key] + 1);
+    const sc = rankScore(D.key, G.turn, G.hp), b = SAVE.best[D.key];
+    G.bestUp = !b || sc > b.score;
+    SAVE.best[D.key] = { score: Math.max(sc, b ? b.score : 0), turn: Math.min(G.turn, b ? b.turn : 99) };
+  }
+  save();
+}
+function submitRank() {
+  G.rankMsg = '';
+  if (!SyncManager.isLoggedIn()) { G.rankMsg = 'マイページでログインすると番付に参加できます'; return; }
+  if (!rankJoin()) { G.rankMsg = '番付に参加していません（番付の画面で設定できます）'; return; }
+  const run = RUN, g = G, key = D.key;
+  const r = replayLog(D, g.seed, g.log);              // (送る前に、この端末でも同じ記録になるか確かめる)
+  if (!r || !r.win) { g.rankMsg = '番付に送れない記録でした'; return; }
+  g.rankMsg = '番付に送信中……';
+  SyncManager.rank('rankSubmit', { course: key, seed: g.seed, log: g.log, name: displayName() }).then(res => {
+    if (run !== RUN) return;
+    if (!res.ok) { g.rankMsg = '番付に送れませんでした：' + syncErrorText(res.error); return; }
+    return SyncManager.rank('rankGet', key, 'week').then(q => {
+      if (run !== RUN) return;
+      const me = q.ok && q.entries.find(e => e.me);
+      g.rankMsg = me ? `番付に送信しました　今週の${DIFFS.find(d => d.key === key).name}で ${me.rank}位` : '番付に送信しました（今週の上位50人の外）';
+    });
+  });
+}
+
+/* =========================================================
+   マイページと番付の画面（文字入力があるので HTML で重ねる）
+   ========================================================= */
+var OV = {};
+['ov', 'scr-mypage', 'scr-rank', 'mp-back', 'mp-name', 'mp-name-edit', 'mp-name-form', 'mp-name-input', 'mp-name-cancel', 'mp-grid', 'mp-table',
+  'mp-status', 'mp-sync', 'mp-auth', 'mp-user', 'mp-pass', 'mp-register', 'mp-login', 'mp-auth-cancel', 'mp-open-auth', 'mp-sync-now', 'mp-logout',
+  'mp-delete', 'mp-del-form', 'mp-del-pass', 'mp-del-no', 'mp-msg', 'mp-note',
+  'rk-back', 'rk-login', 'rk-open-mypage', 'rk-body', 'rk-diffs', 'rk-periods', 'rk-status', 'rk-podium', 'rk-me', 'rk-list', 'rk-join', 'rk-join-msg', 'rk-leave'
+].forEach(id => OV[id] = document.getElementById(id));
+var ovScreen = null, rkState = { diff: 'normal', period: 'week', req: 0 }, mpTick = 0;
+function showOverlay(which) {
+  ovScreen = which;
+  OV.ov.hidden = !which;
+  OV['scr-mypage'].hidden = which !== 'mypage';
+  OV['scr-rank'].hidden = which !== 'rank';
+  if (which) { OV.ov.scrollTop = 0; mouse = { x: -1, y: -1 }; }
+}
+function closeOverlay() { showOverlay(null); sndClick(); }
+function setMpMsg(t, bad) { OV['mp-msg'].textContent = t || ''; OV['mp-msg'].classList.toggle('bad', !!bad); }
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+function openMypage() {
+  setMpMsg(''); OV['mp-name-form'].hidden = true; OV['mp-auth'].hidden = true; OV['mp-del-form'].hidden = true;
+  renderMypage(); showOverlay('mypage');
+  if (!mpTick) mpTick = setInterval(() => { if (ovScreen === 'mypage') renderAccount(); }, 30000);
+}
+function renderMypage() {
+  OV['mp-name'].textContent = displayName();
+  const plays = statSum('plays'), wins = statSum('wins');
+  const best = Math.max(0, ...DIFF_KEYS.map(k => SAVE.best[k] ? SAVE.best[k].score : 0));
+  const cells = [['挑戦した事件', plays + '件'], ['解決（勝率）', wins + '件' + (plays ? `（${Math.round(wins * 100 / plays)}%）` : '')],
+    ['最高の説得スコア', best ? best.toLocaleString() : '—'], ['県民の勘（所持）', '× ' + kanNow()]];
+  OV['mp-grid'].replaceChildren(...cells.map(([t, v]) => { const d = el('div', 'mp-cell'); d.append(el('dt', null, t), el('dd', null, v)); return d; }));
+  const head = el('tr'); ['難易度', '挑戦', '解決', '最短', '最高スコア', 'ランク'].forEach(h => head.append(el('th', null, h)));
+  const rows = DIFFS.map(d => {
+    const tr = el('tr'), b = SAVE.best[d.key], c = SAVE.clear[d.key];
+    const name = el('td', 'mp-dname', d.name); name.style.color = d.col;
+    tr.append(name, el('td', null, String(statSum('plays', d.key))), el('td', null, String(statSum('wins', d.key))),
+      el('td', null, b ? b.turn + 'ターン' : '—'), el('td', null, b ? b.score.toLocaleString() : '—'), el('td', null, c != null ? RANKS[c] : '—'));
+    return tr;
+  });
+  OV['mp-table'].replaceChildren(head, ...rows);
+  renderAccount();
+}
+function renderAccount() {
+  const acc = SyncManager.account(), busy = !!SyncManager.busy;
+  OV['mp-status'].textContent = acc ? `ログイン中：${acc.user}` : '未ログイン（この端末に保存）';
+  OV['mp-sync'].textContent = acc ? (busy ? '同期中……' : agoText(acc.lastSync) + (SyncManager.lastError ? '（前回の同期は失敗）' : '')) : '';
+  const authOpen = !OV['mp-auth'].hidden;
+  OV['mp-open-auth'].hidden = !!acc || authOpen;
+  OV['mp-sync-now'].hidden = !acc; OV['mp-logout'].hidden = !acc; OV['mp-delete'].hidden = !acc || !OV['mp-del-form'].hidden;
+  OV['mp-sync-now'].disabled = busy;
+  OV['mp-note'].textContent = SyncManager.adapter === MockCloudAdapter
+    ? '※ いまは同期サーバーが未設定のため、この端末の中の「疑似クラウド」に保存しています（ほかの端末とは同期されません）。'
+    : '同期先：クラウド。ほかの端末でも同じユーザー名でログインすると、記録と県民の勘を引き継げます。';
+}
+function mpEnter(kind) {
+  const user = OV['mp-user'].value.trim(), pass = OV['mp-pass'].value;
+  setMpMsg(kind === 'register' ? '作成しています……' : 'ログインしています……');
+  OV['mp-register'].disabled = OV['mp-login'].disabled = true;
+  SyncManager.enter(kind, user, pass).then(r => {
+    OV['mp-register'].disabled = OV['mp-login'].disabled = false;
+    if (!r.ok) { setMpMsg(syncErrorText(r.error), true); renderAccount(); return; }
+    OV['mp-pass'].value = ''; OV['mp-auth'].hidden = true;
+    setMpMsg(kind === 'register' ? 'アカウントを作成しました。この端末の記録をクラウドに保存しました。' : 'ログインしました。この端末とクラウドの記録を合わせました。');
+    renderMypage();
+  });
+}
+function wireOverlay() {
+  OV['mp-back'].onclick = closeOverlay;
+  OV['rk-back'].onclick = closeOverlay;
+  OV['mp-name-edit'].onclick = () => { OV['mp-name-form'].hidden = false; OV['mp-name-input'].value = SAVE.profile.name; OV['mp-name-input'].focus(); };
+  OV['mp-name-cancel'].onclick = () => { OV['mp-name-form'].hidden = true; };
+  OV['mp-name-form'].onsubmit = e => {
+    e.preventDefault(); setDisplayName(OV['mp-name-input'].value); OV['mp-name-form'].hidden = true;
+    setMpMsg('名前を保存しました。番付には次に送る記録から反映されます。'); renderMypage();
+  };
+  OV['mp-open-auth'].onclick = () => { OV['mp-auth'].hidden = false; setMpMsg(''); renderAccount(); OV['mp-user'].focus(); };
+  OV['mp-auth-cancel'].onclick = () => { OV['mp-auth'].hidden = true; setMpMsg(''); renderAccount(); };
+  OV['mp-auth'].onsubmit = e => { e.preventDefault(); mpEnter('login'); };
+  OV['mp-register'].onclick = () => mpEnter('register');
+  OV['mp-sync-now'].onclick = () => { setMpMsg(''); SyncManager.syncNow().then(r => { setMpMsg(r.ok ? '同期しました。' : syncErrorText(r.error), !r.ok); renderMypage(); }); };
+  OV['mp-logout'].onclick = () => { SyncManager.logout(); setMpMsg('ログアウトしました。この端末の記録はそのまま残っています。'); renderMypage(); };
+  OV['mp-delete'].onclick = () => { OV['mp-del-form'].hidden = false; OV['mp-del-pass'].value = ''; renderAccount(); OV['mp-del-pass'].focus(); };
+  OV['mp-del-no'].onclick = () => { OV['mp-del-form'].hidden = true; renderAccount(); };
+  OV['mp-del-form'].onsubmit = e => {
+    e.preventDefault(); setMpMsg('削除しています……');
+    SyncManager.deleteAccount(OV['mp-del-pass'].value).then(r => {
+      if (!r.ok) { setMpMsg(syncErrorText(r.error), true); return; }
+      OV['mp-del-form'].hidden = true; setMpMsg('アカウントとクラウドの記録を削除しました。この端末の記録は残っています。'); renderMypage();
+    });
+  };
+  OV['rk-open-mypage'].onclick = () => openMypage();
+  OV['rk-join'].onchange = () => {
+    const on = OV['rk-join'].checked;
+    lsSet(RANKJOIN_KEY, on ? '1' : '0');
+    if (on) { OV['rk-join-msg'].textContent = '参加しました。次に事件を解決したときから番付に送ります。'; return; }
+    OV['rk-join-msg'].textContent = '参加をやめました。';
+  };
+  OV['rk-leave'].onclick = () => {
+    OV['rk-join-msg'].textContent = '番付から記録を消しています……';
+    SyncManager.rank('rankLeave').then(r => {
+      if (!r.ok) { OV['rk-join-msg'].textContent = syncErrorText(r.error); return; }
+      lsSet(RANKJOIN_KEY, '0'); OV['rk-join'].checked = false;
+      OV['rk-join-msg'].textContent = '番付からあなたの記録を消し、参加をやめました。'; loadRanking();
+    });
+  };
+  SyncManager.onChange(() => { if (ovScreen === 'mypage') renderAccount(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && ovScreen) { e.stopImmediatePropagation(); closeOverlay(); } }, true);
+}
+
+function openRanking(diffKey) {
+  if (diffKey) rkState.diff = diffKey;
+  showOverlay('rank'); renderRankingFrame(); loadRanking();
+}
+function renderRankingFrame() {
+  const acc = SyncManager.isLoggedIn();
+  OV['rk-login'].hidden = acc; OV['rk-body'].hidden = !acc;
+  OV['rk-join'].checked = rankJoin(); OV['rk-join-msg'].textContent = '';
+  OV['rk-diffs'].replaceChildren(...DIFFS.map(d => {
+    const b = el('button', 'ov-btn small', d.name); b.type = 'button';
+    b.setAttribute('aria-pressed', String(rkState.diff === d.key));
+    b.onclick = () => { rkState.diff = d.key; sndClick(); renderRankingFrame(); loadRanking(); };
+    return b;
+  }));
+  OV['rk-periods'].querySelectorAll('button').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.period === rkState.period));
+    b.onclick = () => { rkState.period = b.dataset.period; sndClick(); renderRankingFrame(); loadRanking(); };
+  });
+}
+var RANK_TITLES = ['横綱', '大関', '関脇'];
+function challengeBtn(e) {
+  const b = el('button', 'ov-btn small gold', 'この事件に挑む'); b.type = 'button';
+  b.onclick = () => { showOverlay(null); sndClick(); beginGame(diffByKey(rkState.diff), e.seed); };
+  return b;
+}
+function loadRanking() {
+  if (!SyncManager.isLoggedIn()) return;
+  const req = ++rkState.req;
+  OV['rk-status'].textContent = '読み込んでいます……';
+  OV['rk-podium'].replaceChildren(); OV['rk-list'].replaceChildren(); OV['rk-me'].hidden = true;
+  SyncManager.rank('rankGet', rkState.diff, rkState.period).then(r => {
+    if (req !== rkState.req) return;
+    if (!r.ok) { OV['rk-status'].textContent = syncErrorText(r.error); if (r.error === 'session') renderRankingFrame(); return; }
+    const es = Array.isArray(r.entries) ? r.entries : [];
+    OV['rk-status'].textContent = es.length ? (rkState.period === 'week' ? `今週（${r.week} からの週）の上位 ${es.length} 人` : `全期間の上位 ${es.length} 人`)
+      : 'まだ記録がありません。最初の一人になろう。';
+    OV['rk-podium'].replaceChildren(...es.slice(0, 3).map((e, i) => {
+      const li = el('li', 'rk-pod p' + (i + 1) + (e.me ? ' me' : ''));
+      li.append(el('span', 'rk-title', RANK_TITLES[i]), el('span', 'rk-pname', e.name + (e.me ? '（あなた）' : '')),
+        el('span', 'rk-pscore', e.score.toLocaleString()), el('span', 'rk-pmeta', `${e.turn}ターン・メンタル${e.hp}・No.${caseNo(e.seed)}`), challengeBtn(e));
+      return li;
+    }));
+    OV['rk-list'].replaceChildren(...es.slice(3).map(e => {
+      const li = el('li', 'rk-row' + (e.me ? ' me' : ''));
+      li.append(el('span', 'rk-no', e.rank + '位'), el('span', 'rk-name', e.name + (e.me ? '（あなた）' : '')),
+        el('span', 'rk-score', e.score.toLocaleString()), el('span', 'rk-meta', `${e.turn}T・No.${caseNo(e.seed)}`), challengeBtn(e));
+      return li;
+    }));
+    const i = es.findIndex(e => e.me);
+    OV['rk-me'].hidden = false;
+    if (i >= 0) {
+      const up = es[i - 1];
+      OV['rk-me'].textContent = `あなたは ${i + 1}位（${es[i].score.toLocaleString()}）` + (up ? `。ひとつ上の ${up.name} まであと ${(up.score - es[i].score + 1).toLocaleString()} 点` : '。トップです！');
+    } else OV['rk-me'].textContent = rankJoin() ? 'あなたの記録はまだ載っていません。事件を解決すると送られます。' : 'あなたは番付に参加していません（下の設定で参加できます）。';
+  });
+}
+wireOverlay();
+</script>
+</body>
+</html>
