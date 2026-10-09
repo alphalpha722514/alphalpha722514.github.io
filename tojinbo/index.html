@@ -1346,16 +1346,17 @@ function update(dt) {
   if (phase === 'win' || phase === 'lose') resultT += dt;
 }
 const CW = 118, CH = 190;
+let CS = 1;                          // カードの大きさの倍率（横長のパソコン画面では大きく描いて読みやすく）
 // 下の操作エリアの配置（縦長／横長）
 const U_TALL = { hpLblX: 16, hpBarX: 86, hpBarW: 190, hpY: 546, apLblX: 296, apX: 334, apY: 546, chipX: 16, chipY: 572, chipR: 99999,
   deckX: 526, deckY: 585, deckAlign: 'right', handL: 12, handR: 528, handY: 636, hintX: 270, hintY: 852, hpFx: 140, hpFy: 570, apFx: 400, apFy: 560 };
 const U_WIDE = { hpLblX: 24, hpBarX: 108, hpBarW: 246, hpY: 560, apLblX: 24, apX: 76, apY: 604, chipX: 24, chipY: 632, chipR: 372,
-  deckX: 24, deckY: 778, deckAlign: 'left', handL: 392, handR: 1216, handY: 586, hintX: 804, hintY: 818, hpFx: 230, hpFy: 590, apFx: 160, apFy: 600 };
+  deckX: 24, deckY: 778, deckAlign: 'left', handL: 392, handR: 1216, handY: 554, hintX: 804, hintY: 852, hpFx: 230, hpFy: 590, apFx: 160, apFy: 600 };
 let U = U_TALL;
 function layoutHand() {
   const n = G.hand.length; if (!n) return;
-  const sp = n > 1 ? Math.min(126, (U.handR - U.handL - CW) / (n - 1)) : 0;
-  const x0 = U.handL + (U.handR - U.handL - (sp * (n - 1) + CW)) / 2;
+  const cw = CW * CS, sp = n > 1 ? Math.min(126 * CS, (U.handR - U.handL - cw) / (n - 1)) : 0;
+  const x0 = U.handL + (U.handR - U.handL - (sp * (n - 1) + cw)) / 2;
   G.hand.forEach((c, i) => { c.tx = x0 + i * sp; c.ty = U.handY + (c === hover ? -26 : 0); });
 }
 
@@ -1840,7 +1841,7 @@ function previewLines(id) {
 function drawCard(c, x, y, sc, alpha, isHover, usable, glow) {
   const d = c.def, ty = TYPE[d.type];
   ctx.save(); ctx.globalAlpha = alpha;
-  ctx.translate(x + CW / 2, y + CH / 2); ctx.scale(sc, sc); ctx.translate(-CW / 2, -CH / 2);
+  ctx.translate(x + CW * CS / 2, y + CH * CS / 2); ctx.scale(sc * CS, sc * CS); ctx.translate(-CW / 2, -CH / 2);
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(6, 6, CW, CH);                          // ドットの影
   if (glow && Math.floor(T * 4) % 2 === 0) { ctx.fillStyle = '#ffd84a'; ctx.fillRect(-6, -6, CW + 12, CH + 12); }
   else if (isHover) { ctx.fillStyle = '#ffffff'; ctx.fillRect(-3, -3, CW + 6, CH + 6); }
@@ -1942,7 +1943,7 @@ function drawUI() {
   if (hover && G.hand.includes(hover)) drawCard(hover, hover.x, hover.y, 1.06, 1, true, usableAll && hover.def.cost <= G.ap, hover === hintCard);
   for (const f of V.flying) {
     const p = clamp(f.t / 0.55, 0, 1), e = 1 - Math.pow(1 - p, 3);
-    if (f.kind === 'play') drawCard(f.c, lerp(f.c.x, W / 2 - CW / 2, e), lerp(f.c.y, 150, e), 1 + 0.35 * e, 1 - p * p, true, true, false);
+    if (f.kind === 'play') drawCard(f.c, lerp(f.c.x, W / 2 - CW * CS / 2, e), lerp(f.c.y, 150, e), 1 + 0.35 * e, 1 - p * p, true, true, false);
     else drawCard(f.c, lerp(f.c.x, W - 40, e), lerp(f.c.y, 900, e), 1 - 0.5 * e, 1 - p, false, true, false);
   }
   ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#9aa';
@@ -2232,11 +2233,11 @@ function toLogical(e) { return { x: (e.clientX - offX) / scale, y: (e.clientY - 
 function cardAt(p) {
   for (let i = G.hand.length - 1; i >= 0; i--) {
     const c = G.hand[i];
-    if (c === hover && p.x >= c.x && p.x <= c.x + CW && p.y >= c.y - 10 && p.y <= c.y + CH) return c;
+    if (c === hover && p.x >= c.x && p.x <= c.x + CW * CS && p.y >= c.y - 10 && p.y <= c.y + CH * CS) return c;
   }
   for (let i = G.hand.length - 1; i >= 0; i--) {
     const c = G.hand[i];
-    if (p.x >= c.x && p.x <= c.x + CW && p.y >= c.y && p.y <= c.y + CH + 26) return c;
+    if (p.x >= c.x && p.x <= c.x + CW * CS && p.y >= c.y && p.y <= c.y + CH * CS + 26) return c;
   }
   return null;
 }
@@ -2994,10 +2995,10 @@ if (SAVE.onboard < ONBOARD_VER) openOnboarding();
 /* ---------- レイアウトの切り替え（縦長 540×960 ／ 横長 1600×900） ---------- */
 function applyLayout(wide) {
   WIDE = wide;
-  if (wide) { W = 1600; H = 900; UI_TOP = 520; WX = 417; CX = 530; U = U_WIDE;
+  if (wide) { W = 1600; H = 900; UI_TOP = 520; WX = 417; CX = 530; U = U_WIDE; CS = 1.4;
     Object.assign(KAN, { x: 1242, y: 560, w: 336, h: 62 }); Object.assign(BTN, { x: 1242, y: 640, w: 336, h: 86 });
     Object.assign(PAUSE, { x: 1242, y: 744, w: 336, h: 62 }); Object.assign(MUTE, { x: 1536, y: 834, w: 42, h: 34 });
-  } else { W = 540; H = 960; UI_TOP = 520; WX = 0; CX = 0; U = U_TALL;
+  } else { W = 540; H = 960; UI_TOP = 520; WX = 0; CX = 0; U = U_TALL; CS = 1;
     Object.assign(KAN, { x: 14, y: 872, w: 126, h: 62 }); Object.assign(BTN, { x: 150, y: 872, w: 240, h: 62 });
     Object.assign(PAUSE, { x: 400, y: 872, w: 126, h: 62 }); Object.assign(MUTE, { x: 488, y: 528, w: 42, h: 34 });
   }
