@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
-canvas{display:block;position:absolute;left:0;top:0;touch-action:none}
+#c{display:block;position:absolute;left:0;top:0;touch-action:none}
 /* マイページ・番付（キャンバスの上に重ねる画面） */
 #ov{position:fixed;inset:0;z-index:10;background:#0e0d16 repeating-conic-gradient(#14131e 0 25%,#0e0d16 0 50%) 0 0/12px 12px;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
   color:#eee;font-family:"DotGothic16","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",sans-serif;font-size:15px;line-height:1.6}
@@ -78,6 +78,26 @@ canvas{display:block;position:absolute;left:0;top:0;touch-action:none}
 .rk-row .ov-btn{grid-area:b;justify-self:end;min-height:36px;padding:4px 10px;font-size:12.5px}
 .me{outline:2px solid #6bd98f;outline-offset:-2px;border-radius:0}
 #ov{image-rendering:pixelated}
+.ob-scr{min-height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center}
+.ob-card{width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 16px 14px}
+.ob-top{margin:0;width:100%;display:flex;justify-content:space-between;align-items:baseline}
+.ob-eyebrow{font-size:13px;letter-spacing:.12em;color:#ffd56b}
+.ob-step{font-size:13px;color:#a9a9b8}
+.ob-pic{display:block;position:static;width:100%;max-width:360px;aspect-ratio:120/64;image-rendering:pixelated;border:3px solid #000;box-shadow:4px 4px 0 rgba(0,0,0,.6);background:#232a3a}
+.ob-h{margin:4px 0 0;font-size:21px;font-weight:400;color:#ffe2a0;text-align:center;text-shadow:2px 2px 0 #000}
+.ob-h:focus{outline:none}
+.ob-text{margin:0;font-size:15px;line-height:1.75;min-height:7.2em;align-self:stretch}
+.ob-sound,.ob-acc{align-self:stretch;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;border:3px solid #000;background:#0d0d17}
+.ob-sound[hidden],.ob-acc[hidden]{display:none!important}
+.ob-sound-state,.ob-acc-state{margin:0;font-size:13.5px;text-align:center;color:#d8d8e4}
+.ob-acc-btns{display:flex;flex-direction:column;gap:10px;align-self:stretch}
+.ob-dots{display:flex;gap:6px}
+.ob-dots i{width:9px;height:9px;background:#3a3a4a;border:2px solid #000}
+.ob-dots i.on{background:#ffd56b}
+.ob-nav{display:flex;justify-content:space-between;align-self:stretch;gap:8px}
+.ob-nav .ov-btn{min-width:96px}
+.ob-check{min-height:36px;font-size:14px}
+.ob-link{background:none;border:0;padding:6px;color:#9fd3ff;font:inherit;font-size:13.5px;text-decoration:underline;cursor:pointer}
 </style>
 </head>
 <body>
@@ -139,15 +159,42 @@ canvas{display:block;position:absolute;left:0;top:0;touch-action:none}
     </section>
   </section>
 
+  <section id="scr-onboard" class="ov-scr ob-scr" role="dialog" aria-modal="true" aria-labelledby="ob-h" aria-describedby="ob-text" hidden>
+    <div class="ov-card ob-card">
+      <p class="ob-top"><span class="ob-eyebrow">はじめての捜査</span><span id="ob-step" class="ob-step">1 / 6</span></p>
+      <canvas id="ob-pic" class="ob-pic" width="120" height="64" aria-hidden="true"></canvas>
+      <h2 id="ob-h" class="ob-h" tabindex="-1"></h2>
+      <p id="ob-text" class="ob-text"></p>
+      <div id="ob-sound" class="ob-sound" hidden>
+        <p id="ob-sound-state" class="ob-sound-state" role="status" aria-live="polite"></p>
+        <button id="ob-sound-test" class="ov-btn small primary" type="button">音を鳴らしてみる</button>
+      </div>
+      <div id="ob-acc" class="ob-acc" hidden>
+        <p id="ob-acc-state" class="ob-acc-state"></p>
+        <div class="ob-acc-btns">
+          <button id="ob-acc-yes" class="ov-btn primary" type="button">アカウントを作成 / ログインする</button>
+          <button id="ob-acc-no" class="ov-btn" type="button">ゲストではじめる</button>
+        </div>
+      </div>
+      <div id="ob-dots" class="ob-dots" aria-hidden="true"></div>
+      <div class="ob-nav">
+        <button id="ob-prev" class="ov-btn small" type="button">戻る</button>
+        <button id="ob-next" class="ov-btn small primary" type="button">次へ</button>
+      </div>
+      <label class="ov-check ob-check"><input id="ob-hide" type="checkbox" checked> 次回から表示しない</label>
+      <button id="ob-more" class="ob-link" type="button">くわしいルールを見る</button>
+    </div>
+  </section>
+
   <section id="scr-rank" class="ov-scr" aria-labelledby="rk-h" hidden>
     <div class="ov-bar"><h2 id="rk-h" class="ov-title">番付</h2><button id="rk-back" class="ov-btn" type="button">もどる</button></div>
     <p class="ov-lead">難易度ごとの説得スコアの番付（上位50人）。サーバーが打ち手の記録から事件を再生し、本当に解決できた記録だけを載せます。「この事件に挑む」で、同じ事件ファイルに挑戦できます。</p>
     <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10</p>
     <div id="rk-login" class="ov-card">
-      <p>番付は、マイページでログインすると見られます。</p>
-      <button id="rk-open-mypage" class="ov-btn small primary" type="button">マイページでログイン</button>
+      <p>いまはゲストとして、この端末の名前「<span id="rk-guest-name"></span>」で載ります。名前はマイページで変えられます。アカウントを作ると、ほかの端末でも同じ名前と記録で続けられます。</p>
+      <button id="rk-open-mypage" class="ov-btn small primary" type="button">マイページへ</button>
     </div>
-    <div id="rk-body" hidden>
+    <div id="rk-body">
       <div id="rk-diffs" class="ov-tabs" role="group" aria-label="難易度"></div>
       <div id="rk-periods" class="ov-tabs" role="group" aria-label="期間">
         <button class="ov-btn small" type="button" data-period="week" aria-pressed="true">今週</button>
@@ -159,8 +206,8 @@ canvas{display:block;position:absolute;left:0;top:0;touch-action:none}
       <ol id="rk-list" class="rk-list"></ol>
       <section class="ov-card">
         <h3 class="ov-h">参加の設定</h3>
-        <label class="ov-check"><input id="rk-join" type="checkbox"> 番付に参加する</label>
-        <p class="ov-note">参加すると、事件を解決したときに、表示名・事件番号・打ち手の記録（使ったカードの順番）がこの端末から送られ、番付に名前と説得スコアが載ります。設定はこの端末ごとです。</p>
+        <label class="ov-check"><input id="rk-join" type="checkbox"> 番付に載る</label>
+        <p class="ov-note">事件を解決すると、表示名・事件番号・打ち手の記録（使ったカードの順番）がこの端末から自動で送られ、番付に名前と説得スコアが載ります。載せたくないときはチェックを外してください（この端末だけの設定）。</p>
         <button id="rk-leave" class="ov-btn small danger" type="button">番付から自分の記録を消す</button>
         <p id="rk-join-msg" class="ov-note" role="status"></p>
       </section>
@@ -620,7 +667,8 @@ function outlineText(t, x, y, fill, stroke, lw) {
 var SAVE_KEY = 'tojinbo_suspense_v2';               // (キー名はそのまま。古いセーブをその場で読み替える)
 var DEVICE_KEY = SAVE_KEY + '.device';              // この端末の印（同期しない）
 var ACCOUNT_KEY = SAVE_KEY + '.account';            // この端末のログイン {user, token, adapter, lastSync}
-var RANKJOIN_KEY = SAVE_KEY + '.rankJoin';          // 番付に参加する（この端末の設定）
+var RANKJOIN_KEY = SAVE_KEY + '.rankJoin';          // 番付に載る（この端末の設定。'0' のときだけ載せない）
+var GUEST_KEY = SAVE_KEY + '.guest';                // ゲストの印（番付用の秘密の値。同期しない）
 var PROFILE_NAME_MAX = 12, DEFAULT_PLAYER_NAME = 'ななしの刑事', COUNT_MAX = 10000000;
 var DIFF_KEYS = ['easy', 'normal', 'hard', 'oni'];
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -640,7 +688,8 @@ function deviceId() {
 }
 function cleanName(v) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, PROFILE_NAME_MAX) : ''; }
 function blankDev() { const z = {}; DIFF_KEYS.forEach(k => z[k] = 0); return { earn: 0, spend: 0, plays: Object.assign({}, z), wins: Object.assign({}, z) }; }
-function blankSave() { return { schema: 3, devs: {}, best: {}, clear: {}, seenRules: false, profile: { name: '', at: 0 } }; }
+const ONBOARD_VER = 1;   // はじめての捜査（説明）の版。上げると、見た人にももう一度出す
+function blankSave() { return { schema: 3, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, profile: { name: '', at: 0 } }; }
 // 何が来ても（壊れたセーブ・クラウドから届いた値でも）正しい形に直す
 function coerceSave(raw) {
   const out = blankSave();
@@ -669,6 +718,7 @@ function coerceSave(raw) {
     if (c != null && Number.isFinite(Number(c))) out.clear[k] = cInt(c, 0, 3);
   });
   out.seenRules = raw.seenRules === true;
+  out.onboard = cInt(raw.onboard, 0, 1000);
   if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
   return out;
 }
@@ -687,6 +737,7 @@ function mergeSaves(a, b) {
     if (C.clear[k] != null && !(out.clear[k] >= C.clear[k])) out.clear[k] = C.clear[k];
   });
   out.seenRules = L.seenRules || C.seenRules;
+  out.onboard = Math.max(L.onboard, C.onboard);
   if (C.profile.at > L.profile.at) out.profile = Object.assign({}, C.profile);
   return out;
 }
@@ -710,7 +761,12 @@ function spendKan() { if (kanNow() <= 0) return false; myDev().spend++; return t
 function statSum(field, k) { let n = 0; for (const id in SAVE.devs) n += k ? SAVE.devs[id][field][k] : DIFF_KEYS.reduce((a, d) => a + SAVE.devs[id][field][d], 0); return n; }
 function displayName() { return SAVE.profile.name || DEFAULT_PLAYER_NAME; }
 function setDisplayName(v) { SAVE.profile = { name: cleanName(v), at: Date.now() }; save(); }
-function rankJoin() { return lsGet(RANKJOIN_KEY) === '1'; }
+function rankJoin() { return lsGet(RANKJOIN_KEY) !== '0'; }      // 何も選ばなくても番付に載る
+function guestSecret() {
+  let g = lsGet(GUEST_KEY);
+  if (!/^[0-9a-f]{64}$/.test(g || '')) { g = randHex(32); lsSet(GUEST_KEY, g); }
+  return g;
+}
 const RANKS = ['C', 'B', 'A', 'S'];
 
 /* =========================================================
@@ -1938,7 +1994,7 @@ const RULE_PAGES = [
     ['#ffd56b', 'バトル中に左下の「県民の勘」を押すと1つ消費して、その場で一番良い一手を教えてくれる。おすすめのカードが金色に光る。'],
     ['#ddd', '勘は手札の範囲で最善を計算する。引いてくるカードまでは読めないので、ここぞという場面で使おう。'],
     ['#ddd', '勘は保存され、次のプレイにも持ち越せる。マイページでログインすると、ほかの端末とも同期できる。'],
-    ['#ffd56b', 'タイトルの「番付」では、難易度ごとの説得スコアを競える（ログインして参加した人だけ）。'],
+    ['#ffd56b', '事件を解決すると、説得スコアが番付に自動で載る（ゲストでも）。タイトルの「番付」で順位を見られる。'],
     ['#b0ffc8', 'どの事件も「その場で見えている情報だけで正しく打てばクリアできる」ことを開始前に確認済み。運任せの事件は出ない。'],
   ] },
 ];
@@ -2002,7 +2058,7 @@ function drawResult() {
     ctx.font = `13px ${GOTH}`; ctx.fillStyle = '#fff'; ctx.fillText(`所持数 ${kanNow()}`, 0, 20);
     ctx.restore();
     ctx.font = `14px ${MINCHO}`; ctx.fillStyle = '#ffe9c8'; ctx.fillText('夕日に染まる東尋坊に、波の音だけが響いていた――', W / 2, 604);
-    if (G.rankMsg) { ctx.font = `13px ${GOTH}`; ctx.fillStyle = /送信しました/.test(G.rankMsg) ? '#b0ffc8' : '#ccc'; ctx.fillText(G.rankMsg, W / 2, 640); }
+    if (G.rankMsg) { ctx.font = `13px ${GOTH}`; ctx.fillStyle = /載りました|送りました/.test(G.rankMsg) ? '#b0ffc8' : '#ccc'; ctx.fillText(G.rankMsg, W / 2, 640); }
   } else {
     ctx.font = `56px ${MINCHO}`; outlineText('説得失敗', W / 2, 330, '#ff5a5a', '#200', 9);
     ctx.font = `16px ${GOTH}`; ctx.fillStyle = '#ddd';
@@ -2131,11 +2187,10 @@ cv.addEventListener('pointerdown', e => {
   if (phase === 'title') {
     for (const b of DIFF_BTNS) if (inRect(p, b)) {
       sndClick();
-      if (!SAVE.seenRules) openRules(true, () => beginGame(b.d));
-      else beginGame(b.d);
+      beginGame(b.d);
       return;
     }
-    if (inRect(p, T_RULE)) { sndClick(); openRules(false, null); }
+    if (inRect(p, T_RULE)) { sndClick(); openOnboarding(); }
     else if (inRect(p, T_MY)) { sndClick(); openMypage(); }
     else if (inRect(p, T_RANK)) { sndClick(); openRanking(); }
     return;
@@ -2280,49 +2335,69 @@ var MockCloudAdapter = {
       return this.write(db) ? { ok: true } : { ok: false, error: 'storage' };
     });
   },
-  // 番付（この端末の中だけ。本物のサーバーと同じく、打ち手の記録を再生して確かめる）
-  rankSubmit(token, b) {
+  // 番付（この端末の中だけ。本物のサーバーと同じく、打ち手の記録を再生して確かめる。ログインしていなければゲスト）
+  uidOf(db, who) {
+    if (who.token) { const u = this.byToken(db, who.token); return u ? u.name.toLowerCase() : null; }
+    return who.guest ? 'g:' + who.guest.slice(0, 20) : null;
+  },
+  putRank(db, k, e) {
+    const list = (db.ranking[k] || []).filter(x => x.uid !== e.uid || x.score >= e.score);
+    const mine = list.find(x => x.uid === e.uid);
+    if (mine) mine.name = e.name; else list.push(e);
+    list.sort((x, y) => y.score - x.score || x.at - y.at);
+    db.ranking[k] = list.slice(0, 50);
+  },
+  rankSubmit(who, b) {
     return this.later(() => {
-      const db = this.read(), u = this.byToken(db, token);
-      if (!u) return { ok: false, error: 'session' };
+      const db = this.read(), uid = this.uidOf(db, who);
+      if (!uid) return { ok: false, error: 'session' };
       const D = isObj(b) ? diffByKey(b.course) : null, r = D ? replayLog(D, b.seed, b.log) : null;
       if (!r || !r.win) return { ok: false, error: 'rejected' };
       db.ranking = isObj(db.ranking) ? db.ranking : {};
-      const e = { uid: u.name.toLowerCase(), name: cleanName(b.name) || DEFAULT_PLAYER_NAME, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, at: Date.now() };
-      [b.course + ':all', b.course + ':w' + rankWeekKey(Date.now())].forEach(k => {
-        let list = (db.ranking[k] || []).filter(x => x.uid !== e.uid || x.score >= e.score);
-        const mine = list.find(x => x.uid === e.uid);
-        if (mine) mine.name = e.name; else list.push(e);
-        list.sort((x, y) => y.score - x.score || x.at - y.at);
-        db.ranking[k] = list.slice(0, 50);
-      });
+      const e = { uid, name: cleanName(b.name) || DEFAULT_PLAYER_NAME, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, at: Date.now() };
+      [b.course + ':all', b.course + ':w' + rankWeekKey(Date.now())].forEach(k => this.putRank(db, k, Object.assign({}, e)));
       return this.write(db) ? { ok: true, score: r.score } : { ok: false, error: 'storage' };
     });
   },
-  rankGet(token, course, period) {
+  rankGet(who, course, period) {
     return this.later(() => {
-      const db = this.read(), u = this.byToken(db, token), week = rankWeekKey(Date.now());
+      const db = this.read(), uid = this.uidOf(db, who), week = rankWeekKey(Date.now());
       const list = (isObj(db.ranking) && db.ranking[course + ':' + (period === 'all' ? 'all' : 'w' + week)]) || [];
-      return { ok: true, course, period, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, me: !!u && e.uid === u.name.toLowerCase() })) };
+      return { ok: true, course, period, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, me: !!uid && e.uid === uid })) };
     });
   },
-  rankLeave(token) {
+  rankLeave(who) {
     return this.later(() => {
-      const db = this.read(), u = this.byToken(db, token);
-      if (!u) return { ok: false, error: 'session' };
-      if (isObj(db.ranking)) for (const k in db.ranking) db.ranking[k] = db.ranking[k].filter(e => e.uid !== u.name.toLowerCase());
+      const db = this.read(), uid = this.uidOf(db, who);
+      if (!uid) return { ok: false, error: 'session' };
+      if (isObj(db.ranking)) for (const k in db.ranking) db.ranking[k] = db.ranking[k].filter(e => e.uid !== uid);
+      return this.write(db) ? { ok: true } : { ok: false, error: 'storage' };
+    });
+  },
+  rankClaim(who) {                                   // ゲストのときの記録をアカウントに移す（よいほうを残す）
+    return this.later(() => {
+      const db = this.read(), uid = this.uidOf(db, who), g = who.guest ? 'g:' + who.guest.slice(0, 20) : '';
+      if (!uid) return { ok: false, error: 'session' };
+      if (!g || !isObj(db.ranking)) return { ok: true };
+      for (const k in db.ranking) {
+        const e = db.ranking[k].find(x => x.uid === g);
+        db.ranking[k] = db.ranking[k].filter(x => x.uid !== g);
+        if (e) this.putRank(db, k, Object.assign({}, e, { uid }));
+      }
       return this.write(db) ? { ok: true } : { ok: false, error: 'storage' };
     });
   }
 };
 // --- サーバー（REST）: POST /register・/login {user, hash} → {ok, user, token}／GET・PUT /save／DELETE /account {hash}／
-//     POST /ranking {course, seed, log, name}／GET /ranking?course=&period=week|all／DELETE /ranking。トークンは Authorization: Bearer ---
+//     POST /ranking {course, seed, log, name}／GET /ranking?course=&period=week|all／DELETE /ranking／POST /ranking/claim。
+//     トークンは Authorization: Bearer、ゲストの印は X-Guest ---
 var RestAdapter = {
   id: 'rest', label: 'クラウド',
-  call(path, method, body, token) {
+  call(path, method, body, token, guest) {
     if (!SYNC_CONFIG.endpoint || typeof fetch !== 'function') return Promise.resolve({ ok: false, error: 'offline' });
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = 'Bearer ' + token;
+    if (guest) headers['X-Guest'] = guest;
     let ctrl = null, timer = 0;
     try { ctrl = new AbortController(); } catch (e) { }
     const late = new Promise(res => { timer = setTimeout(() => { try { ctrl && ctrl.abort(); } catch (e) { } res({ ok: false, error: 'offline' }); }, SYNC_TIMEOUT_MS); });
@@ -2336,9 +2411,10 @@ var RestAdapter = {
   load(token) { return this.call('/save', 'GET', null, token); },
   save(token, data) { return this.call('/save', 'PUT', { data }, token); },
   remove(token, hash) { return this.call('/account', 'DELETE', { hash }, token); },
-  rankSubmit(token, payload) { return this.call('/ranking', 'POST', payload, token); },
-  rankGet(token, course, period) { return this.call('/ranking?course=' + encodeURIComponent(course) + '&period=' + (period === 'all' ? 'all' : 'week'), 'GET', null, token); },
-  rankLeave(token) { return this.call('/ranking', 'DELETE', null, token); }
+  rankSubmit(who, payload) { return this.call('/ranking', 'POST', payload, who.token, who.guest); },
+  rankGet(who, course, period) { return this.call('/ranking?course=' + encodeURIComponent(course) + '&period=' + (period === 'all' ? 'all' : 'week'), 'GET', null, who.token, who.guest); },
+  rankLeave(who) { return this.call('/ranking', 'DELETE', null, who.token, who.guest); },
+  rankClaim(who) { return this.call('/ranking/claim', 'POST', {}, who.token, who.guest); }
 };
 
 var SYNC_ERRORS = {
@@ -2380,6 +2456,7 @@ var SyncManager = {
         this.setAccount({ user: res.user || user, token: res.token, adapter: this.adapter.id, lastSync: 0 });
         return this.syncNow().then(r => {
           if (r.ok && !SAVE.profile.name) setDisplayName(res.user || user);   // 名前がまだなければ、ユーザー名を表示名に
+          if (r.ok) this.rank('rankClaim');                                    // ゲストで載っていた記録をアカウントへ
           return r;
         });
       }, () => ({ ok: false, error: 'offline' }));
@@ -2394,10 +2471,10 @@ var SyncManager = {
       this.logout(); return { ok: true };
     }, () => ({ ok: false, error: 'offline' }));
   },
+  // 番付：ログイン中はアカウント、そうでなければこの端末のゲストとして
   rank(fn, ...args) {
-    const acc = this.account();
-    if (!acc) return Promise.resolve({ ok: false, error: 'nologin' });
-    return this.adapter[fn](acc.token, ...args).then(r => {
+    const acc = this.account(), who = { token: acc ? acc.token : null, guest: guestSecret() };
+    return this.adapter[fn](who, ...args).then(r => {
       r = r || { ok: false, error: 'offline' };
       if (r.error === 'session') this.setAccount(null);
       return r;
@@ -2456,8 +2533,7 @@ function recordResult(win, rankIdx) {
 }
 function submitRank() {
   G.rankMsg = '';
-  if (!SyncManager.isLoggedIn()) { G.rankMsg = 'マイページでログインすると番付に参加できます'; return; }
-  if (!rankJoin()) { G.rankMsg = '番付に参加していません（番付の画面で設定できます）'; return; }
+  if (!rankJoin()) { G.rankMsg = '番付に載せない設定です（番付の画面で変えられます）'; return; }
   const run = RUN, g = G, key = D.key;
   const r = replayLog(D, g.seed, g.log);              // (送る前に、この端末でも同じ記録になるか確かめる)
   if (!r || !r.win) { g.rankMsg = '番付に送れない記録でした'; return; }
@@ -2468,7 +2544,7 @@ function submitRank() {
     return SyncManager.rank('rankGet', key, 'week').then(q => {
       if (run !== RUN) return;
       const me = q.ok && q.entries.find(e => e.me);
-      g.rankMsg = me ? `番付に送信しました　今週の${DIFFS.find(d => d.key === key).name}で ${me.rank}位` : '番付に送信しました（今週の上位50人の外）';
+      g.rankMsg = me ? `番付に載りました　今週の${DIFFS.find(d => d.key === key).name}で ${me.rank}位` : '番付に送りました（今週の上位50人の外）';
     });
   });
 }
@@ -2480,7 +2556,7 @@ var OV = {};
 ['ov', 'scr-mypage', 'scr-rank', 'mp-back', 'mp-name', 'mp-name-edit', 'mp-name-form', 'mp-name-input', 'mp-name-cancel', 'mp-grid', 'mp-table',
   'mp-status', 'mp-sync', 'mp-auth', 'mp-user', 'mp-pass', 'mp-register', 'mp-login', 'mp-auth-cancel', 'mp-open-auth', 'mp-sync-now', 'mp-logout',
   'mp-delete', 'mp-del-form', 'mp-del-pass', 'mp-del-no', 'mp-msg', 'mp-note',
-  'rk-back', 'rk-login', 'rk-open-mypage', 'rk-body', 'rk-diffs', 'rk-periods', 'rk-status', 'rk-podium', 'rk-me', 'rk-list', 'rk-join', 'rk-join-msg', 'rk-leave'
+  'rk-back', 'rk-login', 'rk-guest-name', 'rk-open-mypage', 'rk-body', 'rk-diffs', 'rk-periods', 'rk-status', 'rk-podium', 'rk-me', 'rk-list', 'rk-join', 'rk-join-msg', 'rk-leave'
 ].forEach(id => OV[id] = document.getElementById(id));
 var ovScreen = null, rkState = { diff: 'normal', period: 'week', req: 0 }, mpTick = 0;
 function showOverlay(which) {
@@ -2488,6 +2564,7 @@ function showOverlay(which) {
   OV.ov.hidden = !which;
   OV['scr-mypage'].hidden = which !== 'mypage';
   OV['scr-rank'].hidden = which !== 'rank';
+  document.getElementById('scr-onboard').hidden = which !== 'onboard';
   if (which) { OV.ov.scrollTop = 0; mouse = { x: -1, y: -1 }; }
 }
 function closeOverlay() { showOverlay(null); sndClick(); }
@@ -2569,19 +2646,19 @@ function wireOverlay() {
   OV['rk-join'].onchange = () => {
     const on = OV['rk-join'].checked;
     lsSet(RANKJOIN_KEY, on ? '1' : '0');
-    if (on) { OV['rk-join-msg'].textContent = '参加しました。次に事件を解決したときから番付に送ります。'; return; }
-    OV['rk-join-msg'].textContent = '参加をやめました。';
+    if (on) { OV['rk-join-msg'].textContent = '次に事件を解決したときから、番付に載ります。'; return; }
+    OV['rk-join-msg'].textContent = 'これからの記録は番付に載せません（もう載っている記録は「番付から自分の記録を消す」で消せます）。';
   };
   OV['rk-leave'].onclick = () => {
     OV['rk-join-msg'].textContent = '番付から記録を消しています……';
     SyncManager.rank('rankLeave').then(r => {
       if (!r.ok) { OV['rk-join-msg'].textContent = syncErrorText(r.error); return; }
       lsSet(RANKJOIN_KEY, '0'); OV['rk-join'].checked = false;
-      OV['rk-join-msg'].textContent = '番付からあなたの記録を消し、参加をやめました。'; loadRanking();
+      OV['rk-join-msg'].textContent = '番付からあなたの記録を消しました。これからの記録も載せません。'; loadRanking();
     });
   };
   SyncManager.onChange(() => { if (ovScreen === 'mypage') renderAccount(); });
-  addEventListener('keydown', e => { if (e.key === 'Escape' && ovScreen) { e.stopImmediatePropagation(); closeOverlay(); } }, true);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && ovScreen) { e.stopImmediatePropagation(); if (ovScreen === 'onboard') closeOnboarding(); else closeOverlay(); } }, true);
 }
 
 function openRanking(diffKey) {
@@ -2590,7 +2667,7 @@ function openRanking(diffKey) {
 }
 function renderRankingFrame() {
   const acc = SyncManager.isLoggedIn();
-  OV['rk-login'].hidden = acc; OV['rk-body'].hidden = !acc;
+  OV['rk-login'].hidden = acc; OV['rk-guest-name'].textContent = displayName();
   OV['rk-join'].checked = rankJoin(); OV['rk-join-msg'].textContent = '';
   OV['rk-diffs'].replaceChildren(...DIFFS.map(d => {
     const b = el('button', 'ov-btn small', d.name); b.type = 'button';
@@ -2610,13 +2687,12 @@ function challengeBtn(e) {
   return b;
 }
 function loadRanking() {
-  if (!SyncManager.isLoggedIn()) return;
   const req = ++rkState.req;
   OV['rk-status'].textContent = '読み込んでいます……';
   OV['rk-podium'].replaceChildren(); OV['rk-list'].replaceChildren(); OV['rk-me'].hidden = true;
   SyncManager.rank('rankGet', rkState.diff, rkState.period).then(r => {
     if (req !== rkState.req) return;
-    if (!r.ok) { OV['rk-status'].textContent = syncErrorText(r.error); if (r.error === 'session') renderRankingFrame(); return; }
+    if (!r.ok) { OV['rk-status'].textContent = syncErrorText(r.error); renderRankingFrame(); return; }
     const es = Array.isArray(r.entries) ? r.entries : [];
     OV['rk-status'].textContent = es.length ? (rkState.period === 'week' ? `今週（${r.week} からの週）の上位 ${es.length} 人` : `全期間の上位 ${es.length} 人`)
       : 'まだ記録がありません。最初の一人になろう。';
@@ -2637,10 +2713,132 @@ function loadRanking() {
     if (i >= 0) {
       const up = es[i - 1];
       OV['rk-me'].textContent = `あなたは ${i + 1}位（${es[i].score.toLocaleString()}）` + (up ? `。ひとつ上の ${up.name} まであと ${(up.score - es[i].score + 1).toLocaleString()} 点` : '。トップです！');
-    } else OV['rk-me'].textContent = rankJoin() ? 'あなたの記録はまだ載っていません。事件を解決すると送られます。' : 'あなたは番付に参加していません（下の設定で参加できます）。';
+    } else OV['rk-me'].textContent = rankJoin() ? 'あなたの記録はまだ載っていません。事件を解決すると自動で載ります。' : 'あなたは番付に載せない設定です（下の設定で変えられます）。';
   });
 }
 wireOverlay();
+
+/* =========================================================
+   はじめての捜査（最初の説明。無限そば道・斬の「はじめての修行」と同じ作り）
+   最後のページで「アカウントを作成またはログインしますか？」と聞く
+   ========================================================= */
+const OB_SLIDES = [
+  { h: '① まず音をオンに！', t: '波の音・BGM・カードの決め音が鳴るゲームです。スマホの消音モード（マナーモード）を解除して、音量を上げて遊んでください。イヤホンもおすすめです。', sound: true, pic: 'sound' },
+  { h: '② 崖っぷちの犯人を説得せよ', t: '東尋坊の崖に追い詰められた犯人を説得して、「自首」メーターを100にすれば事件解決。犯人は毎ターン崖の端へ近づきます。残り0歩になるか、刑事のメンタルが尽きると失敗です。', pic: 'cliff' },
+  { h: '③ 3つのカードを使い分ける', t: '青の【証拠】で心の壁（心壁）を崩し、緑の【人情】で自首メーターを上げます。心壁が残っていると人情は届きにくい。赤の【グルメ】は犯人を動揺させたり、APや手札を増やしたり。', pic: 'cards' },
+  { h: '④ 犯人の狙いを読む', t: '画面の左上に、犯人が次にすることと、その対策が出ます。毎ターン変わる「心境」でカードの効き方も変わります。カードの数字は「今使ったらどうなるか」です。', pic: 'read' },
+  { h: '⑤ 県民の勘と番付', t: '迷ったら「県民の勘」で一番いい手を教えてもらえます。どの事件も、推理すれば必ず解決できることを確かめてから出しています。解決すると、説得スコアが番付に自動で載ります。', pic: 'win' },
+  { h: 'アカウントを作成またはログインしますか？', t: 'アカウントがあると、ほかの端末でも記録と県民の勘を引き継げて、番付にも同じ名前で載ります。作るのはユーザー名とパスワードだけ（メールアドレスは不要）。あとからマイページでもできます。', acc: true, pic: 'acc' },
+];
+const OBE = {};
+['ob-step', 'ob-pic', 'ob-h', 'ob-text', 'ob-sound', 'ob-sound-state', 'ob-sound-test', 'ob-acc', 'ob-acc-state', 'ob-acc-yes', 'ob-acc-no',
+  'ob-dots', 'ob-prev', 'ob-next', 'ob-hide', 'ob-more'].forEach(id => OBE[id] = document.getElementById(id));
+let obIndex = 0, obTried = false, obAnim = 0;
+// 絵（120×64 のドット絵。ゲームと同じ人物を使う）
+function drawObPic(kind) {
+  const c = OBE['ob-pic'], g = c.getContext('2d'), t = performance.now() / 1000, fr = Math.floor(t * 3) % 2;
+  g.imageSmoothingEnabled = false;
+  const sky = kind === 'win' ? ['#2b1f5e', '#7a3070', '#c8484f', '#f08a40'] : ['#151a26', '#232a3a', '#343b4b', '#4a5060'];
+  sky.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * 10, 120, 10); });
+  g.fillStyle = kind === 'win' ? '#4a2e5e' : '#1d2a38'; g.fillRect(0, 40, 120, 24);
+  g.fillStyle = kind === 'win' ? '#a0507a' : '#3a4656'; for (let x = (Math.floor(t * 8) % 6); x < 120; x += 6) g.fillRect(x, 42 + (x % 4), 3, 1);
+  if (kind === 'win') { g.fillStyle = '#ffd890'; g.fillRect(80, 33, 10, 6); g.fillRect(78, 35, 14, 3); }
+  const cliff = () => { g.fillStyle = '#3d3a3a'; g.fillRect(0, 50, 104, 14); g.fillStyle = '#6a6560'; g.fillRect(0, 50, 104, 2); g.fillStyle = '#2e2a2a'; for (let x = 4; x < 104; x += 8) g.fillRect(x, 53, 1, 11); g.fillStyle = '#ffffff'; g.fillRect(104 + fr, 58, 16, 1); };
+  const spr = (sp, x, foot) => g.drawImage(sp, x - SPR_AX, foot - SPR_AY);
+  if (kind === 'sound') {
+    g.fillStyle = '#000'; g.fillRect(40, 18, 40, 30); g.fillStyle = '#f0c84a'; g.fillRect(43, 21, 34, 24);
+    g.fillStyle = '#2a2010'; g.fillRect(48, 28, 6, 10); g.fillRect(54, 25, 4, 16); g.fillRect(58, 22, 3, 22);
+    g.fillStyle = '#2a2010'; const w = fr ? 1 : 0; g.fillRect(64, 30 - w, 2, 6 + w * 2); g.fillRect(68, 27 - w, 2, 12 + w * 2); g.fillRect(72, 24 - w, 2, 18 + w * 2);
+    g.fillStyle = '#ffffff'; [[20, 14 + fr], [96, 18 - fr], [28, 44 - fr], [92, 46 + fr]].forEach(([x, y]) => { g.fillRect(x, y, 3, 3); g.fillRect(x + 2, y - 7, 1, 8); g.fillRect(x + 3, y - 7, 3, 1); });
+  } else if (kind === 'cliff') {
+    cliff(); spr(detectiveSprite(fr), 26, 52); spr(culpritSprite('angry', false, fr, 0), 84, 50);
+    g.fillStyle = '#ff6b6b'; g.fillRect(98, 6, 18, 9); g.fillStyle = '#fff'; g.fillRect(100, 8, 3, 5); g.fillRect(105, 8, 3, 5); g.fillRect(110, 8, 3, 5);
+  } else if (kind === 'cards') {
+    [['ev', '#2f6fd6', '#173a7a'], ['hu', '#2e9e5b', '#155a32'], ['gu', '#d6453a', '#7a1d17']].forEach(([k, a, b], i) => {
+      const x = 14 + i * 34, y = 8 + (i === Math.floor(t * 1.5) % 3 ? -3 : 0);
+      g.fillStyle = '#000'; g.fillRect(x, y, 26, 40); g.fillStyle = b; g.fillRect(x + 1, y + 1, 24, 38); g.fillStyle = a; g.fillRect(x + 1, y + 1, 24, 34);
+      g.fillStyle = '#f4ecd8'; g.fillRect(x + 3, y + 9, 20, 22);
+      const ic = ICONS[k]; ic.rows.forEach((row, j) => { for (let q = 0; q < row.length; q++) { const col = ic.pal[row[q]]; if (col) { g.fillStyle = col; g.fillRect(x + 8 + q, y + 15 + j, 1, 1); } } });
+    });
+  } else if (kind === 'read') {
+    cliff(); spr(culpritSprite('shaken', false, fr, 0), 70, 50);
+    g.fillStyle = '#000'; g.fillRect(4, 4, 46, 16); g.fillStyle = '#5a1418'; g.fillRect(5, 5, 44, 14);
+    g.fillStyle = '#ffb0a0'; g.fillRect(8, 8, 8, 8); g.fillStyle = '#200'; g.fillRect(11, 9, 2, 4); g.fillRect(11, 14, 2, 1);
+    g.fillStyle = '#ffd0c0'; g.fillRect(19, 9, 26, 2); g.fillRect(19, 13, 18, 2);
+    if (fr) { g.fillStyle = '#ffd56b'; g.fillRect(52, 6, 2, 2); g.fillRect(55, 4, 2, 2); }
+  } else if (kind === 'win') {
+    cliff(); spr(detectiveSprite(fr), 30, 52); spr(culpritSprite('remorse', true, fr, 1 + Math.floor(t * 4) % 4), 74, 50);
+    g.fillStyle = '#ffd56b'; [[14, 8], [100, 12], [58, 4]].forEach(([x, y], i) => { if ((Math.floor(t * 3) + i) % 2) { g.fillRect(x, y, 3, 3); g.fillRect(x - 2, y + 1, 7, 1); g.fillRect(x + 1, y - 2, 1, 7); } });
+  } else {
+    cliff(); spr(detectiveSprite(fr), 60, 52);
+    g.fillStyle = '#000'; g.fillRect(78, 8, 34, 20); g.fillStyle = '#f4f0e8'; g.fillRect(79, 9, 32, 18);
+    g.fillStyle = '#2a4a7a'; g.fillRect(82, 12, 10, 12); g.fillStyle = '#f0c09a'; g.fillRect(85, 14, 4, 4); g.fillStyle = '#2a4a7a';
+    g.fillStyle = '#5a5a6a'; g.fillRect(95, 13, 13, 2); g.fillRect(95, 18, 10, 2); g.fillRect(95, 22, 12, 2);
+    g.fillStyle = '#f4f0e8'; g.fillRect(74, 26, 6, 2); g.fillRect(72, 28, 4, 2);
+  }
+}
+function obLoop() {
+  if (ovScreen !== 'onboard') { obAnim = 0; return; }
+  drawObPic(OB_SLIDES[obIndex].pic);
+  obAnim = requestAnimationFrame(obLoop);
+}
+function renderObSound() {
+  OBE['ob-sound-state'].textContent = SND.muted ? 'いまのゲームの音：オフ（このままでは音が出ません）'
+    : obTried ? '「ジャッジャーン！」が聞こえたら準備OK。聞こえないときは、消音モードと音量を確かめてください。'
+    : 'いまのゲームの音：オン';
+  OBE['ob-sound-test'].textContent = SND.muted ? '音をオンにして鳴らしてみる' : '音を鳴らしてみる';
+}
+function renderObAcc() {
+  const acc = SyncManager.account();
+  OBE['ob-acc-state'].textContent = acc ? `ログイン中：${acc.user}` : `いまはゲスト（番付には「${displayName()}」で載ります）`;
+  OBE['ob-acc-yes'].hidden = !!acc;
+  OBE['ob-acc-no'].textContent = acc ? '捜査をはじめる' : 'ゲストではじめる';
+}
+function renderOnboarding() {
+  const sl = OB_SLIDES[obIndex];
+  OBE['ob-step'].textContent = `${obIndex + 1} / ${OB_SLIDES.length}`;
+  OBE['ob-h'].textContent = sl.h;
+  OBE['ob-text'].textContent = sl.t;
+  OBE['ob-dots'].replaceChildren(...OB_SLIDES.map((_, i) => { const d = document.createElement('i'); if (i === obIndex) d.className = 'on'; return d; }));
+  OBE['ob-prev'].disabled = obIndex === 0;
+  OBE['ob-next'].hidden = obIndex >= OB_SLIDES.length - 1;
+  OBE['ob-sound'].hidden = !sl.sound; if (sl.sound) renderObSound();
+  OBE['ob-acc'].hidden = !sl.acc; if (sl.acc) renderObAcc();
+  drawObPic(sl.pic);
+}
+function openOnboarding() {
+  obIndex = 0; obTried = false;
+  OBE['ob-hide'].checked = true;                   // 「次回から表示しない」は最初からチェック。外すと次回も出る
+  showOverlay('onboard'); renderOnboarding();
+  try { OBE['ob-h'].focus({ preventScroll: true }); } catch (e) { }
+  if (!obAnim) obAnim = requestAnimationFrame(obLoop);
+}
+function closeOnboarding(next) {
+  if (ovScreen !== 'onboard') return;
+  SAVE.onboard = OBE['ob-hide'].checked ? ONBOARD_VER : 0;
+  SAVE.seenRules = true;
+  save();
+  showOverlay(null); sndClick();
+  if (next === 'account') { openMypage(); OV['mp-open-auth'].click(); }
+  else if (next === 'rules') openRules(false, null);
+}
+OBE['ob-prev'].onclick = () => { if (obIndex > 0) { obIndex--; sndClick(); renderOnboarding(); } };
+OBE['ob-next'].onclick = () => { if (obIndex < OB_SLIDES.length - 1) { obIndex++; sndClick(); renderOnboarding(); } };
+OBE['ob-sound-test'].onclick = () => {
+  audioInit();
+  if (SND.muted) toggleMute();
+  sndSting('ev'); obTried = true; renderObSound();
+};
+OBE['ob-acc-yes'].onclick = () => closeOnboarding('account');
+OBE['ob-acc-no'].onclick = () => closeOnboarding();
+OBE['ob-more'].onclick = () => closeOnboarding('rules');
+addEventListener('keydown', e => {
+  if (ovScreen !== 'onboard') return;
+  if (e.key === 'ArrowRight') OBE['ob-next'].click();
+  else if (e.key === 'ArrowLeft') OBE['ob-prev'].click();
+}, true);
+// 初めて開いたとき（または説明の版が上がったとき）に出す
+if (SAVE.onboard < ONBOARD_VER) openOnboarding();
 </script>
 </body>
 </html>
