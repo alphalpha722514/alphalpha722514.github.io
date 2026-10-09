@@ -383,6 +383,67 @@ const DIFFS = [
     moods: ['nostalgia', 'hungry', 'doubt', 'doubt', 'rage', 'reject', 'reject', 'guarded', 'guarded'], intents: { atk: 4, alert: 2, wall: 3, retreat: 3 }, reward: 3 },
 ];
 
+/* ---------- 犯人（4人）：難易度の値に上乗せ・上書きして、同じ計算の道すじで効かせる ---------- */
+const CULPRITS = [
+  { key: 'iwaki',  name: '岩城 徹',    short: '岩城',   sub: '元銀行員', col: '#9fc4ff', who: '男', desc: '標準。基本に忠実に攻めよう', mod: {} },
+  { key: 'washio', name: '鷲尾 権造',  short: '鷲尾',   sub: '県会議員', col: '#ffb347', who: '男', desc: '心壁が毎ターン+12回復。警戒が高いと反論が激しい', mod: { regenAdd: 12, alertAtkAdd: 1 } },
+  { key: 'tome',   name: '前川 トメ',  short: 'トメ',   sub: '人情犯',   col: '#ff9ad0', who: '女', desc: '心壁があると人情×0.25。グルメの自首・心壁・回復が×2.5', mod: { huUnderMax: 0.25, guMul: 2.5 } },
+  { key: 'minamo', name: '柏木 みなも', short: 'みなも', sub: '元看護師', col: '#7dffa8', who: '女', desc: 'いつも「拒絶」。自首50を超えると人情×2', mod: { fixedMood: 'reject', huLate: 2 } },
+];
+function culpritByKey(k) { return CULPRITS.find(c => c.key === k) || null; }
+// 難易度 D に犯人の効果を重ねた D を返す（key・name はそのまま。culprit に犯人の key）
+function withCulprit(D, ck) {
+  const c = culpritByKey(ck || 'iwaki');
+  if (!D || !c) return null;
+  const m = c.mod, E = Object.assign({}, D, { culprit: c.key });
+  if (m.regenAdd) E.regen = D.regen + m.regenAdd;
+  if (m.alertAtkAdd) E.alertAtk = D.alertAtk + m.alertAtkAdd;
+  if (m.huUnderMax != null) E.huUnder = Math.min(D.huUnder, m.huUnderMax);
+  if (m.guMul) E.guMul = m.guMul;
+  if (m.fixedMood) E.fixedMood = m.fixedMood;
+  if (m.huLate) E.huLate = m.huLate;
+  return E;
+}
+
+/* ---------- 捜査コンボ（名前のついた連携。直近6枚＝ターンをまたいで判定。各コンボ1事件1回） ----------
+   set: 対象のカード / type: 対象の種類。seq: 最後の3枚が連続して3種 ／ それ以外: 直近6枚に3種 */
+const COMBOS = [
+  { id: 'kagaku',   name: '科学捜査コンボ',       set: ['megane', 'finger', 'seni', 'kanshiki', 'kara', 'ashiato'], seq: true,
+    text: '鑑識の証拠を3つ続けて突きつけた（心壁 −25）', bonus: { shield: 25 } },
+  { id: 'jinsho',   name: '人証コンボ',           set: ['mokugeki', 'jihaku', 'rireki', 'camera', 'techo'], seq: false,
+    text: '証言が3つそろい、言い逃れを封じた（警戒 −2）', bonus: { alert: -2 } },
+  { id: 'ninjo',    name: '人情の連鎖',           type: 'hu', seq: true,
+    text: '人情を3つ重ねて、心を揺さぶった（自首 +30）', bonus: { sur: 30 } },
+  { id: 'gurume',   name: '福井グルメの三段活用', type: 'gu', seq: true,
+    text: '福井の味を3品続けて、場が和んだ（AP +2・2枚ドロー）', bonus: { ap: 2, draw: 2 } },
+  { id: 'gyakuten', name: '逆転の口上',           set: ['sakebi', 'ippo', 'izoku', 'namida', 'yakusoku'], seq: false,
+    text: 'このターン、証拠が心壁を越えて心に届く', bonus: { pierceEv: true } },
+];
+// 今使ったカード id で成立したコンボ（s.recent には id を入れたあとで呼ぶ）
+const NO_COMBO = [];
+function combosHit(s, id) {
+  if (s.firedCombos.length >= COMBOS.length) return NO_COMBO;
+  let out = NO_COMBO;
+  for (const c of COMBOS) {
+    if (c.set ? !c.set.includes(id) : CARDS[id].type !== c.type) continue;
+    if (s.firedCombos.includes(c.id)) continue;
+    const inC = x => (c.set ? c.set.includes(x) : CARDS[x].type === c.type), R = s.recent, n = R.length;
+    let ok = false;
+    if (c.seq) ok = n >= 3 && inC(R[n - 2]) && inC(R[n - 3]) && R[n - 1] !== R[n - 2] && R[n - 1] !== R[n - 3] && R[n - 2] !== R[n - 3];
+    else { const u = []; for (const x of R) if (inC(x) && !u.includes(x)) u.push(x); ok = u.length >= 3; }
+    if (ok) { if (out === NO_COMBO) out = []; out.push(c); }
+  }
+  return out;
+}
+// 崖っぷちタイムの成功（自首 +15）。画面ではタップ3回、打ち手の記録では '!cliff'
+const CLIFF_AT = 70, CLIFF_SUR = 15, CLIFF_MOVE = '!cliff';
+function cliffBonus(s) {
+  const r = { sur: Math.min(CLIFF_SUR, 100 - s.sur), stepBack: false };
+  s.sur += r.sur;
+  if (s.sur >= 50 && !s.stepBack) { s.stepBack = true; s.crisis += 1; r.stepBack = true; }
+  return r;
+}
+
 /* ---------- ルール本体（描画から独立：最善手探索にも使う） ---------- */
 function makeSim(g) {
   return {
@@ -390,10 +451,17 @@ function makeSim(g) {
     alert: g.alert, daze: g.daze, stun: g.stun, ate: g.ate, lastType: g.lastType, played: g.played.slice(),
     crisis: g.crisis, stepBack: g.stepBack, mood: g.mood, intent: g.intent, drawn: 0,
     boostHu: !!g.boostHu, boostEv: !!g.boostEv,
-    hand: g.hand ? g.hand.map(c => (typeof c === 'string' ? c : c.id)) : []
+    hand: g.hand ? g.hand.map(c => (typeof c === 'string' ? c : c.id)) : [],
+    recent: (g.recent || []).slice(), firedCombos: (g.firedCombos || []).slice(), pierceEv: !!g.pierceEv,   // 捜査コンボ
+    cliffDone: !!g.cliffDone, gamble: Object.assign({ active: false, need: 3, have: 0, t: 0 }, g.gamble)        // 崖っぷちタイム
   };
 }
-function cloneSim(s) { const n = Object.assign({}, s); n.played = s.played.slice(); n.hand = s.hand.slice(); return n; }
+function cloneSim(s) {
+  const n = Object.assign({}, s);
+  n.played = s.played.slice(); n.hand = s.hand.slice();
+  n.recent = s.recent.slice(); n.firedCombos = s.firedCombos.slice(); n.gamble = Object.assign({}, s.gamble);
+  return n;
+}
 
 // カード効果を状態 s に適用し、何が起きたかを返す
 function cardEffect(s, id, D) {
@@ -423,7 +491,9 @@ function cardEffect(s, id, D) {
     if (s.boostEv) { mult *= 1.5; s.boostEv = false; r.tags.push('強化×1.5'); }
     let dmg = Math.round(base * mult);
     if (s.mood === 'guarded') { dmg = Math.max(0, dmg - 8); r.tags.push('頑な−8'); }
+    const wall = s.shield > 0;
     hitShield(dmg);
+    if (s.pierceEv && wall && dmg > 0) { const g = Math.round(dmg * 0.3); s.sur += g; r.sur += g; r.tags.push('口上:貫通'); }
     if (r.broke && d.breakSur) { s.sur += d.breakSur; r.sur += d.breakSur; r.tags.push('破壊ボーナス'); }
     if (d.draw) r.draw = Math.round(d.draw * m);
   } else if (d.type === 'hu') {
@@ -432,6 +502,7 @@ function cardEffect(s, id, D) {
     let mult = m;
     if (s.mood === 'nostalgia') { mult *= 1.5; r.tags.push('郷愁×1.5'); }
     if (s.mood === 'rage') { mult *= 0.5; r.tags.push('激昂×0.5'); }
+    if (D.huLate && s.sur > 50) { mult *= D.huLate; r.tags.push('心を開く×' + D.huLate); }
     if (s.lastType === 'ev') { mult *= 1.3; r.tags.push('緩急×1.3'); }
     if (s.boostHu) { mult *= 1.5; s.boostHu = false; r.tags.push('強化×1.5'); }
     if (d.crisisBonus && s.crisis <= 2) { mult *= 2; r.tags.push('崖っぷち×2'); }
@@ -444,15 +515,16 @@ function cardEffect(s, id, D) {
     if (d.draw) r.draw = Math.round(d.draw * m);
     if (d.step) { s.crisis += d.step; r.step = d.step; }
   } else {
-    const k = (s.mood === 'hungry' ? 2 : 1) * m;
+    const k0 = (s.mood === 'hungry' ? 2 : 1) * m, k = k0 * (D.guMul || 1);   // (犯人の好物倍率は、ドローとAPには掛けない＝無限に回らないように)
     if (s.mood === 'hungry') r.tags.push('空腹×2');
+    if (D.guMul) r.tags.push('好物×' + D.guMul);
     if (d.daze) { s.daze = true; r.daze = true; }
     if (d.boostHu) { s.boostHu = true; r.boostHu = true; }
     if (d.boostEv) { s.boostEv = true; r.boostEv = true; }
     if (d.dmg) hitShield(Math.round(d.dmg * k));
     if (d.surFlat) { const g = Math.round(d.surFlat * k); s.sur += g; r.sur += g; }
-    if (d.draw) r.draw = Math.round(d.draw * k);
-    if (d.ap) r.ap = Math.round(d.ap * k);
+    if (d.draw) r.draw = Math.round(d.draw * k0);
+    if (d.ap) r.ap = Math.round(d.ap * k0);
     if (d.heal) r.heal = Math.round(d.heal * k);
     if (d.alert) alertD = Math.round(d.alert * k);
     s.ate = true;
@@ -462,8 +534,21 @@ function cardEffect(s, id, D) {
   if (r.ap) s.ap += r.ap;
   if (alertD) { const before = s.alert; s.alert = Math.max(0, Math.min(5, s.alert + alertD)); r.alert = s.alert - before; }
   s.drawn += r.draw;
+  // 捜査コンボ（直近6枚。成立したら上乗せ）
+  s.recent.push(id); if (s.recent.length > 6) s.recent.shift();
+  r.combos = combosHit(s, id); r.combo = r.combos[0] || null;
+  for (const c of r.combos) {
+    const b = c.bonus; s.firedCombos.push(c.id);
+    if (b.shield) hitShield(b.shield);
+    if (b.alert) { const before = s.alert; s.alert = Math.max(0, Math.min(5, s.alert + b.alert)); r.alert += s.alert - before; }
+    if (b.sur) { s.sur += b.sur; r.sur += b.sur; }
+    if (b.ap) { s.ap += b.ap; r.ap += b.ap; }
+    if (b.draw) { r.draw += b.draw; s.drawn += b.draw; }
+    if (b.pierceEv) s.pierceEv = true;
+  }
   s.sur = Math.min(100, s.sur);
   if (s.sur >= 50 && !s.stepBack) { s.stepBack = true; s.crisis += 1; r.stepBack = true; }
+  if (s.sur >= CLIFF_AT && s.sur < 100 && !s.cliffDone) { s.cliffDone = true; r.cliff = true; }   // 崖っぷちタイム（1事件1回）
   s.lastType = d.type; s.played.push(id);
   return r;
 }
@@ -491,7 +576,7 @@ function applyEnemy(s, rec) {
   s.crisis -= rec.crisis;
   s.stun = false;
 }
-function rollMood(g, D, rnd) { const x = rnd(); return g.turn <= 1 ? 'calm' : D.moods[Math.floor(x * D.moods.length)]; }
+function rollMood(g, D, rnd) { const x = rnd(); if (D.fixedMood) return D.fixedMood; return g.turn <= 1 ? 'calm' : D.moods[Math.floor(x * D.moods.length)]; }
 function rollIntent(g, D, rnd) {
   const soft = g.sur >= 60;
   const ok = {
@@ -522,11 +607,11 @@ function evaluate(s0, s, D) {
   return v;
 }
 // 最善手探索：今の手札でどの順に何を使うのが一番か
-function solve(g, D) {
-  const s0 = makeSim(g);
+function solve(g, D, cap) {
+  const s0 = makeSim(g), lim = cap || 60000;
   let best = { v: evaluate(s0, s0, D), seq: [] }, nodes = 0;
   const dfs = (s, seq) => {
-    if (++nodes > 60000) return;
+    if (++nodes > lim) return;
     const tried = new Set();
     for (let i = 0; i < s.hand.length; i++) {
       const id = s.hand[i];
@@ -541,6 +626,7 @@ function solve(g, D) {
     }
   };
   dfs(s0, []);
+  best.nodes = nodes;
   return best;
 }
 /* ---------- ゲーム進行（画面側も検証AIも同じ関数を使う） ---------- */
@@ -550,7 +636,9 @@ function coreNewGame(D, seed) {
     shield: D.shield, maxShield: D.shield, sur: 0, crisis: D.crisis, hp: D.hp, maxHp: D.hp, ap: D.ap, alert: 0,
     daze: false, stun: false, ate: false, lastType: null, played: [], mood: 'calm', intent: { type: 'atk', bonus: 0 },
     deck: seededShuffle(buildDeck(rngFor(seed, 1)), rngFor(seed, 2)), hand: [], disc: [], turn: 0,
-    stepBack: false, boostHu: false, boostEv: false
+    stepBack: false, boostHu: false, boostEv: false,
+    recent: [], firedCombos: [], pierceEv: false,                     // 捜査コンボ
+    cliffDone: false, gamble: { active: false, need: 3, have: 0, t: 0 }   // 崖っぷちタイム
   };
 }
 function coreDraw(g, n) {
@@ -567,19 +655,25 @@ function coreDraw(g, n) {
   return out;
 }
 function coreStartTurn(g, D) {
-  g.turn++; g.ap = D.ap; g.daze = false; g.ate = false; g.lastType = null; g.played = []; g.boostHu = false; g.boostEv = false;
+  g.turn++; g.ap = D.ap; g.daze = false; g.ate = false; g.lastType = null; g.played = []; g.boostHu = false; g.boostEv = false; g.pierceEv = false;
   const rnd = rngFor(g.seed, 1000 + g.turn);
   g.mood = rollMood(g, D, rnd);
   g.intent = rollIntent(g, D, rnd);
 }
 // 検証：プレイヤーと同じ情報（今の手札・狙い・心境）だけで打つ最善手AIが、この事件をクリアできるか
 // ※未来の山札は一切見ない。毎手「県民の勘」に従った場合と同じ打ち筋になる
-function playout(seed, D, maxTurns) {
-  const g = coreNewGame(D, seed);
+// maxNodes：最善手探索で調べる局面の合計の上限（超えたら「確かめられなかった」＝出題しない。手札が膨らむ事件で画面が固まらないように）
+function playout(seed, D, maxTurns, maxNodes) {
+  const g = coreNewGame(D, seed); let nodes = 0;
   while (g.turn < (maxTurns || 20)) {
     coreStartTurn(g, D); g.hand.push(...coreDraw(g, 4));
     for (;;) {
-      const id = solve(g, D).seq[0]; if (!id) break;
+      const lim = maxNodes ? Math.min(60000, maxNodes - nodes) : 60000;
+      if (lim <= 0) return { win: false, turn: g.turn, slow: true };
+      const sv = solve(g, D, lim), id = sv.seq[0]; nodes += sv.nodes;
+      // 上限で探索を打ち切ったときは、勘（上限60000）と違う手になりうるので「確かめられなかった」にする
+      if (sv.nodes > lim && lim < 60000) return { win: false, turn: g.turn, slow: true };
+      if (!id) break;
       g.hand.splice(g.hand.indexOf(id), 1); g.disc.push(id);
       const r = cardEffect(g, id, D); if (r.draw) g.hand.push(...coreDraw(g, r.draw));
       if (g.sur >= 100) return { win: true, turn: g.turn, hp: g.hp, crisis: g.crisis };
@@ -602,13 +696,20 @@ function replayLog(D, seed, log) {
     const moves = log[t];
     if (!Array.isArray(moves) || moves.length > 40) return null;
     coreStartTurn(g, D); g.hand.push(...coreDraw(g, 4));
+    let cliffOpen = false;                     // 崖っぷちタイム：その直前のカードで発動したときだけ '!cliff'（成功）を受け付ける
     for (let k = 0; k < moves.length; k++) {
       const id = moves[k];
-      if (typeof id !== 'string' || !Object.prototype.hasOwnProperty.call(CARDS, id)) return null;
-      const i = g.hand.indexOf(id);
-      if (i < 0 || CARDS[id].cost > g.ap) return null;
-      g.hand.splice(i, 1); g.disc.push(id);
-      const r = cardEffect(g, id, D); if (r.draw) g.hand.push(...coreDraw(g, r.draw));
+      if (id === CLIFF_MOVE) {
+        if (!cliffOpen) return null;
+        cliffOpen = false; cliffBonus(g);
+      } else {
+        if (typeof id !== 'string' || !Object.prototype.hasOwnProperty.call(CARDS, id)) return null;
+        const i = g.hand.indexOf(id);
+        if (i < 0 || CARDS[id].cost > g.ap) return null;
+        g.hand.splice(i, 1); g.disc.push(id);
+        const r = cardEffect(g, id, D); if (r.draw) g.hand.push(...coreDraw(g, r.draw));
+        cliffOpen = !!r.cliff;
+      }
       if (g.sur >= 100) {
         if (t !== log.length - 1 || k !== moves.length - 1) return null;
         return { win: true, turn: g.turn, hp: g.hp, crisis: g.crisis, score: rankScore(D.key, g.turn, g.hp) };
@@ -768,7 +869,7 @@ function coerceSave(raw) {
   });
   out.seenRules = raw.seenRules === true;
   out.onboard = cInt(raw.onboard, 0, 1000);
-  if (Array.isArray(raw.solved)) out.solved = raw.solved.filter(v => typeof v === 'string' && /^[a-z]+:\d{1,10}$/.test(v)).slice(-SOLVED_MAX);
+  if (Array.isArray(raw.solved)) out.solved = raw.solved.filter(v => typeof v === 'string' && /^[a-z]+:\d{1,10}(:[a-z]+)?$/.test(v)).slice(-SOLVED_MAX);
   out.gradeSeen = raw.gradeSeen == null ? -1 : cInt(raw.gradeSeen, -1, 9);
   if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
   return out;
@@ -973,6 +1074,35 @@ function sndPromo() {
 }
 function sndHint() { if (!ok()) return; const t = SND.ctx.currentTime; [84, 88, 91, 96, 100].forEach((n, i) => { osc('sine', NOTE(n), t + i * 0.05, 0.6, 0.05, SND.sfx); osc('sine', NOTE(n), t + i * 0.05, 0.6, 0.03, SND.rev); }); }
 function sndStep() { if (!ok()) return; const t = SND.ctx.currentTime; noiseHit(t, 0.12, 0.35, 'lowpass', 700, 200); noiseHit(t + 0.05, 0.25, 0.12, 'highpass', 4000, 2000); }
+// 断崖の重い一撃：低い唸り＋金属的な余韻
+function sndCliffHit() {
+  if (!ok()) return; const t = SND.ctx.currentTime;
+  osc('sine', 46, t, 1.6, 0.8, SND.sfx, { slide: 26 });
+  osc('sawtooth', 62, t, 1.0, 0.07, SND.sfx, { slide: 31 });
+  noiseHit(t, 0.6, 0.5, 'lowpass', 500, 70);
+  [1187, 1733, 2411, 3307].forEach((f, i) => { osc('triangle', f, t + 0.03, 1.3 - i * 0.2, 0.025, SND.sfx); osc('triangle', f, t + 0.03, 1.3, 0.02, SND.rev); });
+}
+// 心拍の加速：2連打の間隔がだんだん詰まる。止めるときは heartStop()
+let heartG = null;
+function heartRush(dur) {
+  if (!ok()) return; heartStop();
+  const c = SND.ctx, t = c.currentTime, g = c.createGain(); g.gain.value = 1; g.connect(SND.sfx); heartG = g;
+  for (let d = 0, gap = 0.42; d < dur; d += gap, gap = Math.max(0.17, gap * 0.8)) {
+    osc('sine', 72, t + d, 0.15, 0.75, g, { slide: 38 });
+    osc('sine', 64, t + d + 0.12, 0.13, 0.5, g, { slide: 34 });
+  }
+}
+function heartStop() {
+  if (!heartG || !SND.ctx) { heartG = null; return; }
+  const g = heartG; heartG = null;
+  g.gain.setTargetAtTime(0, SND.ctx.currentTime, 0.03);
+  setTimeout(() => { try { g.disconnect(); } catch (e) { } }, 2500);
+}
+// コンボ成立：上昇する5音のアルペジオ
+function sndCombo() {
+  if (!ok()) return; const t = SND.ctx.currentTime;
+  [72, 76, 79, 84, 88].forEach((n, i) => { osc('square', NOTE(n), t + i * 0.065, i === 4 ? 0.45 : 0.12, 0.05, SND.sfx); osc('triangle', NOTE(n + 12), t + i * 0.065, 0.3, 0.025, SND.rev); });
+}
 function sndHeart() { if (!ok()) return; const t = SND.ctx.currentTime; [0, 0.22, 0.9, 1.12].forEach((d, i) => osc('sine', 70, t + d, 0.2, i % 2 ? 0.5 : 0.8, SND.sfx, { slide: 38 })); }
 function sndCrash() {
   if (!ok()) return; const c = SND.ctx, t = c.currentTime;
@@ -1040,7 +1170,7 @@ setInterval(() => {
 let phase = 'title'; // title, battle, winning, win, losing, lose
 let G = null, D = DIFFS[1], T = 0, uid = 0, resultT = 0, loseKind = 'crisis', lastReward = 0, newRecord = false;
 let rules = null; // { page, onClose }
-const CN = '犯人・岩城', CC = '#ff8f80', DN = '刑事・荒島', DC = '#ffe2a0', NN = 'ナレーション', NC = '#cfd8e8', KN = '県民の勘', KC = '#ffd56b';
+let CN = '犯人・岩城'; const CC = '#ff8f80', DN = '刑事・荒島', DC = '#ffe2a0', NN = 'ナレーション', NC = '#cfd8e8', KN = '県民の勘', KC = '#ffd56b';
 const V = {
   shake: 0, flash: 0, flashCol: '#fff', cracks: [], crackT: 0, floats: [], parts: [], wind: [],
   sunset: 0, cx: 368, kneel: 0, kneelT: 0, cshake: 0, shakenT: 0, banner: null, splashT: 2.5,
@@ -1055,10 +1185,13 @@ function resetRun() {
   setDuck(false);
 }
 function newGame(diff, seed) {
-  D = diff;
+  D = diff.culprit ? diff : withCulprit(diff, 'iwaki');
+  CN = '犯人・' + cuNow().short;
   G = Object.assign(coreNewGame(D, seed || 1), { busy: true, totalPlayed: 0, hint: null, kanUsed: 0, verified: false, log: [], rankMsg: '', bestUp: false });
   V.kneelT = 0; V.kneel = 0; V.culpritA = 1; V.dark = 0; V.sunset = 0; V.cracks = []; V.crackT = 0;
   V.flying = []; V.floats = []; V.banner = null; V.bannerQ = []; V.cx = cliffX(G.crisis);
+  V.cutin = null; V.zoom = 1; V.zoomHold = 0; V.slow = 0;                 // カットイン・カメラ・スロー
+  if (typeof heartStop === 'function') heartStop();
 }
 newGame(DIFFS[1]);
 function cliffX(cr) { return 452 - 12 * Math.min(cr, 7); }
@@ -1073,7 +1206,12 @@ function banner(text, col) {
 
 /* ---------- 対話 ---------- */
 let dlg = null, dlgResolve = null, blipCount = 0;
+// 犯人ごとの話し方（一人称）と、ナレーションでの呼び方
+const CU_VOICE = { tome: 'あたし', minamo: '私' };
+function cuNow() { return culpritByKey(D.culprit) || CULPRITS[0]; }
+function cuWho() { return cuNow().who; }
 function say(sp, text, col, hold) {
+  if (sp === CN && CU_VOICE[D.culprit]) text = text.replace(/俺/g, CU_VOICE[D.culprit]);
   return new Promise(res => {
     if (dlgResolve) { const r = dlgResolve; dlgResolve = null; r(); }
     dlg = { sp, text, col: col || '#fff', n: 0, done: false, hold: hold == null ? 1100 : hold, doneAt: 0, run: RUN };
@@ -1135,9 +1273,49 @@ function playCard(card) {
   if (r.boostEv) addFloat(fx, fy + 90, '次の証拠×1.5', '#b0d8ff', 18);
   if (r.tags.length) addFloat(fx - 10, fy - 58, r.tags.join(' '), '#ffe9b0', 15);
   if (r.broke) shieldBreak();
+  for (const c of r.combos) {                                            // 捜査コンボ
+    banner(c.name + '！', '#ffd56b'); cutin(c.name, c.text, '#ffd56b'); sndCombo();
+    if (c.bonus.pierceEv) addFloat(fx, fy + 120, 'このターン 証拠が貫通', '#ffe9b0', 18);
+  }
   if (r.stepBack) later(600, () => { banner('一歩、崖から離れた！', '#ffd56b'); addFloat(V.cx, 160, '危機 +1', '#9dffb0', 24); sndHeal(); }, 600);
+  slowCheck();
   if (G.sur >= 100) { winSequence(); return; }
   playCardQuirks(d, surBefore, alertBefore, prevId);
+  if (r.cliff) startCliffTime();
+}
+// 自首99以上に届いた瞬間、1回だけスローモーション
+function slowCheck() { if (G.sur >= 99 && !G._flagSlow) { G._flagSlow = true; V.slow = 0.9; } }
+
+/* ---------- 崖っぷちタイム（自首70で1事件1回。1.6秒以内に3回タップで自首 +15） ----------
+   成功は打ち手の記録に '!cliff' として残り、サーバーでも同じように再生される。検証AIは「失敗した」として解けることを確かめている */
+const CLIFF_TIME = 1.6;
+function startCliffTime() {
+  G.gamble = { active: true, need: 3, have: 0, t: 0 };
+  G.busy = true; G.hint = null;
+  V.flash = 0.7; V.flashCol = '#ffd56b'; V.shake = Math.max(V.shake, 14);
+  banner('崖っぷちタイム！', '#ffd56b'); cutin('崖っぷち', '最後の分かれ道', '#ff8a5a');
+  sndCliffHit(); heartRush(CLIFF_TIME);
+}
+function cliffTap() {
+  const q = G.gamble; if (!q || !q.active) return;
+  q.have++; sndClick(); V.shake = Math.max(V.shake, 5);
+  addFloat(U.hintX, U.handY + 40, ['', 'あと2回！', 'あと1回！', '届け――！'][Math.min(3, q.have)], '#ffd56b', 26);
+  if (q.have >= q.need) endCliffTime(true);
+}
+function endCliffTime(okTap) {
+  const q = G.gamble; if (!q || !q.active) return;
+  q.active = false; heartStop();
+  if (okTap) {
+    const r = cliffBonus(G); G.log[G.log.length - 1].push(CLIFF_MOVE);
+    V.flash = 0.6; V.flashCol = '#fff4d6'; sndPromo();
+    banner('想いが、届いた！', '#ffd56b'); addFloat(V.cx, 230, '自首 +' + r.sur, '#ffd56b', 30);
+    if (r.stepBack) later(600, () => { banner('一歩、崖から離れた！', '#ffd56b'); sndHeal(); }, 600);
+    slowCheck();
+    if (G.sur >= 100) { winSequence(); return; }
+  } else {
+    sndBuzz(); addFloat(V.cx, 230, '……言葉が、届かんかった', '#cfd8e8', 22);
+  }
+  if (phase === 'battle') G.busy = false;
 }
 // サスペンスあるある（1回のプレイで各1回だけ。G._flag… は演出専用で、ルール・検証には関わらない）
 function playCardQuirks(d, surBefore, alertBefore, prevId) {
@@ -1148,6 +1326,29 @@ function playCardQuirks(d, surBefore, alertBefore, prevId) {
 function shieldBreak() {
   V.flash = 1; V.flashCol = '#ffffff'; V.shake = 22; V.shakenT = 4;
   makeCracks(V.cx, 220); sndBreak(); banner('心の壁が、崩れた――！！', '#ff4a4a');
+  cutin('心壁崩壊', `${cuWho()}の顔から、余裕が消えた`, '#ff4a4a');
+  if (!G._flagZoom) { G._flagZoom = true; V.zoomHold = 0.9; }          // 犯人へ寄る（1事件1回。0.9秒で戻る）
+}
+/* ---------- カットイン（斜めの黒帯。左から0.18秒で入り、1.35秒から消える。後から出たものが上書き） ---------- */
+function cutin(text, sub, col) { V.cutin = { text, sub, col, t: 0 }; }
+function drawCutin() {
+  const c = V.cutin; if (!c) return;
+  const t = c.t, e = 1 - Math.pow(1 - clamp(t / 0.18, 0, 1), 3), a = t > 1.35 ? clamp(1 - (t - 1.35) / 0.25, 0, 1) : 1;
+  const off = (1 - e) * -(W + 200), Y = 392, x0 = -40 + off, x1 = W + 40 + off;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.fillStyle = c.col;                                                         // ふちの色帯
+  ctx.beginPath(); ctx.moveTo(x0, Y - 66); ctx.lineTo(x1, Y - 92); ctx.lineTo(x1, Y + 40); ctx.lineTo(x0, Y + 66); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(8,6,12,0.94)';                                           // 黒帯
+  ctx.beginPath(); ctx.moveTo(x0, Y - 58); ctx.lineTo(x1, Y - 84); ctx.lineTo(x1, Y + 32); ctx.lineTo(x0, Y + 58); ctx.closePath(); ctx.fill();
+  const cx = W / 2 + off;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `46px ${MINCHO}`;
+  const tw = ctx.measureText(c.text).width; if (tw > W - 60) ctx.font = `${Math.floor(46 * (W - 60) / tw)}px ${MINCHO}`;
+  outlineText(c.text, cx, Y - 20, c.col, '#000', 7);
+  ctx.font = `17px ${GOTH}`;
+  const sw = ctx.measureText(c.sub).width; if (sw > W - 60) ctx.font = `${Math.floor(17 * (W - 60) / sw)}px ${GOTH}`;
+  outlineText(c.sub, cx, Y + 20, '#ffffff', '#000', 4);
+  ctx.restore();
 }
 async function endTurn() {
   if (G.busy || phase !== 'battle') return;
@@ -1197,7 +1398,7 @@ async function enemyTurn() {
   if (G.crisis <= 2) sndHeart();
   if (G.crisis <= 2 && !G._flagEdge) { G._flagEdge = true; banner(`崖の端まで、あと${G.crisis}歩！`, '#ff5a5a'); }   // (危機は犯人の番に減るので、ここで判定)
   const steps = crisisBefore - G.crisis;
-  await say(NN, G.crisis <= 2 ? `男が${steps}歩、崖の端へ……！　残り${G.crisis}歩！` : `男が${steps}歩後ずさる。崖の端まで、あと${G.crisis}歩。`, G.crisis <= 2 ? '#ff9a9a' : NC, 700);
+  await say(NN, G.crisis <= 2 ? `${cuWho()}が${steps}歩、崖の端へ……！　残り${G.crisis}歩！` : `${cuWho()}が${steps}歩後ずさる。崖の端まで、あと${G.crisis}歩。`, G.crisis <= 2 ? '#ff9a9a' : NC, 700);
 }
 async function winSequence() {
   phase = 'winning'; G.busy = true; G.hint = null;
@@ -1219,7 +1420,7 @@ async function winSequence() {
   await sleep(1200);
   await say(CN, '自首します。……おっかちゃんに、ちゃんと謝らな……', CC, 1400);
   await say(DN, 'ほやの。……寒いし、帰ろっさ。署であったかいそばでも食べよか。', DC, 1600);
-  phase = 'win'; resultT = 0;
+  phase = 'win'; resultT = 0; V.banner = null; V.bannerQ = []; V.cutin = null;   // (結果画面にバナーを残さない)
   if (G.promo >= 0) later(1400, sndPromo);
 }
 async function lose(kind) {
@@ -1227,12 +1428,12 @@ async function lose(kind) {
   recordResult(false);
   try { G.route = solveRoute(G.seed, D); } catch (e) { G.route = null; }   // (正解ルート。敗北が決まったあと1回だけ)
   bgmStop(1.2); sndLose();
-  if (kind === 'crisis') await say(NN, '吹き荒れる風の中、男の姿は見えなくなった――。説得は、届かなかった。', NC, 1500);
+  if (kind === 'crisis') await say(NN, `吹き荒れる風の中、${cuWho()}の姿は見えなくなった――。説得は、届かなかった。`, NC, 1500);
   else {
     await say(DN, '……あかん……言葉が……出てこん……', DC, 900);
-    await say(NN, '刑事の心が折れた。男は夕闇の中へ姿を消した――。', NC, 1500);
+    await say(NN, `刑事の心が折れた。${cuWho()}は夕闇の中へ姿を消した――。`, NC, 1500);
   }
-  phase = 'lose'; resultT = 0;
+  phase = 'lose'; resultT = 0; V.banner = null; V.bannerQ = []; V.cutin = null;
 }
 // 正解ルート：出題前の検証（playout）と同じ打ち筋で最後まで解き、各ターンに使うカードと1手目の助言を返す
 // （CORE の外に置く。サーバーには関係しない。敗北時に1回だけ呼ぶ）
@@ -1259,13 +1460,15 @@ function solveRoute(seed, diff, maxTurns) {
 async function findSolvableSeed(diff, run) {
   for (let tries = 1; tries <= 300; tries++) {
     const seed = randomSeed();
-    if (playout(seed, diff).win) return { seed, tries };
+    if (playout(seed, diff, 20, 25000).win) return { seed, tries };
     await new Promise(r => setTimeout(r, 0)); // 画面を固めない
     if (run !== RUN) return null;
   }
   return null;
 }
-async function beginGame(diff, seed) {
+// diff：難易度（犯人入りでもよい）。ck：犯人の key（省略時は diff の犯人、なければタイトルで選んだ犯人）
+async function beginGame(diffIn, seed, ck) {
+  const diff = withCulprit(diffByKey(diffIn.key), ck || diffIn.culprit || curCulprit);
   resetRun(); const run = RUN;
   newGame(diff, 1); phase = 'battle'; bgmStart();
   if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.55, t, 0.5); }
@@ -1278,7 +1481,8 @@ async function beginGame(diff, seed) {
     seed = found ? found.seed : randomSeed(); verified = !!found;
   }
   newGame(diff, seed); G.verified = verified; G.busy = true; dlg = null; dlgResolve = null;
-  await say(NN, `【${D.name}】事件ファイル No.${caseNo(seed)}――福井県・東尋坊。荒れる日本海を望む断崖に、ひとりの男が追い詰められていた。`, NC, 900);
+  const cu = cuNow();
+  await say(NN, `【${D.name}】事件ファイル No.${caseNo(seed)}――福井県・東尋坊。荒れる日本海を望む断崖に、${cu.name}（${cu.sub}）が追い詰められていた。`, NC, 900);
   await say(CN, '来るな！ それ以上近づいたら……飛び降りるぞ！', CC, 800);
   await say(DN, `（証拠で心の壁を崩して、人情で心を溶かす……。崖の端まで、あと${G.crisis}歩や）`, DC, 800);
   startTurn();
@@ -1291,6 +1495,7 @@ function hintReason(seq) {
   const s = makeSim(G); const r = cardEffect(s, id, D);
   const it = G.intent.type;
   if (s.sur >= 100) return name + 'で決まりや！ 一気に自首させるんやざ。';
+  if (r.combo) return name + 'で「' + r.combo.name + '」が決まるざ！';
   if (r.step) return name + 'で犯人を1歩引き戻すんや。崖が近いときの命綱やざ。';
   if (d.type === 'gu') {
     if (r.boostHu) return 'まず' + name + 'で気持ちを緩ませとき。次の人情が1.5倍になるでの。';
@@ -1358,7 +1563,12 @@ function makeCracks(cx, cy) {
    ========================================================= */
 function update(dt) {
   if (paused || (rules && phase === 'battle')) return; // ポーズ中・バトル中のルール表示は時間を止める
+  if (V.slow > 0) { V.slow = Math.max(0, V.slow - dt); dt *= 0.25; }   // スローモーション（実時間0.9秒）
   T += dt; GT += dt;
+  if (G.gamble && G.gamble.active) { G.gamble.t += dt; if (G.gamble.t >= CLIFF_TIME) endCliffTime(false); }
+  if (V.cutin) { V.cutin.t += dt; if (V.cutin.t > 1.6) V.cutin = null; }
+  V.zoomHold = Math.max(0, (V.zoomHold || 0) - dt);
+  V.zoom = lerp(V.zoom || 1, V.zoomHold > 0 ? 1.22 : 1, Math.min(1, dt * 8)); if (Math.abs(V.zoom - 1) < 0.002 && !V.zoomHold) V.zoom = 1;
   tickWaiters();
   V.shake = Math.max(0, V.shake - dt * 40);
   V.flash = Math.max(0, V.flash - dt * 2.2);
@@ -1458,8 +1668,16 @@ function makeSpr(key, draw) {
   return c;
 }
 // 犯人：expr = angry | shaken | remorse、kneel = 膝をついた姿、f = 風のコマ(0/1)、tear = 涙の長さ
-function culpritSprite(expr, kneel, f, tear) {
-  return makeSpr(`c|${expr}|${kneel ? 1 : 0}|${f}|${tear}`, R => {
+// 犯人ごとの見た目（色の置きかえと髪型）
+const CU_LOOK = {
+  washio: { pal: { suit: '#45454e', suitS: '#2c2c33', tie: '#d8a020', hair: '#6e6e78', hairL: '#9a9aa6' } },
+  tome:   { pal: { suit: '#7a4a6a', suitS: '#52304a', tie: '#e8c870', shirt: '#f4e8d0', hair: '#c8c8d2', hairL: '#ececf2', pants: '#3a2a36' }, bun: true, long: 1 },
+  minamo: { pal: { suit: '#5a7a9a', suitS: '#3e5872', tie: '#f4f0e8', hair: '#1a1420', hairL: '#3a3044', pants: '#2a3442' }, long: 2 },
+};
+function culpritSprite(expr, kneel, f, tear, cu) {
+  const look = CU_LOOK[cu] || null;
+  return makeSpr(`c|${expr}|${kneel ? 1 : 0}|${f}|${tear}|${cu || ''}`, R0 => {
+    const R = look ? (x, y, w, h, col) => R0(x, y, w, h, look.pal[col] || col) : R0;
     const dy = kneel ? 10 : 0;
     // 脚
     if (!kneel) {
@@ -1492,6 +1710,8 @@ function culpritSprite(expr, kneel, f, tear) {
     R(13, 3 + hy, 14, 4, 'hair'); R(13, 7 + hy, 2, 4, 'hair'); R(25, 7 + hy, 2, 3, 'hair'); R(15, 2 + hy, 10, 1, 'hair');
     R(16, 3 + hy, 5, 1, 'hairL');
     R(27, 3 + hy, 1, 2, 'hair'); R(28 + f, 4 + hy, 1, 1, 'hair'); R(27, 6 + hy, 1 + f, 1, 'hair');   // 風になびく髪
+    if (look && look.long) { R(13, 7 + hy, 2, 4 + look.long * 3, 'hair'); R(25, 7 + hy, 2, 3 + look.long * 3, 'hair'); R(26 + f, 9 + hy, 2, 2 + look.long * 2, 'hair'); }   // 長い髪
+    if (look && look.bun) { R(16, 0 + hy, 8, 3, 'hair'); R(17, 0 + hy, 3, 1, 'hairL'); }                                                                  // まとめ髪
     if (expr === 'shaken' && !kneel) { R(12, 9, 2, 4, 'skin'); R(26, 9, 2, 4, 'skin'); }
     // 顔
     const Y = 6 + hy;
@@ -1604,7 +1824,7 @@ function renderPixelWorld() {
   const sx = V.cshake > 0 ? Math.round((Math.random() - 0.5) * 4 * V.cshake) : 0;
   const tr = expr === 'shaken' ? (Math.floor(T * 20) % 2) : 0;
   const tear = expr === 'remorse' ? 1 + Math.floor((T * 6) % 5) : 0;
-  drawSprDissolve(g, culpritSprite(expr, kneel, fr, tear), Math.round((V.cx + WX) / PX) - SPR_AX + sx + tr, Math.round(340 / PX) - SPR_AY, V.culpritA);
+  drawSprDissolve(g, culpritSprite(expr, kneel, fr, tear, D.culprit), Math.round((V.cx + WX) / PX) - SPR_AX + sx + tr, Math.round(340 / PX) - SPR_AY, V.culpritA);
   // 風（1ドットの線）
   const wm = 1 - V.sunset * 0.6;
   for (const w of V.wind) {
@@ -1821,7 +2041,14 @@ function drawDialogue() {
 function drawScene() {
   renderPixelWorld();
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(lowCv, 0, 0, LW * PX, LH * PX);
+  const z = V.zoom || 1;
+  if (z > 1.001) {                                    // カメラ：犯人（V.focusX/Y）へ寄る。ゲージなどの表示は寄せない
+    V.focusX = V.cx + WX; V.focusY = 290;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, UI_TOP); ctx.clip();
+    ctx.translate(V.focusX, V.focusY); ctx.scale(z, z); ctx.translate(-V.focusX, -V.focusY);
+    ctx.drawImage(lowCv, 0, 0, LW * PX, LH * PX);
+    ctx.restore();
+  } else ctx.drawImage(lowCv, 0, 0, LW * PX, LH * PX);
   if (phase !== 'title') { drawGauges(); drawIntentPanel(); }
 }
 
@@ -1893,6 +2120,7 @@ const TYPE = {
 function previewLines(id) {
   const s = makeSim(G); const r = cardEffect(s, id, D); const d = CARDS[id];
   const L = [];
+  if (r.combo) L.push([r.combo.name + '！', '#b8761c']);
   if (r.shieldDmg) L.push([(r.broke ? '心壁 −' + r.shieldDmg + ' 破壊!' : '心壁 −' + r.shieldDmg), r.broke ? '#c0161e' : '#1d3f8a']);
   if (r.sur) L.push(['自首 +' + r.sur, '#1c6b3c']);
   if (r.step) L.push(['犯人を1歩戻す', '#1c6b3c']);
@@ -1997,6 +2225,7 @@ function drawUI() {
     rr(sx, sy, w, 24, 12); ctx.fillStyle = bgc; ctx.fill(); ctx.fillStyle = col; ctx.fillText(txt, sx + 8, sy + 13); sx += w + 6;
   };
   chip(D.name, D.col, 'rgba(255,255,255,0.1)');
+  chip('犯人 ' + cuNow().short, cuNow().col, 'rgba(255,255,255,0.1)');
   chip(`TURN ${G.turn}`, '#ddd', 'rgba(255,255,255,0.1)');
   chip(`警戒 Lv.${G.alert}`, G.alert >= 2 ? '#ffb347' : '#ccc', G.alert >= 2 ? 'rgba(160,80,0,0.4)' : 'rgba(255,255,255,0.08)');
   if (G.daze) chip('動揺中', '#ffd0a0', 'rgba(200,60,40,0.45)');
@@ -2021,6 +2250,17 @@ function drawUI() {
   if (G.busy) hint = '……';
   else if (G.ap === 0 || !G.hand.some(c => c.def.cost <= G.ap)) hint = '使えるカードがない。ターン終了しよう';
   ctx.fillText(hint, U.hintX, U.hintY);
+  if (G.gamble && G.gamble.active) {                                   // 崖っぷちタイム：「タップせよ！」と残り時間
+    const q = G.gamble, L = U.handL, R = U.handR, top = U.handY - 14, h = CH * CS + 40, cx = (L + R) / 2;
+    rr(L - 6, top, R - L + 12, h, 12); ctx.fillStyle = 'rgba(10,6,4,0.86)'; ctx.fill();
+    ctx.strokeStyle = Math.floor(T * 8) % 2 ? '#ffd56b' : '#ff8a5a'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${WIDE ? 54 : 44}px ${MINCHO}`; outlineText('タップせよ！', cx, top + h * 0.32, '#ffd56b', '#000', 7);
+    ctx.font = `${WIDE ? 22 : 18}px ${GOTH}`; outlineText(`画面を3回タップ（あと ${Math.max(0, q.need - q.have)} 回）`, cx, top + h * 0.52, '#fff', '#000', 4);
+    bar(L + 30, top + h * 0.66, R - L - 60, 18, Math.max(0, CLIFF_TIME - q.t), CLIFF_TIME, '#ffe07a', '#ff8a3a');
+    ctx.font = `${WIDE ? 15 : 13}px ${GOTH}`; ctx.fillStyle = '#ffe9b0';
+    ctx.fillText(WIDE ? '成功で自首 +15（スペースキーでも可）' : '成功で自首 +15', cx, top + h * 0.84);
+  }
   const en = !G.busy && phase === 'battle';
   button(KAN, '県民の勘', `残り ×${kanNow()}`, '#8a6a10', '#4a3500', en && kanNow() > 0 || (en && !!G.hint), false, hoverBtn === 'kan');
   button(BTN, G.turn === 0 ? '開幕前' : (G.busy ? '犯人のターン' : 'ターン終了'), null, '#c43a2a', '#6a1410', en, !!(G.hint && !G.hint.id), hoverBtn === 'end');
@@ -2074,7 +2314,12 @@ function drawBanner() {
   ctx.restore();
 }
 // タイトル：難易度選択
-const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 330 + i * 92, w: 460, h: 80, d }));
+const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 282 + i * 72, w: 460, h: 64, d }));
+// 犯人を選ぶ（難易度の下）。選んだ犯人はこの端末に覚える
+const CU_BTNS = CULPRITS.map((c, i) => ({ x: 40 + i * 118, y: 600, w: 106, h: 56, c }));
+var CULPRIT_KEY = SAVE_KEY + '.culprit';
+var curCulprit = culpritByKey(lsGet(CULPRIT_KEY)) ? lsGet(CULPRIT_KEY) : 'iwaki';
+function pickCulprit(k) { curCulprit = k; lsSet(CULPRIT_KEY, k); }
 const T_RULE = { x: 40, y: 712, w: 146, h: 56 }, T_MY = { x: 197, y: 712, w: 146, h: 56 }, T_RANK = { x: 354, y: 712, w: 146, h: 56 };
 const T_NEWS = { x: 396, y: 18, w: 126, h: 46 };
 function drawTitle() {
@@ -2087,7 +2332,7 @@ function drawTitle() {
   ctx.save(); ctx.beginPath(); ctx.rect(0, 120, W, 24); ctx.clip();                          // 上半分を明るく（ドットのツヤ）
   ctx.fillStyle = '#ff9a6a'; ctx.fillText('ディスウェイド', W / 2, 150); ctx.restore();
   ctx.font = `14px ${GOTH}`; ctx.fillStyle = '#ddd'; ctx.fillText('〜 証拠と人情と福井グルメで、犯人を自首させろ 〜', W / 2, 202);
-  ctx.font = `18px ${MINCHO}`; outlineText('― 難易度を選んで開幕 ―', W / 2, 300, '#fff', '#000', 4);
+  ctx.font = `18px ${MINCHO}`; outlineText('― 難易度を選んで開幕 ―', W / 2, 258, '#fff', '#000', 4);
   DIFF_BTNS.forEach((b, i) => {
     const d = b.d, hov = hoverBtn === 'd' + i;
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(b.x + 6, b.y + 6, b.w, b.h);
@@ -2095,17 +2340,24 @@ function drawTitle() {
     ctx.fillStyle = d.col; ctx.fillRect(b.x, b.y, b.w, b.h);
     ctx.fillStyle = hov ? '#2a2018' : '#100e18'; ctx.fillRect(b.x + 6, b.y + 6, b.w - 12, b.h - 12);
     ctx.textAlign = 'left';
-    ctx.font = `26px ${MINCHO}`; outlineText(d.name, b.x + 20, b.y + 28, d.col, '#000', 4);
+    ctx.font = `24px ${MINCHO}`; outlineText(d.name, b.x + 20, b.y + 23, d.col, '#000', 4);
     // 難易度の星
-    ctx.font = `14px ${GOTH}`; ctx.fillStyle = d.col; ctx.fillText('★'.repeat(i + 1) + '☆'.repeat(3 - i), b.x + 172, b.y + 29);
-    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ccc'; ctx.fillText(d.sub, b.x + 20, b.y + 58);
+    ctx.font = `14px ${GOTH}`; ctx.fillStyle = d.col; ctx.fillText('★'.repeat(i + 1) + '☆'.repeat(3 - i), b.x + 172, b.y + 24);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ccc'; ctx.fillText(d.sub, b.x + 20, b.y + 47);
     ctx.textAlign = 'right';
     const cl = SAVE.clear[d.key];
     ctx.font = `13px ${GOTH}`;
-    if (cl != null) { ctx.fillStyle = '#ffd56b'; ctx.fillText('クリア済　ランク ' + RANKS[cl], b.x + b.w - 16, b.y + 28); }
-    else { ctx.fillStyle = '#777'; ctx.fillText('未クリア', b.x + b.w - 16, b.y + 28); }
-    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('勘 +' + d.reward, b.x + b.w - 16, b.y + 58);
+    if (cl != null) { ctx.fillStyle = '#ffd56b'; ctx.fillText('クリア済　ランク ' + RANKS[cl], b.x + b.w - 16, b.y + 23); }
+    else { ctx.fillStyle = '#777'; ctx.fillText('未クリア', b.x + b.w - 16, b.y + 23); }
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('勘 +' + d.reward, b.x + b.w - 16, b.y + 47);
   });
+  ctx.textAlign = 'center'; ctx.font = `15px ${MINCHO}`; outlineText('― 説得する犯人 ―', W / 2, 584, '#fff', '#000', 3);
+  CU_BTNS.forEach((b, i) => {                                                     // 犯人を選ぶ（選んでいる人は光る）
+    const sel = b.c.key === curCulprit;
+    button(b, b.c.short, b.c.sub, sel ? '#8a2a20' : '#2a2a3a', sel ? '#3a1500' : '#14141c', true, false, hoverBtn === 'cu' + i);
+    if (sel) { ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 3; ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12); }
+  });
+  { const c = culpritByKey(curCulprit); ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = c.col; ctx.fillText(`${c.name}（${c.sub}）：${c.desc}`, W / 2, 680); }
   button(T_RULE, 'ルール説明', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'trule');
   button(T_MY, 'マイページ', null, '#2e6a50', '#14382a', true, false, hoverBtn === 'tmy');
   button(T_RANK, '捜査実績表', null, '#8a6a10', '#4a3500', true, false, hoverBtn === 'trank');
@@ -2159,6 +2411,22 @@ const RULE_PAGES = [
     ['#cfd8e8', '「心境」は毎ターン変わる。郷愁なら人情、激昂なら証拠が効く。頑なだと小さな証拠は通らない。'],
     ['#ffe9b0', 'カードに書かれた数値は「今使ったらどうなるか」。心境や心壁による増減も反映済み。'],
     ['#ff9a5a', 'むずかしい以上：心壁が毎ターン回復／同じカード2枚目は半減／警戒が高いほど人情が効かない。'],
+  ] },
+  { title: '捜査コンボ', items: [
+    ['#ffd56b', '決まった組み合わせでカードを使うとコンボが成立（直近6枚・ターンをまたいでOK）。各コンボは1事件に1回。'],
+    ['#7fb2ff', '科学捜査コンボ：鑑識の証拠（眼鏡・指紋・繊維・鑑識・カニの殻・足跡）を3種続けて → 心壁 −25'],
+    ['#7fb2ff', '人証コンボ：証言（目撃証言・自白・通話履歴・防犯カメラ・手帳）を3種 → 警戒 −2'],
+    ['#6bd98f', '人情の連鎖：人情を3種続けて → 自首 +30'],
+    ['#ff7a6a', '福井グルメの三段活用：グルメを3種続けて → AP +2・2枚ドロー'],
+    ['#ffb0a0', '逆転の口上：切り札（叫び・一歩・ご遺族・刑事の涙・約束）を3種 → このターン、証拠の30%が心壁を越えて自首に入る'],
+    ['#ffe9b0', 'カードに「○○コンボ！」と出ていたら、それを使えば成立する。'],
+  ] },
+  { title: '犯人と崖っぷちタイム', items: [
+    ['#9fc4ff', '岩城 徹（元銀行員）：標準。'],
+    ['#ffb347', '鷲尾 権造（県会議員）：心壁が毎ターン+12回復し、警戒が高いと反論が激しい。割って止め、警戒を下げよう。'],
+    ['#ff9ad0', '前川 トメ（人情犯）：心壁があると人情×0.25。グルメの自首・心壁ダメージ・回復・警戒下げは×2.5（ドローとAPは通常）。グルメで攻めよう。'],
+    ['#7dffa8', '柏木 みなも（元看護師）：いつも「拒絶」（人情で警戒+1）。自首50を超えると人情×2。'],
+    ['#ffd56b', '崖っぷちタイム：自首が70に届くと1回だけ発動。1.6秒以内に画面を3回タップ（PCはスペースキー）で自首 +15。失敗しても罰はない。'],
   ] },
   { title: '階級と功績', items: [
     ['#b0ffc8', '事件を解決すると「功績」がたまる。かんたん10・ふつう30・むずかしい80・崖っぷち200。'],
@@ -2219,7 +2487,7 @@ const TOTITLE = { x: 40, y: 756, w: 220, h: 56 }, SHARE = { x: 280, y: 756, w: 2
 // 称号（G.log・G.hp・G.maxHp・G.turn・G.kanUsed だけで決める。上から順に最初に当てはまったもの）
 function pickTitle() {
   const n = { ev: 0, hu: 0, gu: 0 };
-  for (const turn of G.log) for (const id of turn) n[CARDS[id].type]++;
+  for (const turn of G.log) for (const id of turn) if (CARDS[id]) n[CARDS[id].type]++;   // ('!cliff' は数えない)
   const fast = G.turn <= 3 && !G.kanUsed;
   const L = [
     [fast && G.hp >= G.maxHp, '東尋坊の神', '⛩️'],
@@ -2238,7 +2506,7 @@ function resultRank() { return RANK_LETTER[G.turn <= 3 ? 3 : G.turn <= 4 ? 2 : G
 function shareText() {
   const t = pickTitle();
   return `東尋坊ディスウェイドで犯人を自首させた！\n` +
-    `【${D.name}】事件ファイル No.${caseNo(G.seed)}\n` +
+    `【${D.name}】事件ファイル No.${caseNo(G.seed)}　犯人：${cuNow().name}\n` +
     `説得ランク ${resultRank()}／スコア ${rankScore(D.key, G.turn, G.hp).toLocaleString('ja-JP')}\n` +
     `称号：${t.icon}${t.name}\n` +
     `${G.turn}ターン・残りメンタル ${G.hp}\n` +
@@ -2256,7 +2524,7 @@ function drawResult() {
   ctx.fillStyle = phase === 'win' ? 'rgba(40,15,0,0.55)' : 'rgba(0,0,0,0.7)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (phase === 'win') {
-    ctx.font = `22px ${MINCHO}`; outlineText(`―― 事件解決【${D.name}】――`, W / 2, 250, '#ffe2a0', '#000', 5);
+    ctx.font = `22px ${MINCHO}`; outlineText(`―― 事件解決【${D.name}・${cuNow().short}】――`, W / 2, 250, '#ffe2a0', '#000', 5);
     ctx.font = `60px ${MINCHO}`; outlineText('自首成立', W / 2, 304, '#ffcf5a', '#3a1500', 9);
     const tl = pickTitle();                                                       // 称号（絵文字はふちを付けずに描く）
     ctx.font = `28px ${MINCHO}`;
@@ -2352,6 +2620,7 @@ function render() {
   if (phase !== 'title') { ctx.save(); ctx.translate(Math.round((W - 540) / 6) * 3, 0); drawDialogue(); ctx.restore(); }
   drawFloats();
   drawBanner();
+  drawCutin();
   drawCracks();
   if (V.dark > 0) { ctx.fillStyle = `rgba(0,0,0,${V.dark})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
   if (V.flash > 0) { ctx.globalAlpha = Math.min(1, V.flash); ctx.fillStyle = V.flashCol; ctx.fillRect(-20, -20, W + 40, H + 40); ctx.globalAlpha = 1; }
@@ -2402,6 +2671,7 @@ function updateHover() {
   }
   if (phase === 'title') {
     DIFF_BTNS.forEach((b, i) => { if (inRect(cm, b)) hoverBtn = 'd' + i; });
+    CU_BTNS.forEach((b, i) => { if (inBtn(cm, b)) hoverBtn = 'cu' + i; });
     if (inRect(cm, T_RULE)) hoverBtn = 'trule'; else if (inRect(cm, T_MY)) hoverBtn = 'tmy'; else if (inRect(cm, T_RANK)) hoverBtn = 'trank';
     else if (inRect(cm, T_NEWS)) hoverBtn = 'tnews';
     return;
@@ -2431,6 +2701,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   audioInit();
+  if (G.gamble && G.gamble.active && phase === 'battle' && !paused && !rules) { cliffTap(); return; }   // 崖っぷちタイム中は、どこを押してもタップ（カードは使わない）
   let p = toLogical(e);
   if (e.pointerType !== 'mouse') mouse = p;
   const p0 = p;
@@ -2460,9 +2731,10 @@ cv.addEventListener('pointerdown', e => {
   if (phase === 'title') {
     for (const b of DIFF_BTNS) if (inRect(p, b)) {
       sndClick();
-      beginGame(b.d);
+      beginGame(b.d, null, curCulprit);
       return;
     }
+    for (const b of CU_BTNS) if (inBtn(p, b)) { sndClick(); pickCulprit(b.c.key); return; }
     if (inRect(p, T_RULE)) { sndClick(); openOnboarding(); }
     else if (inRect(p, T_MY)) { sndClick(); openMypage(); }
     else if (inRect(p, T_RANK)) { sndClick(); openRanking(); }
@@ -2495,6 +2767,7 @@ function toggleMute() {
 }
 // PC：Esc / P でポーズ
 addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && !e.repeat && G.gamble && G.gamble.active && !paused && !rules && !ovScreen) { e.preventDefault(); cliffTap(); return; }   // 崖っぷちタイム（PC）
   if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
     if (rules) { closeRules(); return; }
     if (paused) closePause(); else openPause();
@@ -2628,10 +2901,11 @@ var MockCloudAdapter = {
     return this.later(() => {
       const db = this.read(), uid = this.uidOf(db, who);
       if (!uid) return { ok: false, error: 'session' };
-      const D = isObj(b) ? diffByKey(b.course) : null, r = D ? replayLog(D, b.seed, b.log) : null;
+      const cu = isObj(b) && culpritByKey(b.culprit || 'iwaki') ? (b.culprit || 'iwaki') : null;
+      const D = isObj(b) && cu ? withCulprit(diffByKey(b.course), cu) : null, r = D ? replayLog(D, b.seed, b.log) : null;
       if (!r || !r.win) return { ok: false, error: 'rejected' };
       db.ranking = isObj(db.ranking) ? db.ranking : {};
-      const e = { uid, name: cleanName(b.name) || DEFAULT_PLAYER_NAME, rk: Number.isInteger(b.rk) && b.rk >= 0 && b.rk <= 9 ? b.rk : null, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, at: Date.now() };
+      const e = { uid, name: cleanName(b.name) || DEFAULT_PLAYER_NAME, rk: Number.isInteger(b.rk) && b.rk >= 0 && b.rk <= 9 ? b.rk : null, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, cu, at: Date.now() };
       [b.course + ':all', b.course + ':w' + rankWeekKey(Date.now())].forEach(k => this.putRank(db, k, Object.assign({}, e)));
       return this.write(db) ? { ok: true, score: r.score } : { ok: false, error: 'storage' };
     });
@@ -2640,7 +2914,7 @@ var MockCloudAdapter = {
     return this.later(() => {
       const db = this.read(), uid = this.uidOf(db, who), week = rankWeekKey(Date.now());
       const list = (isObj(db.ranking) && db.ranking[course + ':' + (period === 'all' ? 'all' : 'w' + week)]) || [];
-      return { ok: true, course, period, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, rk: e.rk, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, me: !!uid && e.uid === uid })) };
+      return { ok: true, course, period, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, rk: e.rk, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, cu: e.cu || 'iwaki', me: !!uid && e.uid === uid })) };
     });
   },
   rankLeave(who) {
@@ -2803,7 +3077,7 @@ function recordResult(win, rankIdx) {
   G.merit = 0; G.meritDup = false; G.promo = -1;
   if (win) {
     dev.wins[D.key] = Math.min(COUNT_MAX, dev.wins[D.key] + 1);
-    const ck = D.key + ':' + G.seed;
+    const ck = D.key + ':' + G.seed + (D.culprit && D.culprit !== 'iwaki' ? ':' + D.culprit : '');   // (犯人が違えば別の事件)
     if (SAVE.solved.includes(ck)) G.meritDup = true;                       // 解いたことのある事件：功績は最初の1回だけ
     else { G.merit = meritFor(rankIdx, G.kanUsed); dev.merit = Math.min(COUNT_MAX, dev.merit + G.merit); SAVE.solved = SAVE.solved.concat([ck]).slice(-SOLVED_MAX); }
     const gi = gradeIndex();
@@ -2821,7 +3095,7 @@ function submitRank() {
   const r = replayLog(D, g.seed, g.log);              // (送る前に、この端末でも同じ記録になるか確かめる)
   if (!r || !r.win) { g.rankMsg = '捜査実績表に送れない記録でした'; return; }
   g.rankMsg = '捜査実績表に送信中……';
-  SyncManager.rank('rankSubmit', { course: key, seed: g.seed, log: g.log, name: displayName(), rk: gradeIndex() }).then(res => {
+  SyncManager.rank('rankSubmit', { course: key, culprit: D.culprit || 'iwaki', seed: g.seed, log: g.log, name: displayName(), rk: gradeIndex() }).then(res => {
     if (run !== RUN) return;
     if (!res.ok) { g.rankMsg = '捜査実績表に送れませんでした：' + syncErrorText(res.error); return; }
     return SyncManager.rank('rankGet', key, 'week').then(q => {
@@ -2992,7 +3266,7 @@ function rkName(cls, e) {
 }
 function challengeBtn(e) {
   const b = el('button', 'ov-btn small gold', 'この事件に挑む'); b.type = 'button';
-  b.onclick = () => { showOverlay(null); sndClick(); beginGame(diffByKey(rkState.diff), e.seed); };
+  b.onclick = () => { showOverlay(null); sndClick(); beginGame(diffByKey(rkState.diff), e.seed, culpritByKey(e.cu) ? e.cu : 'iwaki'); };
   return b;
 }
 function loadRanking() {
@@ -3008,13 +3282,13 @@ function loadRanking() {
     OV['rk-podium'].replaceChildren(...es.slice(0, 3).map((e, i) => {
       const li = el('li', 'rk-pod p' + (i + 1) + (e.me ? ' me' : ''));
       li.append(el('span', 'rk-title', RANK_TITLES[i]), rkName('rk-pname', e),
-        el('span', 'rk-pscore', e.score.toLocaleString()), el('span', 'rk-pmeta', `${e.turn}ターン・メンタル${e.hp}・No.${caseNo(e.seed)}`), challengeBtn(e));
+        el('span', 'rk-pscore', e.score.toLocaleString()), el('span', 'rk-pmeta', `${e.turn}ターン・メンタル${e.hp}・No.${caseNo(e.seed)}・犯人 ${(culpritByKey(e.cu) || CULPRITS[0]).short}`), challengeBtn(e));
       return li;
     }));
     OV['rk-list'].replaceChildren(...es.slice(3).map(e => {
       const li = el('li', 'rk-row' + (e.me ? ' me' : ''));
       li.append(el('span', 'rk-no', e.rank + '位'), rkName('rk-name', e),
-        el('span', 'rk-score', e.score.toLocaleString()), el('span', 'rk-meta', `${e.turn}T・No.${caseNo(e.seed)}`), challengeBtn(e));
+        el('span', 'rk-score', e.score.toLocaleString()), el('span', 'rk-meta', `${e.turn}T・No.${caseNo(e.seed)}・${(culpritByKey(e.cu) || CULPRITS[0]).short}`), challengeBtn(e));
       return li;
     }));
     const i = es.findIndex(e => e.me);
@@ -3151,6 +3425,13 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 7, ver: '1.7', date: '2026-10-09', title: 'コンボ・崖っぷちタイム・4人の犯人', items: [
+    '名前のついた「捜査コンボ」を5種追加（科学捜査コンボ・人証コンボ・人情の連鎖・福井グルメの三段活用・逆転の口上）',
+    '自首70で1回だけ「崖っぷちタイム」。1.6秒以内に3回タップで自首 +15',
+    '心壁崩壊やコンボでカットイン。心壁を割ると犯人にカメラが寄り、決着の瞬間はスローモーションに',
+    '新しい効果音（断崖の一撃・心拍の加速・コンボのアルペジオ）',
+    '説得する犯人を4人から選べるように（岩城・鷲尾・トメ・みなも）。それぞれ攻め方が違います',
+    '捜査実績表に犯人の名前を表示'] },
   { id: 6, ver: '1.6', date: '2026-10-09', title: 'シェア・称号・正解ルート', items: [
     '結果画面に「X で自慢する」ボタン。事件番号・ランク・スコア・称号をそのまま投稿できます',
     '解決のしかたで決まる称号（全8種）。「東尋坊の神」を目指そう',
