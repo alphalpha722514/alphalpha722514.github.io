@@ -56,6 +56,19 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .mp-table th:first-child,.mp-table td:first-child{text-align:left}
 .mp-dname{font-weight:400}
 .mp-status{margin:0;font-weight:400}
+.grade-chip{display:inline-block;padding:2px 10px;border:3px solid #000;background:#2a2a3a;color:#fff;font-size:15px;text-shadow:2px 2px 0 #000;box-shadow:3px 3px 0 rgba(0,0,0,.6)}
+.grade-chip.small{padding:0 6px;font-size:12px;border-width:2px;box-shadow:none;margin-left:6px;vertical-align:1px}
+.mp-grade-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 6px}
+.mp-merit{font-size:14px;color:#b0ffc8}
+.mp-next{display:grid;gap:6px;margin:4px 0 8px}
+.mp-need{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:13px}
+.mp-need .bar{grid-column:1/3;height:9px;background:#000;border:2px solid #000}
+.mp-need .bar i{display:block;height:100%;background:#6bd98f}
+.mp-need.done{color:#7dffa8}
+.mp-ladder summary{cursor:pointer;color:#9fd3ff;min-height:36px;display:flex;align-items:center}
+.mp-ladder-list{margin:6px 0 0;padding-left:1.6em;font-size:13px;line-height:1.7}
+.mp-ladder-list li.now{color:#ffd56b}
+.mp-ladder-list li.got{color:#b0ffc8}
 .mp-msg{margin:8px 0 0;min-height:1.4em;color:#b0ffc8}
 .mp-msg.bad{color:#ffb0a0}
 .rk-podium{list-style:none;margin:8px 0;padding:0;display:grid;gap:8px}
@@ -106,16 +119,20 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
   <section id="scr-mypage" class="ov-scr" aria-labelledby="mp-h" hidden>
     <div class="ov-bar"><h2 id="mp-h" class="ov-title">マイページ</h2><button id="mp-back" class="ov-btn" type="button">もどる</button></div>
     <section class="ov-card">
-      <h3 class="ov-h">刑事の名前</h3>
+      <h3 class="ov-h">刑事の名前と階級</h3>
       <p class="mp-name-row"><span id="mp-name" class="mp-name"></span><button id="mp-name-edit" class="ov-btn small" type="button">変更</button></p>
       <form id="mp-name-form" class="ov-form" hidden>
-        <label for="mp-name-input" class="ov-label">表示名（12文字まで・番付に出ます）</label>
+        <label for="mp-name-input" class="ov-label">名前（12文字まで。後ろに「刑事」が付いて番付に出ます）</label>
         <div class="ov-row">
           <input id="mp-name-input" class="ov-input" type="text" maxlength="12" autocomplete="nickname" enterkeyhint="done">
           <button class="ov-btn small primary" type="submit">保存</button>
           <button id="mp-name-cancel" class="ov-btn small" type="button">やめる</button>
         </div>
       </form>
+      <p class="mp-grade-row"><span id="mp-grade" class="grade-chip"></span><span id="mp-merit" class="mp-merit"></span></p>
+      <div id="mp-next" class="mp-next"></div>
+      <details class="mp-ladder"><summary>階級と昇進の条件（全10階級）</summary><ol id="mp-ladder" class="mp-ladder-list"></ol></details>
+      <p class="ov-note">功績は事件を解決するとたまります（かんたん10・ふつう30・むずかしい80・崖っぷち200。説得ランクS×1.5／A×1.25／B×1.1、県民の勘を使わずに解決すると×1.2）。同じ事件は最初の1回だけです。</p>
     </section>
     <section class="ov-card">
       <h3 class="ov-h">戦績</h3>
@@ -669,7 +686,9 @@ var DEVICE_KEY = SAVE_KEY + '.device';              // この端末の印（同�
 var ACCOUNT_KEY = SAVE_KEY + '.account';            // この端末のログイン {user, token, adapter, lastSync}
 var RANKJOIN_KEY = SAVE_KEY + '.rankJoin';          // 番付に載る（この端末の設定。'0' のときだけ載せない）
 var GUEST_KEY = SAVE_KEY + '.guest';                // ゲストの印（番付用の秘密の値。同期しない）
-var PROFILE_NAME_MAX = 12, DEFAULT_PLAYER_NAME = 'ななしの刑事', COUNT_MAX = 10000000;
+var PROFILE_NAME_MAX = 12, DEFAULT_PLAYER_NAME = 'ななし', COUNT_MAX = 10000000;
+var MERIT_BASE = { easy: 10, normal: 30, hard: 80, oni: 200 };   // 功績の基本点（難易度ごと）
+var SOLVED_MAX = 400;                                            // 功績を出した事件を覚えておく数
 var DIFF_KEYS = ['easy', 'normal', 'hard', 'oni'];
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
@@ -687,9 +706,9 @@ function deviceId() {
   return id;
 }
 function cleanName(v) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, PROFILE_NAME_MAX) : ''; }
-function blankDev() { const z = {}; DIFF_KEYS.forEach(k => z[k] = 0); return { earn: 0, spend: 0, plays: Object.assign({}, z), wins: Object.assign({}, z) }; }
+function blankDev() { const z = {}; DIFF_KEYS.forEach(k => z[k] = 0); return { earn: 0, spend: 0, merit: 0, plays: Object.assign({}, z), wins: Object.assign({}, z) }; }
 const ONBOARD_VER = 1;   // はじめての捜査（説明）の版。上げると、見た人にももう一度出す
-function blankSave() { return { schema: 3, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, profile: { name: '', at: 0 } }; }
+function blankSave() { return { schema: 3, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 } }; }
 // 何が来ても（壊れたセーブ・クラウドから届いた値でも）正しい形に直す
 function coerceSave(raw) {
   const out = blankSave();
@@ -708,6 +727,8 @@ function coerceSave(raw) {
         e.plays[k] = cInt(isObj(d.plays) ? d.plays[k] : 0, 0, COUNT_MAX);
         e.wins[k] = Math.min(e.plays[k], cInt(isObj(d.wins) ? d.wins[k] : 0, 0, COUNT_MAX));
       });
+      // 功績（階級のもと）。功績がなかったころのセーブは、解決した数から数え直す
+      e.merit = d.merit == null ? DIFF_KEYS.reduce((a, k) => a + e.wins[k] * MERIT_BASE[k], 0) : cInt(d.merit, 0, COUNT_MAX);
       out.devs[id] = e;
     }
   }
@@ -719,6 +740,8 @@ function coerceSave(raw) {
   });
   out.seenRules = raw.seenRules === true;
   out.onboard = cInt(raw.onboard, 0, 1000);
+  if (Array.isArray(raw.solved)) out.solved = raw.solved.filter(v => typeof v === 'string' && /^[a-z]+:\d{1,10}$/.test(v)).slice(-SOLVED_MAX);
+  out.gradeSeen = raw.gradeSeen == null ? -1 : cInt(raw.gradeSeen, -1, 9);
   if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
   return out;
 }
@@ -727,7 +750,7 @@ function mergeSaves(a, b) {
   const L = coerceSave(a), C = coerceSave(b), out = coerceSave(a);
   for (const id of Object.keys(C.devs)) {
     const x = out.devs[id] || blankDev(), y = C.devs[id];
-    x.earn = Math.max(x.earn, y.earn); x.spend = Math.max(x.spend, y.spend);
+    x.earn = Math.max(x.earn, y.earn); x.spend = Math.max(x.spend, y.spend); x.merit = Math.max(x.merit, y.merit);
     DIFF_KEYS.forEach(k => { x.plays[k] = Math.max(x.plays[k], y.plays[k]); x.wins[k] = Math.max(x.wins[k], y.wins[k]); });
     out.devs[id] = x;
   }
@@ -738,6 +761,8 @@ function mergeSaves(a, b) {
   });
   out.seenRules = L.seenRules || C.seenRules;
   out.onboard = Math.max(L.onboard, C.onboard);
+  out.solved = L.solved.concat(C.solved.filter(v => !L.solved.includes(v))).slice(-SOLVED_MAX);
+  out.gradeSeen = Math.max(L.gradeSeen, C.gradeSeen);
   if (C.profile.at > L.profile.at) out.profile = Object.assign({}, C.profile);
   return out;
 }
@@ -761,6 +786,44 @@ function spendKan() { if (kanNow() <= 0) return false; myDev().spend++; return t
 function statSum(field, k) { let n = 0; for (const id in SAVE.devs) n += k ? SAVE.devs[id][field][k] : DIFF_KEYS.reduce((a, d) => a + SAVE.devs[id][field][d], 0); return n; }
 function displayName() { return SAVE.profile.name || DEFAULT_PLAYER_NAME; }
 function setDisplayName(v) { SAVE.profile = { name: cleanName(v), at: Date.now() }; save(); }
+/* ---------- 警察の階級（功績と解決数で昇進） ----------
+   功績：解決した事件ごとに 難易度の基本点 × 説得ランク（S×1.5／A×1.25／B×1.1）× 勘なし×1.2。同じ事件は最初の1回だけ
+   昇進は下から順に。上の階級ほど、難しい難易度での解決と、速い解決（説得ランク）が要る */
+var GRADES = [
+  { name: '巡査', merit: 0 },
+  { name: '巡査長', merit: 40 },
+  { name: '巡査部長', merit: 150, wins: { normal: 1 } },
+  { name: '警部補', merit: 400, wins: { normal: 5 } },
+  { name: '警部', merit: 900, wins: { hard: 1 } },
+  { name: '警視', merit: 1800, wins: { hard: 5 } },
+  { name: '警視正', merit: 3200, wins: { oni: 1 } },
+  { name: '警視長', merit: 5500, wins: { oni: 5 }, rank: { hard: 2 } },
+  { name: '警視監', merit: 9000, wins: { oni: 15 }, rank: { oni: 1 } },
+  { name: '警視総監', merit: 15000, wins: { oni: 30 }, rank: { easy: 2, normal: 2, hard: 2, oni: 2 } },
+];
+var GRADE_COL = ['#b8c4d8', '#b8c4d8', '#9fd3ff', '#7dffa8', '#6bd98f', '#ffd56b', '#ffb347', '#ff9a5a', '#ff7a6a', '#ff4a3a'];
+var DIFF_NAME = { easy: 'かんたん', normal: 'ふつう', hard: 'むずかしい', oni: '崖っぷち' };
+var RANK_LETTER = ['C', 'B', 'A', 'S'];
+function meritTotal() { let n = 0; for (const id in SAVE.devs) n += SAVE.devs[id].merit; return n; }
+// その階級の条件と、いまの達成ぐあい
+function gradeNeeds(i) {
+  const g = GRADES[i], out = [{ label: '功績', cur: meritTotal(), need: g.merit }];
+  for (const k in (g.wins || {})) out.push({ label: `${DIFF_NAME[k]}の解決`, cur: statSum('wins', k), need: g.wins[k], unit: '件' });
+  for (const k in (g.rank || {})) { const c = SAVE.clear[k]; out.push({ label: `${DIFF_NAME[k]}で説得ランク${RANK_LETTER[g.rank[k]]}以上`, cur: c == null ? 0 : (c >= g.rank[k] ? 1 : 0), need: 1, flag: true }); }
+  out.forEach(o => o.done = o.cur >= o.need);
+  return out;
+}
+function gradeIndex() {
+  let i = 0;
+  while (i + 1 < GRADES.length && gradeNeeds(i + 1).every(o => o.done)) i++;
+  return i;
+}
+function gradeName(i) { return GRADES[Math.max(0, Math.min(9, i | 0))].name; }
+// 表示名は「○○刑事」（名前の最後がもう「刑事」なら付けない）
+function fullName(name) { const n = (name || DEFAULT_PLAYER_NAME).replace(/刑事$/, '') || DEFAULT_PLAYER_NAME; return n + '刑事'; }
+function myFullName() { return fullName(SAVE.profile.name); }
+if (SAVE.gradeSeen < 0) SAVE.gradeSeen = gradeIndex();     // (階級ができる前のセーブ：今の階級から始める。昇進の演出は出さない)
+function meritFor(rankIdx, kanUsed) { return Math.round(MERIT_BASE[D.key] * [1, 1.1, 1.25, 1.5][rankIdx] * (kanUsed ? 1 : 1.2)); }
 function rankJoin() { return lsGet(RANKJOIN_KEY) !== '0'; }      // 何も選ばなくても番付に載る
 function guestSecret() {
   let g = lsGet(GUEST_KEY);
@@ -875,6 +938,11 @@ function sndClick() { if (!ok()) return; const t = SND.ctx.currentTime; osc('tri
 function sndAlert() { if (!ok()) return; const t = SND.ctx.currentTime; [0, 0.14].forEach(d => osc('sawtooth', 220, t + d, 0.12, 0.05, SND.sfx, { slide: 330 })); }
 function sndShieldUp() { if (!ok()) return; const t = SND.ctx.currentTime; osc('triangle', 200, t, 0.5, 0.12, SND.sfx, { slide: 600 }); noiseHit(t, 0.4, 0.15, 'bandpass', 600, 2400); }
 function sndHeal() { if (!ok()) return; const t = SND.ctx.currentTime; [72, 76, 79, 84].forEach((n, i) => osc('sine', NOTE(n), t + i * 0.07, 0.4, 0.06, SND.sfx)); }
+function sndPromo() {
+  if (!ok()) return; const t = SND.ctx.currentTime + 0.02;
+  [[67, 0], [72, 0.14], [76, 0.28], [79, 0.42], [84, 0.62]].forEach(([n, d]) => { osc('square', NOTE(n), t + d, d > 0.6 ? 0.9 : 0.16, 0.06, SND.sfx); osc('square', NOTE(n - 12), t + d, d > 0.6 ? 0.9 : 0.16, 0.03, SND.rev); });
+  [60, 64, 67, 72].forEach(n => osc('triangle', NOTE(n), t + 0.62, 1.2, 0.05, SND.rev));
+}
 function sndHint() { if (!ok()) return; const t = SND.ctx.currentTime; [84, 88, 91, 96, 100].forEach((n, i) => { osc('sine', NOTE(n), t + i * 0.05, 0.6, 0.05, SND.sfx); osc('sine', NOTE(n), t + i * 0.05, 0.6, 0.03, SND.rev); }); }
 function sndStep() { if (!ok()) return; const t = SND.ctx.currentTime; noiseHit(t, 0.12, 0.35, 'lowpass', 700, 200); noiseHit(t + 0.05, 0.25, 0.12, 'highpass', 4000, 2000); }
 function sndHeart() { if (!ok()) return; const t = SND.ctx.currentTime; [0, 0.22, 0.9, 1.12].forEach((d, i) => osc('sine', 70, t + d, 0.2, i % 2 ? 0.5 : 0.8, SND.sfx, { slide: 38 })); }
@@ -1108,6 +1176,7 @@ async function winSequence() {
   await say(CN, '自首します。……おっかちゃんに、ちゃんと謝らな……', CC, 1400);
   await say(DN, 'ほやの。……寒いし、帰ろっさ。署であったかいそばでも食べよか。', DC, 1600);
   phase = 'win'; resultT = 0;
+  if (G.promo >= 0) later(1400, sndPromo);
 }
 async function lose(kind) {
   loseKind = kind; phase = 'losing'; G.busy = true; G.hint = null;
@@ -1952,7 +2021,7 @@ function drawTitle() {
   ctx.font = `19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 805, '#fff', '#000', 4);
   const acc = typeof SyncManager !== 'undefined' && SyncManager ? SyncManager.account() : null;
   ctx.textAlign = 'right'; ctx.font = `13px ${GOTH}`; ctx.fillStyle = acc ? '#b0ffc8' : '#aaa';
-  ctx.fillText(acc ? `${displayName()}　ログイン中` : `${displayName()}　未ログイン`, 484, 805);
+  ctx.fillText(`${myFullName()}［${gradeName(gradeIndex())}］　` + (acc ? 'ログイン中' : 'ゲスト'), 484, 805);
   ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#999';
   ctx.fillText('県民の勘：クリアで入手。バトル中に使うと、その場の最善手を1つ教えてくれる', W / 2, 852);
   ctx.fillText('※音が出ます', W / 2, 876);
@@ -1988,6 +2057,12 @@ const RULE_PAGES = [
     ['#cfd8e8', '「心境」は毎ターン変わる。郷愁なら人情、激昂なら証拠が効く。頑なだと小さな証拠は通らない。'],
     ['#ffe9b0', 'カードに書かれた数値は「今使ったらどうなるか」。心境や心壁による増減も反映済み。'],
     ['#ff9a5a', 'むずかしい以上：心壁が毎ターン回復／同じカード2枚目は半減／警戒が高いほど人情が効かない。'],
+  ] },
+  { title: '階級と功績', items: [
+    ['#b0ffc8', '事件を解決すると「功績」がたまる。かんたん10・ふつう30・むずかしい80・崖っぷち200。'],
+    ['#b0ffc8', '説得ランクS×1.5／A×1.25／B×1.1。県民の勘を使わずに解決すると、さらに×1.2。同じ事件は最初の1回だけ。'],
+    ['#ffd56b', '功績と解決数の条件を満たすと昇進：巡査 → 巡査長 → 巡査部長 → 警部補 → 警部 → 警視 → 警視正 → 警視長 → 警視監 → 警視総監。'],
+    ['#ddd', '上の階級ほど、難しい難易度での解決や速い解決が必要。条件はマイページで確かめられる。名前には「刑事」が付き、階級と一緒に番付に載る。'],
   ] },
   { title: '県民の勘', items: [
     ['#ffd56b', '説得に成功すると「県民の勘」が手に入る（かんたん・ふつう +1、むずかしい +2、崖っぷち +3）。'],
@@ -2057,8 +2132,22 @@ function drawResult() {
     ctx.font = `24px ${MINCHO}`; outlineText(`県民の勘 +${lastReward} 獲得！`, 0, -8, '#ffd56b', '#000', 5);
     ctx.font = `13px ${GOTH}`; ctx.fillStyle = '#fff'; ctx.fillText(`所持数 ${kanNow()}`, 0, 20);
     ctx.restore();
-    ctx.font = `14px ${MINCHO}`; ctx.fillStyle = '#ffe9c8'; ctx.fillText('夕日に染まる東尋坊に、波の音だけが響いていた――', W / 2, 604);
-    if (G.rankMsg) { ctx.font = `13px ${GOTH}`; ctx.fillStyle = /載りました|送りました/.test(G.rankMsg) ? '#b0ffc8' : '#ccc'; ctx.fillText(G.rankMsg, W / 2, 640); }
+    const gi = gradeIndex(), nx = gi + 1 < GRADES.length ? gradeNeeds(gi + 1).find(o => !o.done) : null;
+    ctx.font = `16px ${GOTH}`;
+    outlineText(G.meritDup ? '功績 +0（解決済みの事件）' : `功績 +${G.merit}` + (G.kanUsed ? '' : '（勘なし×1.2）'), W / 2, 584, '#b0ffc8', '#000', 3);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ddd';
+    ctx.fillText(`${myFullName()}［${gradeName(gi)}］` + (nx ? `　次の「${gradeName(gi + 1)}」まで：${nx.label}${nx.flag ? '' : ' あと' + (nx.need - nx.cur).toLocaleString() + (nx.unit || '')}` : '　最高位です'), W / 2, 610);
+    if (G.promo >= 0 && resultT > 1.4) {                                   // 昇進
+      const q = clamp((resultT - 1.4) * 4, 0, 1), col = GRADE_COL[G.promo];
+      ctx.save(); ctx.translate(W / 2, 176); ctx.scale(0.5 + q * 0.5, 0.5 + q * 0.5);
+      ctx.fillStyle = '#000'; ctx.fillRect(-222, -51, 444, 102);
+      ctx.fillStyle = Math.floor(T * 4) % 2 ? col : '#ffffff'; ctx.fillRect(-219, -48, 438, 96);
+      ctx.fillStyle = '#0c0a14'; ctx.fillRect(-213, -42, 426, 84);
+      ctx.font = `20px ${GOTH}`; outlineText('昇　進　！', 0, -18, '#ffe9b0', '#000', 4);
+      ctx.font = `32px ${MINCHO}`; outlineText(`${gradeName(G.promo)}に任命`, 0, 18, col, '#000', 6);
+      ctx.restore();
+    }
+    if (G.rankMsg) { ctx.font = `13px ${GOTH}`; ctx.fillStyle = /載りました|送りました/.test(G.rankMsg) ? '#b0ffc8' : '#ccc'; ctx.fillText(G.rankMsg, W / 2, 636); }
   } else {
     ctx.font = `56px ${MINCHO}`; outlineText('説得失敗', W / 2, 330, '#ff5a5a', '#200', 9);
     ctx.font = `16px ${GOTH}`; ctx.fillStyle = '#ddd';
@@ -2343,7 +2432,7 @@ var MockCloudAdapter = {
   putRank(db, k, e) {
     const list = (db.ranking[k] || []).filter(x => x.uid !== e.uid || x.score >= e.score);
     const mine = list.find(x => x.uid === e.uid);
-    if (mine) mine.name = e.name; else list.push(e);
+    if (mine) { mine.name = e.name; mine.rk = e.rk; } else list.push(e);
     list.sort((x, y) => y.score - x.score || x.at - y.at);
     db.ranking[k] = list.slice(0, 50);
   },
@@ -2354,7 +2443,7 @@ var MockCloudAdapter = {
       const D = isObj(b) ? diffByKey(b.course) : null, r = D ? replayLog(D, b.seed, b.log) : null;
       if (!r || !r.win) return { ok: false, error: 'rejected' };
       db.ranking = isObj(db.ranking) ? db.ranking : {};
-      const e = { uid, name: cleanName(b.name) || DEFAULT_PLAYER_NAME, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, at: Date.now() };
+      const e = { uid, name: cleanName(b.name) || DEFAULT_PLAYER_NAME, rk: Number.isInteger(b.rk) && b.rk >= 0 && b.rk <= 9 ? b.rk : null, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, at: Date.now() };
       [b.course + ':all', b.course + ':w' + rankWeekKey(Date.now())].forEach(k => this.putRank(db, k, Object.assign({}, e)));
       return this.write(db) ? { ok: true, score: r.score } : { ok: false, error: 'storage' };
     });
@@ -2363,7 +2452,7 @@ var MockCloudAdapter = {
     return this.later(() => {
       const db = this.read(), uid = this.uidOf(db, who), week = rankWeekKey(Date.now());
       const list = (isObj(db.ranking) && db.ranking[course + ':' + (period === 'all' ? 'all' : 'w' + week)]) || [];
-      return { ok: true, course, period, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, me: !!uid && e.uid === uid })) };
+      return { ok: true, course, period, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, rk: e.rk, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, me: !!uid && e.uid === uid })) };
     });
   },
   rankLeave(who) {
@@ -2523,8 +2612,14 @@ function agoText(t) {
 function recordResult(win, rankIdx) {
   const dev = myDev();
   dev.plays[D.key] = Math.min(COUNT_MAX, dev.plays[D.key] + 1);
+  G.merit = 0; G.meritDup = false; G.promo = -1;
   if (win) {
     dev.wins[D.key] = Math.min(COUNT_MAX, dev.wins[D.key] + 1);
+    const ck = D.key + ':' + G.seed;
+    if (SAVE.solved.includes(ck)) G.meritDup = true;                       // 解いたことのある事件：功績は最初の1回だけ
+    else { G.merit = meritFor(rankIdx, G.kanUsed); dev.merit = Math.min(COUNT_MAX, dev.merit + G.merit); SAVE.solved = SAVE.solved.concat([ck]).slice(-SOLVED_MAX); }
+    const gi = gradeIndex();
+    if (gi > SAVE.gradeSeen) { G.promo = gi; SAVE.gradeSeen = gi; }
     const sc = rankScore(D.key, G.turn, G.hp), b = SAVE.best[D.key];
     G.bestUp = !b || sc > b.score;
     SAVE.best[D.key] = { score: Math.max(sc, b ? b.score : 0), turn: Math.min(G.turn, b ? b.turn : 99) };
@@ -2538,7 +2633,7 @@ function submitRank() {
   const r = replayLog(D, g.seed, g.log);              // (送る前に、この端末でも同じ記録になるか確かめる)
   if (!r || !r.win) { g.rankMsg = '番付に送れない記録でした'; return; }
   g.rankMsg = '番付に送信中……';
-  SyncManager.rank('rankSubmit', { course: key, seed: g.seed, log: g.log, name: displayName() }).then(res => {
+  SyncManager.rank('rankSubmit', { course: key, seed: g.seed, log: g.log, name: displayName(), rk: gradeIndex() }).then(res => {
     if (run !== RUN) return;
     if (!res.ok) { g.rankMsg = '番付に送れませんでした：' + syncErrorText(res.error); return; }
     return SyncManager.rank('rankGet', key, 'week').then(q => {
@@ -2553,7 +2648,7 @@ function submitRank() {
    マイページと番付の画面（文字入力があるので HTML で重ねる）
    ========================================================= */
 var OV = {};
-['ov', 'scr-mypage', 'scr-rank', 'mp-back', 'mp-name', 'mp-name-edit', 'mp-name-form', 'mp-name-input', 'mp-name-cancel', 'mp-grid', 'mp-table',
+['ov', 'scr-mypage', 'scr-rank', 'mp-back', 'mp-name', 'mp-grade', 'mp-merit', 'mp-next', 'mp-ladder', 'mp-name-edit', 'mp-name-form', 'mp-name-input', 'mp-name-cancel', 'mp-grid', 'mp-table',
   'mp-status', 'mp-sync', 'mp-auth', 'mp-user', 'mp-pass', 'mp-register', 'mp-login', 'mp-auth-cancel', 'mp-open-auth', 'mp-sync-now', 'mp-logout',
   'mp-delete', 'mp-del-form', 'mp-del-pass', 'mp-del-no', 'mp-msg', 'mp-note',
   'rk-back', 'rk-login', 'rk-guest-name', 'rk-open-mypage', 'rk-body', 'rk-diffs', 'rk-periods', 'rk-status', 'rk-podium', 'rk-me', 'rk-list', 'rk-join', 'rk-join-msg', 'rk-leave'
@@ -2577,7 +2672,25 @@ function openMypage() {
   if (!mpTick) mpTick = setInterval(() => { if (ovScreen === 'mypage') renderAccount(); }, 30000);
 }
 function renderMypage() {
-  OV['mp-name'].textContent = displayName();
+  OV['mp-name'].textContent = myFullName();
+  const gi = gradeIndex(), chip = OV['mp-grade'];
+  chip.textContent = gradeName(gi); chip.style.color = GRADE_COL[gi];
+  OV['mp-merit'].textContent = `功績 ${meritTotal().toLocaleString()}`;
+  if (gi + 1 < GRADES.length) {
+    const head = el('p', 'ov-note', `次の階級「${gradeName(gi + 1)}」への条件`);
+    OV['mp-next'].replaceChildren(head, ...gradeNeeds(gi + 1).map(o => {
+      const d = el('div', 'mp-need' + (o.done ? ' done' : ''));
+      d.append(el('span', null, o.label), el('span', null, o.flag ? (o.done ? '達成' : '未達成') : `${Math.min(o.cur, o.need).toLocaleString()} / ${o.need.toLocaleString()}${o.unit || ''}`));
+      const b = el('span', 'bar'), f = el('i'); f.style.width = Math.min(100, Math.round(o.cur * 100 / Math.max(1, o.need))) + '%'; b.append(f); d.append(b);
+      return d;
+    }));
+  } else OV['mp-next'].replaceChildren(el('p', 'ov-note', '最高位の警視総監です。おつかれさまでした！'));
+  OV['mp-ladder'].replaceChildren(...GRADES.map((g, i) => {
+    const parts = [`功績${g.merit.toLocaleString()}`];
+    for (const k in (g.wins || {})) parts.push(`${DIFF_NAME[k]}${g.wins[k]}件解決`);
+    for (const k in (g.rank || {})) parts.push(`${DIFF_NAME[k]}で${RANK_LETTER[g.rank[k]]}以上`);
+    return el('li', i === gi ? 'now' : i < gi ? 'got' : '', `${g.name}${i === 0 ? '（はじめ）' : '：' + parts.join('・')}${i === gi ? '　← いま' : ''}`);
+  }));
   const plays = statSum('plays'), wins = statSum('wins');
   const best = Math.max(0, ...DIFF_KEYS.map(k => SAVE.best[k] ? SAVE.best[k].score : 0));
   const cells = [['挑戦した事件', plays + '件'], ['解決（勝率）', wins + '件' + (plays ? `（${Math.round(wins * 100 / plays)}%）` : '')],
@@ -2667,7 +2780,7 @@ function openRanking(diffKey) {
 }
 function renderRankingFrame() {
   const acc = SyncManager.isLoggedIn();
-  OV['rk-login'].hidden = acc; OV['rk-guest-name'].textContent = displayName();
+  OV['rk-login'].hidden = acc; OV['rk-guest-name'].textContent = myFullName();
   OV['rk-join'].checked = rankJoin(); OV['rk-join-msg'].textContent = '';
   OV['rk-diffs'].replaceChildren(...DIFFS.map(d => {
     const b = el('button', 'ov-btn small', d.name); b.type = 'button';
@@ -2681,6 +2794,13 @@ function renderRankingFrame() {
   });
 }
 var RANK_TITLES = ['横綱', '大関', '関脇'];
+// 番付の名前：「○○刑事」と階級
+function rkName(cls, e) {
+  const sp = el('span', cls, fullName(e.name) + (e.me ? '（あなた）' : ''));
+  const rk = e.me ? gradeIndex() : (Number.isInteger(e.rk) ? e.rk : null);
+  if (rk != null && rk >= 0 && rk <= 9) { const c = el('span', 'grade-chip small', gradeName(rk)); c.style.color = GRADE_COL[rk]; sp.append(c); }
+  return sp;
+}
 function challengeBtn(e) {
   const b = el('button', 'ov-btn small gold', 'この事件に挑む'); b.type = 'button';
   b.onclick = () => { showOverlay(null); sndClick(); beginGame(diffByKey(rkState.diff), e.seed); };
@@ -2698,13 +2818,13 @@ function loadRanking() {
       : 'まだ記録がありません。最初の一人になろう。';
     OV['rk-podium'].replaceChildren(...es.slice(0, 3).map((e, i) => {
       const li = el('li', 'rk-pod p' + (i + 1) + (e.me ? ' me' : ''));
-      li.append(el('span', 'rk-title', RANK_TITLES[i]), el('span', 'rk-pname', e.name + (e.me ? '（あなた）' : '')),
+      li.append(el('span', 'rk-title', RANK_TITLES[i]), rkName('rk-pname', e),
         el('span', 'rk-pscore', e.score.toLocaleString()), el('span', 'rk-pmeta', `${e.turn}ターン・メンタル${e.hp}・No.${caseNo(e.seed)}`), challengeBtn(e));
       return li;
     }));
     OV['rk-list'].replaceChildren(...es.slice(3).map(e => {
       const li = el('li', 'rk-row' + (e.me ? ' me' : ''));
-      li.append(el('span', 'rk-no', e.rank + '位'), el('span', 'rk-name', e.name + (e.me ? '（あなた）' : '')),
+      li.append(el('span', 'rk-no', e.rank + '位'), rkName('rk-name', e),
         el('span', 'rk-score', e.score.toLocaleString()), el('span', 'rk-meta', `${e.turn}T・No.${caseNo(e.seed)}`), challengeBtn(e));
       return li;
     }));
@@ -2727,7 +2847,7 @@ const OB_SLIDES = [
   { h: '② 崖っぷちの犯人を説得せよ', t: '東尋坊の崖に追い詰められた犯人を説得して、「自首」メーターを100にすれば事件解決。犯人は毎ターン崖の端へ近づきます。残り0歩になるか、刑事のメンタルが尽きると失敗です。', pic: 'cliff' },
   { h: '③ 3つのカードを使い分ける', t: '青の【証拠】で心の壁（心壁）を崩し、緑の【人情】で自首メーターを上げます。心壁が残っていると人情は届きにくい。赤の【グルメ】は犯人を動揺させたり、APや手札を増やしたり。', pic: 'cards' },
   { h: '④ 犯人の狙いを読む', t: '画面の左上に、犯人が次にすることと、その対策が出ます。毎ターン変わる「心境」でカードの効き方も変わります。カードの数字は「今使ったらどうなるか」です。', pic: 'read' },
-  { h: '⑤ 県民の勘と番付', t: '迷ったら「県民の勘」で一番いい手を教えてもらえます。どの事件も、推理すれば必ず解決できることを確かめてから出しています。解決すると、説得スコアが番付に自動で載ります。', pic: 'win' },
+  { h: '⑤ 県民の勘・階級・番付', t: '迷ったら「県民の勘」で一番いい手を教えてもらえます。どの事件も、推理すれば必ず解決できることを確かめてから出しています。解決すると「功績」がたまって巡査から警視総監まで昇進し、説得スコアが番付に自動で載ります。', pic: 'win' },
   { h: 'アカウントを作成またはログインしますか？', t: 'アカウントがあると、ほかの端末でも記録と県民の勘を引き継げて、番付にも同じ名前で載ります。作るのはユーザー名とパスワードだけ（メールアドレスは不要）。あとからマイページでもできます。', acc: true, pic: 'acc' },
 ];
 const OBE = {};
@@ -2790,7 +2910,7 @@ function renderObSound() {
 }
 function renderObAcc() {
   const acc = SyncManager.account();
-  OBE['ob-acc-state'].textContent = acc ? `ログイン中：${acc.user}` : `いまはゲスト（番付には「${displayName()}」で載ります）`;
+  OBE['ob-acc-state'].textContent = acc ? `ログイン中：${acc.user}` : `いまはゲスト（番付には「${myFullName()}」で載ります）`;
   OBE['ob-acc-yes'].hidden = !!acc;
   OBE['ob-acc-no'].textContent = acc ? '捜査をはじめる' : 'ゲストではじめる';
 }
