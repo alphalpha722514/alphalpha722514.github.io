@@ -605,13 +605,21 @@ function randomSeed() { return (Math.floor(Math.random() * 0xFFFFFFFF) >>> 0) ||
 function caseNo(seed) { return String(seed % 100000).padStart(5, '0'); }
 /*CORE-END*/
 
-const W = 540, H = 960, SCENE_H = 520;
+// 画面の大きさ（論理座標）。スマホなど縦長は 540×960、パソコンなど横長は 1600×900 の横長レイアウト
+let W = 540, H = 960;
+const SCENE_H = 520;                 // 景色の高さ（どちらのレイアウトでも同じ）
+let UI_TOP = 520;                    // 下の操作エリアが始まる高さ
+let WX = 0;                          // 景色（世界）の左端からのずらし。横長では崖を中央寄りに置き、左右に景色を広げる
+let CX = 0;                          // タイトル・結果・ポーズ・ルールを置く中央の列（幅540）の左端
+let WIDE = false, layoutReady = false;
+const isWideWindow = () => innerWidth / Math.max(1, innerHeight) >= 1.25;
 const cv = document.getElementById('c');
 let ctx = cv.getContext('2d');   // (景色をドットで描くあいだだけ、低解像度のキャンバスに差し替える)
 let scale = 1, offX = 0, offY = 0, dpr = 1;
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = innerWidth, h = innerHeight;
+  if (layoutReady && isWideWindow() !== WIDE) applyLayout(isWideWindow());
   scale = Math.min(w / W, h / H);
   offX = (w - W * scale) / 2; offY = (h - H * scale) / 2;
   cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
@@ -1034,7 +1042,7 @@ function newGame(diff, seed) {
 }
 newGame(DIFFS[1]);
 function cliffX(cr) { return 452 - 12 * Math.min(cr, 7); }
-function addFloat(x, y, text, col, size) { V.floats.push({ x, y, text, col, life: 1.4, max: 1.4, size: size || 22 }); }
+function addFloat(x, y, text, col, size) { V.floats.push({ x, y, text, col, life: 1.4, max: 1.4, size: size || 22, ui: y >= SCENE_H }); }
 function banner(text, col) { V.banner = { text, col, t: 0 }; }
 
 /* ---------- 対話 ---------- */
@@ -1076,7 +1084,7 @@ function startTurn() {
 function playCard(card) {
   if (G.busy || phase !== 'battle') return;
   const d = card.def;
-  if (d.cost > G.ap) { sndBuzz(); addFloat(270, 620, 'APが足りない！', '#ff7b7b', 20); return; }
+  if (d.cost > G.ap) { sndBuzz(); addFloat(U.hintX, U.handY - 16, 'APが足りない！', '#ff7b7b', 20); return; }
   G.hand = G.hand.filter(c => c !== card); G.disc.push(card.id); G.totalPlayed++; G.log[G.log.length - 1].push(card.id);
   G.hint = null;
   V.flying.push({ c: card, t: 0, kind: 'play' });
@@ -1089,12 +1097,12 @@ function playCard(card) {
   if (r.sur) addFloat(fx, fy + 30, '自首 +' + r.sur, '#ffd56b', 26);
   if (r.daze) { V.shakenT = 3; addFloat(fx, fy - 30, '動揺！', '#ffb36b', 26); }
   if (r.draw) drawCards(r.draw);
-  if (r.ap) addFloat(400, 560, 'AP +' + r.ap, '#ffe07a');
-  if (r.heal) { addFloat(140, 570, 'メンタル +' + r.heal, '#7dffa8'); sndHeal(); }
+  if (r.ap) addFloat(U.apFx, U.apFy, 'AP +' + r.ap, '#ffe07a');
+  if (r.heal) { addFloat(U.hpFx, U.hpFy, 'メンタル +' + r.heal, '#7dffa8'); sndHeal(); }
   if (r.alert < 0) addFloat(fx, fy + 60, '警戒 DOWN', '#cfe3ff', 18);
   if (r.alert > 0) { addFloat(fx, fy + 60, '警戒 UP', '#ffb347', 18); sndAlert(); }
   if (r.step) { addFloat(V.cx, 150, '犯人が1歩戻った！', '#9dffb0', 24); sndHeal(); }
-  if (r.hpCost) addFloat(140, 570, 'メンタル −' + r.hpCost, '#ff6b6b');
+  if (r.hpCost) addFloat(U.hpFx, U.hpFy, 'メンタル −' + r.hpCost, '#ff6b6b');
   if (r.boostHu) addFloat(fx, fy + 90, '次の人情×1.5', '#b0ffc8', 18);
   if (r.boostEv) addFloat(fx, fy + 90, '次の証拠×1.5', '#b0d8ff', 18);
   if (r.tags.length) addFloat(fx - 10, fy - 58, r.tags.join(' '), '#ffe9b0', 15);
@@ -1132,7 +1140,7 @@ async function enemyTurn() {
     await sleep(380);
     G.hp = Math.max(0, G.hp - rec.dmg); rec.hpShown = true;   // (当たった瞬間に減らす。下の applyEnemy では二重に減らさない)
     V.shake = 14; V.flash = 0.55; V.flashCol = '#ff2020'; sndHurt();
-    addFloat(140, 575, 'メンタル −' + rec.dmg, '#ff6b6b', 24);
+    addFloat(U.hpFx, U.hpFy + 4, 'メンタル −' + rec.dmg, '#ff6b6b', 24);
     if (rec.halved) addFloat(V.cx, 170, '(動揺で半減)', '#ffd27a', 18);
     await p;
   } else if (rec.type === 'alert') {
@@ -1258,7 +1266,7 @@ function hintReason(seq) {
 function useKan() {
   if (G.busy || phase !== 'battle') return;
   if (G.hint) { say(KN, G.hint.text, KC); return; }
-  if (kanNow() <= 0) { sndBuzz(); addFloat(78, 850, 'クリアで入手！', '#ffb0b0', 18); say('ヒント', '「県民の勘」は説得に成功すると手に入る。難しい難易度ほどたくさんもらえるぞ。', '#9fd3ff'); return; }
+  if (kanNow() <= 0) { sndBuzz(); addFloat(KAN.x + KAN.w / 2, KAN.y - 18, 'クリアで入手！', '#ffb0b0', 18); say('ヒント', '「県民の勘」は説得に成功すると手に入る。難しい難易度ほどたくさんもらえるぞ。', '#9fd3ff'); return; }
   spendKan(); G.kanUsed++; save();
   const best = solve(G, D);
   const first = best.seq[0] || null;
@@ -1312,8 +1320,8 @@ function update(dt) {
   BGM.tempo = 76 + clamp(6 - G.crisis, 0, 6) * 7;
   BGM.tension = clamp(1 - G.crisis / 6, 0, 1);
   const windMul = 1 - V.sunset * 0.6;
-  for (const w of V.wind) { w.x -= w.spd * dt * windMul; if (w.x < -80) { w.x = W + rand(0, 60); w.y = rand(20, 500); } }
-  for (const c of V.clouds) { c.x -= c.spd * dt; if (c.x < -c.w - 20) { c.x = W + rand(10, 80); c.y = rand(150, 270); } }
+  for (const w of V.wind) { w.x -= w.spd * dt * windMul; if (w.x < -WX - 80) { w.x = W - WX + rand(0, 60); w.y = rand(20, 500); } }
+  for (const c of V.clouds) { c.x -= c.spd * dt; if (c.x < -WX - c.w - 20) { c.x = W - WX + rand(10, 80); c.y = rand(150, 270); } }
   V.splashT -= dt;
   if (V.splashT <= 0) {
     for (let i = 0; i < 34; i++) V.parts.push({ x: rand(462, 535), y: 506, vx: rand(-60, 30), vy: -rand(90, 260), life: rand(0.8, 1.6), r: rand(2, 5), col: '#ffffff' });
@@ -1337,12 +1345,18 @@ function update(dt) {
   for (const c of G.hand) { c.x = lerp(c.x, c.tx, Math.min(1, dt * 12)); c.y = lerp(c.y, c.ty, Math.min(1, dt * 12)); }
   if (phase === 'win' || phase === 'lose') resultT += dt;
 }
-const CW = 118, CH = 190, HAND_Y = 636;
+const CW = 118, CH = 190;
+// 下の操作エリアの配置（縦長／横長）
+const U_TALL = { hpLblX: 16, hpBarX: 86, hpBarW: 190, hpY: 546, apLblX: 296, apX: 334, apY: 546, chipX: 16, chipY: 572, chipR: 99999,
+  deckX: 526, deckY: 585, deckAlign: 'right', handL: 12, handR: 528, handY: 636, hintX: 270, hintY: 852, hpFx: 140, hpFy: 570, apFx: 400, apFy: 560 };
+const U_WIDE = { hpLblX: 24, hpBarX: 108, hpBarW: 246, hpY: 560, apLblX: 24, apX: 76, apY: 604, chipX: 24, chipY: 632, chipR: 372,
+  deckX: 24, deckY: 778, deckAlign: 'left', handL: 392, handR: 1216, handY: 586, hintX: 804, hintY: 818, hpFx: 230, hpFy: 590, apFx: 160, apFy: 600 };
+let U = U_TALL;
 function layoutHand() {
   const n = G.hand.length; if (!n) return;
-  const sp = n > 1 ? Math.min(126, (W - 24 - CW) / (n - 1)) : 0;
-  const x0 = (W - (sp * (n - 1) + CW)) / 2;
-  G.hand.forEach((c, i) => { c.tx = x0 + i * sp; c.ty = HAND_Y + (c === hover ? -26 : 0); });
+  const sp = n > 1 ? Math.min(126, (U.handR - U.handL - CW) / (n - 1)) : 0;
+  const x0 = U.handL + (U.handR - U.handL - (sp * (n - 1) + CW)) / 2;
+  G.hand.forEach((c, i) => { c.tx = x0 + i * sp; c.ty = U.handY + (c === hover ? -26 : 0); });
 }
 
 /* =========================================================
@@ -1450,7 +1464,8 @@ function detectiveSprite(f) {
    ドット描画：景色は 1/3 の解像度（180×174）で描いてパレットに減色（ディザ）し、
    人物・しぶき・風はその上にドットで置いてから、3倍に拡大して表示する
    ========================================================= */
-const PX = 3, LW = Math.ceil(W / PX), LH = Math.ceil(SCENE_H / PX);
+const PX = 3, LH = Math.ceil(SCENE_H / PX);
+let LW = Math.ceil(W / PX);
 const lowCv = document.createElement('canvas'); lowCv.width = LW; lowCv.height = LH;
 const lowCtx = lowCv.getContext('2d', { willReadFrequently: true });
 const fxCv = document.createElement('canvas'); fxCv.width = LW; fxCv.height = Math.ceil(H / PX);
@@ -1496,36 +1511,36 @@ function drawSprDissolve(g, spr, x, y, alpha) {
 }
 function renderPixelWorld() {
   const keep = ctx; ctx = lowCtx;
-  lowCtx.setTransform(1 / PX, 0, 0, 1 / PX, 0, 0);
+  lowCtx.setTransform(1 / PX, 0, 0, 1 / PX, WX / PX, 0);
   drawSky(); drawSea(); drawCliff();
   if (phase === 'battle' && G.crisis <= 2) {
     const a = 0.3 + 0.15 * Math.sin(T * 6);
-    const vg = ctx.createRadialGradient(W / 2, 260, 150, W / 2, 260, 420);
+    const vg = ctx.createRadialGradient(W / 2 - WX, 260, 150, W / 2 - WX, 260, Math.max(420, W * 0.6));
     vg.addColorStop(0, 'rgba(120,0,0,0)'); vg.addColorStop(1, `rgba(150,0,0,${a})`);
-    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, SCENE_H);
+    ctx.fillStyle = vg; ctx.fillRect(-WX, 0, W, SCENE_H);
   }
   const fg = ctx.createLinearGradient(0, SCENE_H - 36, 0, SCENE_H); fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, 'rgba(0,0,0,0.7)');
-  ctx.fillStyle = fg; ctx.fillRect(0, SCENE_H - 36, W, 36);
+  ctx.fillStyle = fg; ctx.fillRect(-WX, SCENE_H - 36, W, 36);
   ctx = keep;
   lowCtx.setTransform(1, 0, 0, 1, 0, 0);
   quantizeLow();
   const g = lowCtx, fr = Math.floor(T * 3.2) % 2;
   // しぶき
   g.fillStyle = '#ffffff';
-  for (const p of V.parts) if (p.life > 0.25) g.fillRect(Math.round(p.x / PX), Math.round(p.y / PX), p.r > 3.5 ? 2 : 1, p.r > 3.5 ? 2 : 1);
+  for (const p of V.parts) if (p.life > 0.25) g.fillRect(Math.round((p.x + WX) / PX), Math.round(p.y / PX), p.r > 3.5 ? 2 : 1, p.r > 3.5 ? 2 : 1);
   // 人物
-  g.drawImage(detectiveSprite(fr), Math.round(105 / PX) - SPR_AX, Math.round(358 / PX) - SPR_AY);
+  g.drawImage(detectiveSprite(fr), Math.round((105 + WX) / PX) - SPR_AX, Math.round(358 / PX) - SPR_AY);
   const expr = culpritExpr(), kneel = V.kneel > 0.5;
   const sx = V.cshake > 0 ? Math.round((Math.random() - 0.5) * 4 * V.cshake) : 0;
   const tr = expr === 'shaken' ? (Math.floor(T * 20) % 2) : 0;
   const tear = expr === 'remorse' ? 1 + Math.floor((T * 6) % 5) : 0;
-  drawSprDissolve(g, culpritSprite(expr, kneel, fr, tear), Math.round(V.cx / PX) - SPR_AX + sx + tr, Math.round(340 / PX) - SPR_AY, V.culpritA);
+  drawSprDissolve(g, culpritSprite(expr, kneel, fr, tear), Math.round((V.cx + WX) / PX) - SPR_AX + sx + tr, Math.round(340 / PX) - SPR_AY, V.culpritA);
   // 風（1ドットの線）
   const wm = 1 - V.sunset * 0.6;
   for (const w of V.wind) {
     if (w.a * wm < 0.12) continue;
     g.fillStyle = w.a * wm > 0.22 ? 'rgba(235,242,255,0.75)' : 'rgba(235,242,255,0.4)';
-    g.fillRect(Math.round(w.x / PX), Math.round(w.y / PX), Math.max(2, Math.round(w.len / PX)), 1);
+    g.fillRect(Math.round((w.x + WX) / PX), Math.round(w.y / PX), Math.max(2, Math.round(w.len / PX)), 1);
   }
 }
 // ヒビ（ドットの線）
@@ -1548,12 +1563,12 @@ function drawSky() {
   g.addColorStop(0, mix('#151a26', '#2b1f5e', f));
   g.addColorStop(0.55, mix('#343b4b', '#c8484f', f));
   g.addColorStop(1, mix('#5f6470', '#ffb24f', f));
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 300);
+  ctx.fillStyle = g; ctx.fillRect(-WX, 0, W, 300);
   const sx = 330, sy = 292 - f * 26, sr = 34;
   const gl = ctx.createRadialGradient(sx, sy, 4, sx, sy, 180);
   gl.addColorStop(0, `rgba(255,220,150,${0.15 + 0.6 * f})`); gl.addColorStop(1, 'rgba(255,140,60,0)');
-  ctx.fillStyle = gl; ctx.fillRect(0, 0, W, 300);
-  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, 300); ctx.clip();
+  ctx.fillStyle = gl; ctx.fillRect(-WX, 0, W, 300);
+  ctx.save(); ctx.beginPath(); ctx.rect(-WX, 0, W, 300); ctx.clip();
   ctx.fillStyle = `rgba(${Math.round(lerp(200, 255, f))},${Math.round(lerp(200, 150, f))},${Math.round(lerp(190, 80, f))},${0.25 + 0.75 * f})`;
   ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -1575,7 +1590,7 @@ function drawSea() {
   g.addColorStop(0, mix('#3a4656', '#a0507a', f));
   g.addColorStop(0.3, mix('#1d2a38', '#4a2e5e', f));
   g.addColorStop(1, mix('#0d1620', '#231a3a', f));
-  ctx.fillStyle = g; ctx.fillRect(0, 300, W, SCENE_H - 300);
+  ctx.fillStyle = g; ctx.fillRect(-WX, 300, W, SCENE_H - 300);
   if (f > 0.03) {
     for (let i = 0; i < 16; i++) {
       const y = 302 + i * i * 0.9;
@@ -1588,9 +1603,9 @@ function drawSea() {
     const y0 = 302 + r * r * 1.8 + 3, amp = 1 + r * 0.7, k = 0.03 - r * 0.0015;
     ctx.strokeStyle = `rgba(220,235,255,${0.14 + r * 0.035})`; ctx.lineWidth = 3;
     ctx.beginPath();
-    for (let x = 0; x <= W; x += 8) {
+    for (let x = -WX; x <= W - WX; x += 8) {
       const y = y0 + Math.sin(x * k + T * (1.2 + r * 0.15) + r) * amp + Math.sin(x * k * 2.3 - T * 1.7) * amp * 0.4;
-      x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      x > -WX ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
     }
     ctx.stroke();
   }
@@ -1600,12 +1615,12 @@ function drawCliff() {
   const f = V.sunset;
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(0, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1]));
-  ctx.lineTo(462, 356); ctx.lineTo(472, 380); ctx.lineTo(462, 410); ctx.lineTo(477, 442); ctx.lineTo(467, 472); ctx.lineTo(481, 500); ctx.lineTo(475, SCENE_H); ctx.lineTo(0, SCENE_H); ctx.closePath();
+  ctx.moveTo(-WX, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1]));
+  ctx.lineTo(462, 356); ctx.lineTo(472, 380); ctx.lineTo(462, 410); ctx.lineTo(477, 442); ctx.lineTo(467, 472); ctx.lineTo(481, 500); ctx.lineTo(475, SCENE_H); ctx.lineTo(-WX, SCENE_H); ctx.closePath();
   const g = ctx.createLinearGradient(0, 340, 0, SCENE_H);
   g.addColorStop(0, mix('#3d3a3a', '#5a3b3a', f)); g.addColorStop(1, mix('#171717', '#22161c', f));
   ctx.fillStyle = g; ctx.fill(); ctx.clip();
-  for (let x = -4, i = 0; x < 490; x += 17, i++) {
+  for (let x = -4 - Math.ceil(WX / 34) * 34, i = 0; x < 490; x += 17, i++) {
     ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.18)';
     ctx.beginPath(); ctx.moveTo(x, 356); ctx.lineTo(x + 17, 356); ctx.lineTo(x + 15 + (i % 3), SCENE_H); ctx.lineTo(x - 2 + (i % 2) * 3, SCENE_H); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 3;
@@ -1614,16 +1629,16 @@ function drawCliff() {
   }
   ctx.fillStyle = `rgba(255,150,80,${0.18 * f})`; ctx.fillRect(420, 340, 70, 180);
   ctx.restore();
-  ctx.beginPath(); ctx.moveTo(0, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1])); ctx.lineTo(462, 356); ctx.lineTo(0, 358); ctx.closePath();
+  ctx.beginPath(); ctx.moveTo(-WX, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1])); ctx.lineTo(462, 356); ctx.lineTo(-WX, 358); ctx.closePath();
   const g2 = ctx.createLinearGradient(0, 330, 0, 358);
   g2.addColorStop(0, mix('#6a6560', '#b07a62', f)); g2.addColorStop(1, mix('#45403d', '#6e4a42', f));
   ctx.fillStyle = g2; ctx.fill();
   ctx.strokeStyle = mix('#8a847c', '#ffc290', f); ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(0, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1])); ctx.lineTo(462, 356); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-WX, 334); CLIFF_TOP.forEach(p => ctx.lineTo(p[0], p[1])); ctx.lineTo(462, 356); ctx.stroke();
   ctx.fillStyle = 'rgba(240,248,255,0.75)';
   ctx.beginPath(); ctx.moveTo(468, SCENE_H);
-  for (let x = 468; x <= W; x += 6) ctx.lineTo(x, 500 + Math.sin(x * 0.12 + T * 3) * 4 + Math.sin(T * 1.3) * 5);
-  ctx.lineTo(W, SCENE_H); ctx.fill();
+  for (let x = 468; x <= W - WX; x += 6) ctx.lineTo(x, 500 + Math.sin(x * 0.12 + T * 3) * 4 + Math.sin(T * 1.3) * 5);
+  ctx.lineTo(W - WX, SCENE_H); ctx.fill();
 }
 // 丸もドットで（3px の段々）
 function circle(x, y, r, col) {
@@ -1768,7 +1783,7 @@ function openPause() {
 function closePause() { paused = false; pmConfirm = null; sndClick(); setDuck(false); }
 function drawPause() {
   if (!paused) return;
-  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
   rr(70, 150, 400, 500, 18); ctx.fillStyle = 'rgba(16,16,26,0.97)'; ctx.fill();
   ctx.strokeStyle = '#8a6b3a'; ctx.lineWidth = 3; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1882,31 +1897,35 @@ function button(r, label, sub, c1, c2, enabled, glow, hov) {
   }
 }
 function drawUI() {
-  ctx.fillStyle = '#14131c'; ctx.fillRect(0, SCENE_H, W, H - SCENE_H);
+  ctx.fillStyle = '#14131c'; ctx.fillRect(0, UI_TOP, W, H - UI_TOP);
   ctx.fillStyle = '#1b1a26';                                                     // 市松のドット地
-  for (let y = SCENE_H + 6; y < H; y += 12) for (let x = (y / 12) % 2 ? 0 : 6; x < W; x += 12) ctx.fillRect(x, y, 6, 6);
-  ctx.fillStyle = '#000'; ctx.fillRect(0, SCENE_H, W, 6);
-  ctx.fillStyle = '#8a6b3a'; ctx.fillRect(0, SCENE_H + 6, W, 3);
+  for (let y = UI_TOP + 6; y < H; y += 12) for (let x = (y / 12) % 2 ? 0 : 6; x < W; x += 12) ctx.fillRect(x, y, 6, 6);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, UI_TOP, W, 6);
+  ctx.fillStyle = '#8a6b3a'; ctx.fillRect(0, UI_TOP + 6, W, 3);
   if (phase === 'title') return;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `14px ${GOTH}`;
-  ctx.fillStyle = '#ffb0b0'; ctx.fillText('メンタル', 16, 546);
-  bar(86, 536, 190, 20, G.hp, G.maxHp, '#ff8a8a', '#c42a3a');
-  ctx.font = `12px ${GOTH}`; ctx.textAlign = 'center'; outlineText(`${G.hp} / ${G.maxHp}`, 181, 546, '#fff', '#000', 3);
-  ctx.textAlign = 'left'; ctx.font = `16px ${GOTH}`; ctx.fillStyle = '#ffe07a'; ctx.fillText('AP', 296, 546);
+  ctx.fillStyle = '#ffb0b0'; ctx.fillText('メンタル', U.hpLblX, U.hpY);
+  bar(U.hpBarX, U.hpY - 10, U.hpBarW, 20, G.hp, G.maxHp, '#ff8a8a', '#c42a3a');
+  ctx.font = `12px ${GOTH}`; ctx.textAlign = 'center'; outlineText(`${G.hp} / ${G.maxHp}`, U.hpBarX + U.hpBarW / 2, U.hpY, '#fff', '#000', 3);
+  ctx.textAlign = 'left'; ctx.font = `16px ${GOTH}`; ctx.fillStyle = '#ffe07a'; ctx.fillText('AP', U.apLblX, U.apY);
   const n = Math.min(4, Math.max(3, G.ap));
-  if (G.ap > 4) { ctx.font = `15px ${GOTH}`; ctx.fillStyle = '#ffe07a'; ctx.fillText('×' + G.ap, 334 + 4 * 24 - 8, 546); }
+  if (G.ap > 4) { ctx.font = `15px ${GOTH}`; ctx.fillStyle = '#ffe07a'; ctx.fillText('×' + G.ap, U.apX + 4 * 24 - 8, U.apY); }
   for (let i = 0; i < n; i++) {
-    const ox = 334 + i * 24, on = i < G.ap;
-    circle(ox, 546, 12, '#000');
-    circle(ox, 546, 9, on ? '#e8a820' : '#3a3a46');
-    if (on) { ctx.fillStyle = '#fff6c0'; ctx.fillRect(ox - 6, 540, 6, 3); ctx.fillRect(ox - 6, 543, 3, 3); ctx.fillStyle = '#a06a00'; ctx.fillRect(ox - 1, 543, 3, 9); }
+    const ox = U.apX + i * 24, oy = U.apY, on = i < G.ap;
+    circle(ox, oy, 12, '#000');
+    circle(ox, oy, 9, on ? '#e8a820' : '#3a3a46');
+    if (on) { ctx.fillStyle = '#fff6c0'; ctx.fillRect(ox - 6, oy - 6, 6, 3); ctx.fillRect(ox - 6, oy - 3, 3, 3); ctx.fillStyle = '#a06a00'; ctx.fillRect(ox - 1, oy - 3, 3, 9); }
   }
   rr(MUTE.x, MUTE.y, MUTE.w, MUTE.h, 8); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
   ctx.textAlign = 'center'; ctx.font = `16px ${GOTH}`; ctx.fillStyle = SND.muted ? '#777' : '#ddd';
   ctx.fillText(SND.muted ? '✕' : '♪', MUTE.x + MUTE.w / 2, MUTE.y + MUTE.h / 2 + 1);
   ctx.textAlign = 'left'; ctx.font = `13px ${GOTH}`;
-  let sx = 16;
-  const chip = (txt, col, bgc) => { const w = ctx.measureText(txt).width + 16; rr(sx, 572, w, 24, 12); ctx.fillStyle = bgc; ctx.fill(); ctx.fillStyle = col; ctx.fillText(txt, sx + 8, 585); sx += w + 6; };
+  let sx = U.chipX, sy = U.chipY;
+  const chip = (txt, col, bgc) => {
+    const w = ctx.measureText(txt).width + 16;
+    if (sx + w > U.chipR) { sx = U.chipX; sy += 30; }                      // (横長では左の列の中で折り返す)
+    rr(sx, sy, w, 24, 12); ctx.fillStyle = bgc; ctx.fill(); ctx.fillStyle = col; ctx.fillText(txt, sx + 8, sy + 13); sx += w + 6;
+  };
   chip(D.name, D.col, 'rgba(255,255,255,0.1)');
   chip(`TURN ${G.turn}`, '#ddd', 'rgba(255,255,255,0.1)');
   chip(`警戒 Lv.${G.alert}`, G.alert >= 2 ? '#ffb347' : '#ccc', G.alert >= 2 ? 'rgba(160,80,0,0.4)' : 'rgba(255,255,255,0.08)');
@@ -1915,8 +1934,8 @@ function drawUI() {
   if (G.lastType === 'ev' && phase === 'battle') chip('緩急', '#b0ffc8', 'rgba(40,140,80,0.4)');
   if (G.boostHu) chip('人情↑', '#b0ffc8', 'rgba(40,140,80,0.4)');
   if (G.boostEv) chip('証拠↑', '#b0d8ff', 'rgba(40,80,160,0.45)');
-  ctx.textAlign = 'right'; ctx.fillStyle = '#999'; ctx.font = `11px ${GOTH}`;
-  ctx.fillText(`山札${G.deck.length} 捨札${G.disc.length}`, 526, 585);
+  ctx.textAlign = U.deckAlign; ctx.fillStyle = '#999'; ctx.font = `${WIDE ? 13 : 11}px ${GOTH}`;
+  ctx.fillText(`山札${G.deck.length} 捨札${G.disc.length}`, U.deckX, U.deckY);
   const usableAll = !G.busy && phase === 'battle';
   const hintCard = G.hint && G.hint.id ? G.hand.find(c => c.id === G.hint.id) : null;
   for (const c of G.hand) if (c !== hover) drawCard(c, c.x, c.y, 1, 1, false, usableAll && c.def.cost <= G.ap, c === hintCard);
@@ -1930,7 +1949,7 @@ function drawUI() {
   let hint = 'カードをタップして使用（数値は今の状況での効果）';
   if (G.busy) hint = '……';
   else if (G.ap === 0 || !G.hand.some(c => c.def.cost <= G.ap)) hint = '使えるカードがない。ターン終了しよう';
-  ctx.fillText(hint, W / 2, 852);
+  ctx.fillText(hint, U.hintX, U.hintY);
   const en = !G.busy && phase === 'battle';
   button(KAN, '県民の勘', `残り ×${kanNow()}`, '#8a6a10', '#4a3500', en && kanNow() > 0 || (en && !!G.hint), false, hoverBtn === 'kan');
   button(BTN, G.turn === 0 ? '開幕前' : (G.busy ? '犯人のターン' : 'ターン終了'), null, '#c43a2a', '#6a1410', en, !!(G.hint && !G.hint.id), hoverBtn === 'end');
@@ -1946,7 +1965,7 @@ function drawFloats() {
     const a = clamp(f.life / f.max * 1.6, 0, 1);
     const s = 1 + Math.max(0, (f.life - f.max + 0.15)) * 4;
     ctx.globalAlpha = a; ctx.font = `${Math.round(f.size * s)}px ${GOTH}`;
-    outlineText(f.text, f.x, f.y, f.col, '#000', 5);
+    outlineText(f.text, f.ui ? f.x : f.x + WX, f.y, f.col, '#000', 5);
   }
   ctx.globalAlpha = 1;
 }
@@ -1955,10 +1974,10 @@ function drawCracks() {
   const a = Math.min(1, V.crackT / 1.0), g = fxCtx;
   g.clearRect(0, 0, fxCv.width, fxCv.height);
   g.fillStyle = '#000';
-  for (const pts of V.cracks) for (let i = 1; i < pts.length; i++) pxLine(g, pts[i - 1][0] / PX + 1, pts[i - 1][1] / PX + 1, pts[i][0] / PX + 1, pts[i][1] / PX + 1);
+  for (const pts of V.cracks) for (let i = 1; i < pts.length; i++) pxLine(g, (pts[i - 1][0] + WX) / PX + 1, pts[i - 1][1] / PX + 1, (pts[i][0] + WX) / PX + 1, pts[i][1] / PX + 1);
   g.fillStyle = '#ffffff';
-  for (const pts of V.cracks) for (let i = 1; i < pts.length; i++) pxLine(g, pts[i - 1][0] / PX, pts[i - 1][1] / PX, pts[i][0] / PX, pts[i][1] / PX);
-  const [cx, cy] = V.crackCenter;
+  for (const pts of V.cracks) for (let i = 1; i < pts.length; i++) pxLine(g, (pts[i - 1][0] + WX) / PX, pts[i - 1][1] / PX, (pts[i][0] + WX) / PX, pts[i][1] / PX);
+  const cx = V.crackCenter[0] + WX, cy = V.crackCenter[1];
   for (let i = 0; i < 12; i++) {
     const a0 = i / 12 * Math.PI * 2, a1 = (i + 1) / 12 * Math.PI * 2, r0 = (26 + (i % 2) * 10) / PX, r1 = (26 + ((i + 1) % 2) * 10) / PX;
     pxLine(g, cx / PX + Math.cos(a0) * r0, cy / PX + Math.sin(a0) * r0, cx / PX + Math.cos(a1) * r1, cy / PX + Math.sin(a1) * r1);
@@ -1985,7 +2004,7 @@ function drawBanner() {
 const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 330 + i * 92, w: 460, h: 80, d }));
 const T_RULE = { x: 40, y: 712, w: 146, h: 56 }, T_MY = { x: 197, y: 712, w: 146, h: 56 }, T_RANK = { x: 354, y: 712, w: 146, h: 56 };
 function drawTitle() {
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `32px ${MINCHO}`; outlineText('東 尋 坊', W / 2, 84, '#ffe2a0', '#000', 6);
   ctx.font = `64px ${MINCHO}`;
@@ -2077,7 +2096,7 @@ const R_PREV = { x: 40, y: 830, w: 140, h: 54 }, R_NEXT = { x: 360, y: 830, w: 1
 function drawRules() {
   if (!rules) return;
   const pg = RULE_PAGES[rules.page];
-  ctx.fillStyle = 'rgba(0,0,0,0.78)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.78)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
   rr(24, 70, 492, 740, 16); ctx.fillStyle = 'rgba(16,16,26,0.96)'; ctx.fill();
   ctx.strokeStyle = '#8a6b3a'; ctx.lineWidth = 3; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2116,7 +2135,7 @@ const RETRY = { x: 40, y: 680, w: 220, h: 60 }, NEWCASE = { x: 280, y: 680, w: 2
 function drawResult() {
   const a = clamp(resultT / 1.0, 0, 1);
   ctx.save(); ctx.globalAlpha = a;
-  ctx.fillStyle = phase === 'win' ? 'rgba(40,15,0,0.55)' : 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = phase === 'win' ? 'rgba(40,15,0,0.55)' : 'rgba(0,0,0,0.7)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (phase === 'win') {
     ctx.font = `22px ${MINCHO}`; outlineText(`―― 事件解決【${D.name}】――`, W / 2, 260, '#ffe2a0', '#000', 5);
@@ -2169,6 +2188,13 @@ function drawResult() {
 /* =========================================================
    MAIN LOOP
    ========================================================= */
+// 中央の列（幅540）に、縦長と同じ配置で描く
+function inCol(fn) {
+  const keepW = W;
+  ctx.save(); ctx.translate(CX, 0); W = 540;
+  try { fn(); } finally { W = keepW; ctx.restore(); }
+}
+const colPt = p => ({ x: p.x - CX, y: p.y });
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(dpr * scale, 0, 0, dpr * scale, offX * dpr, offY * dpr);
@@ -2177,16 +2203,16 @@ function render() {
   if (V.shake > 0) ctx.translate((Math.random() - 0.5) * V.shake, (Math.random() - 0.5) * V.shake);
   drawScene();
   drawUI();
-  if (phase !== 'title') drawDialogue();
+  if (phase !== 'title') { ctx.save(); ctx.translate(Math.round((W - 540) / 6) * 3, 0); drawDialogue(); ctx.restore(); }
   drawFloats();
   drawBanner();
   drawCracks();
   if (V.dark > 0) { ctx.fillStyle = `rgba(0,0,0,${V.dark})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
   if (V.flash > 0) { ctx.globalAlpha = Math.min(1, V.flash); ctx.fillStyle = V.flashCol; ctx.fillRect(-20, -20, W + 40, H + 40); ctx.globalAlpha = 1; }
-  if (phase === 'title') drawTitle();
-  if (phase === 'win' || phase === 'lose') drawResult();
-  drawPause();
-  drawRules();
+  if (phase === 'title') inCol(drawTitle);
+  if (phase === 'win' || phase === 'lose') inCol(drawResult);
+  inCol(drawPause);
+  inCol(drawRules);
   ctx.restore();
 }
 let last = performance.now();
@@ -2216,21 +2242,22 @@ function cardAt(p) {
 }
 function updateHover() {
   hoverBtn = null; hover = null;
+  const cm = colPt(mouse);
   if (rules) {
-    if (inRect(mouse, R_PREV)) hoverBtn = 'rprev'; else if (inRect(mouse, R_NEXT)) hoverBtn = 'rnext'; else if (inRect(mouse, R_SKIP)) hoverBtn = 'rskip';
+    if (inRect(cm, R_PREV)) hoverBtn = 'rprev'; else if (inRect(cm, R_NEXT)) hoverBtn = 'rnext'; else if (inRect(cm, R_SKIP)) hoverBtn = 'rskip';
     return;
   }
   if (paused) {
-    for (const k in PM) if (inRect(mouse, PM[k])) hoverBtn = 'pm_' + k;
+    for (const k in PM) if (inRect(cm, PM[k])) hoverBtn = 'pm_' + k;
     return;
   }
   if (phase === 'title') {
-    DIFF_BTNS.forEach((b, i) => { if (inRect(mouse, b)) hoverBtn = 'd' + i; });
-    if (inRect(mouse, T_RULE)) hoverBtn = 'trule'; else if (inRect(mouse, T_MY)) hoverBtn = 'tmy'; else if (inRect(mouse, T_RANK)) hoverBtn = 'trank';
+    DIFF_BTNS.forEach((b, i) => { if (inRect(cm, b)) hoverBtn = 'd' + i; });
+    if (inRect(cm, T_RULE)) hoverBtn = 'trule'; else if (inRect(cm, T_MY)) hoverBtn = 'tmy'; else if (inRect(cm, T_RANK)) hoverBtn = 'trank';
     return;
   }
   if (phase === 'win' || phase === 'lose') {
-    if (inRect(mouse, RETRY)) hoverBtn = 'retry'; else if (inRect(mouse, NEWCASE)) hoverBtn = 'newcase'; else if (inRect(mouse, TOTITLE)) hoverBtn = 'totitle';
+    if (inRect(cm, RETRY)) hoverBtn = 'retry'; else if (inRect(cm, NEWCASE)) hoverBtn = 'newcase'; else if (inRect(cm, TOTITLE)) hoverBtn = 'totitle';
     return;
   }
   if (inRect(mouse, PAUSE)) hoverBtn = 'pause';
@@ -2249,8 +2276,10 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   audioInit();
-  const p = toLogical(e);
+  let p = toLogical(e);
   if (e.pointerType !== 'mouse') mouse = p;
+  const p0 = p;
+  if (rules || paused || phase === 'title' || phase === 'win' || phase === 'lose') p = colPt(p);   // (中央の列の画面)
   if (rules) {
     if (inRect(p, R_PREV)) { if (rules.page > 0) { rules.page--; sndClick(); } return; }
     if (inRect(p, R_SKIP)) { sndClick(); closeRules(); return; }
@@ -2284,8 +2313,10 @@ cv.addEventListener('pointerdown', e => {
     else if (inRect(p, T_RANK)) { sndClick(); openRanking(); }
     return;
   }
+  p = p0;
   if (inRect(p, MUTE) && phase !== 'win' && phase !== 'lose') { toggleMute(); return; }
   if (phase === 'win' || phase === 'lose') {
+    p = colPt(p0);
     if (resultT > 1.0 && inRect(p, RETRY)) { sndClick(); beginGame(D, G.seed); }
     else if (resultT > 1.0 && inRect(p, NEWCASE)) { sndClick(); beginGame(D); }
     else if (resultT > 1.0 && inRect(p, TOTITLE)) { sndClick(); goTitle(); }
@@ -2298,7 +2329,7 @@ cv.addEventListener('pointerdown', e => {
   const c = cardAt(p);
   if (c) { playCard(c); return; }
   if (inRect(p, BTN)) { endTurn(); return; }
-  if (p.y < SCENE_H) dlgAdvance();
+  if (p.y < UI_TOP) dlgAdvance();
 });
 function toggleMute() {
   SND.muted = !SND.muted;
@@ -2959,6 +2990,27 @@ addEventListener('keydown', e => {
 }, true);
 // 初めて開いたとき（または説明の版が上がったとき）に出す
 if (SAVE.onboard < ONBOARD_VER) openOnboarding();
+
+/* ---------- レイアウトの切り替え（縦長 540×960 ／ 横長 1600×900） ---------- */
+function applyLayout(wide) {
+  WIDE = wide;
+  if (wide) { W = 1600; H = 900; UI_TOP = 520; WX = 417; CX = 530; U = U_WIDE;
+    Object.assign(KAN, { x: 1242, y: 560, w: 336, h: 62 }); Object.assign(BTN, { x: 1242, y: 640, w: 336, h: 86 });
+    Object.assign(PAUSE, { x: 1242, y: 744, w: 336, h: 62 }); Object.assign(MUTE, { x: 1536, y: 834, w: 42, h: 34 });
+  } else { W = 540; H = 960; UI_TOP = 520; WX = 0; CX = 0; U = U_TALL;
+    Object.assign(KAN, { x: 14, y: 872, w: 126, h: 62 }); Object.assign(BTN, { x: 150, y: 872, w: 240, h: 62 });
+    Object.assign(PAUSE, { x: 400, y: 872, w: 126, h: 62 }); Object.assign(MUTE, { x: 488, y: 528, w: 42, h: 34 });
+  }
+  LW = Math.ceil(W / PX); lowCv.width = LW; lowCv.height = LH;
+  fxCv.width = Math.ceil(W / PX); fxCv.height = Math.ceil(H / PX);
+  V.wind.forEach(w => { w.x = rand(-WX, W - WX); });                     // 風と雲を、広さに合わせて散らし直す
+  V.clouds.forEach(c => { c.x = rand(-WX - 60, W - WX); });
+  if (G && G.hand) G.hand.forEach(c => { c.x = c.tx = U.handL; });
+  mouse = { x: -1, y: -1 };
+}
+layoutReady = true;
+applyLayout(isWideWindow());
+resize();
 </script>
 </body>
 </html>
