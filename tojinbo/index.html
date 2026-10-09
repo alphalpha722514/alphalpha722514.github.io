@@ -10,7 +10,7 @@
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #c{display:block;position:absolute;left:0;top:0;touch-action:none}
-/* マイページ・番付（キャンバスの上に重ねる画面） */
+/* マイページ・捜査実績表（キャンバスの上に重ねる画面） */
 #ov{position:fixed;inset:0;z-index:10;background:#0e0d16 repeating-conic-gradient(#14131e 0 25%,#0e0d16 0 50%) 0 0/12px 12px;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
   color:#eee;font-family:"DotGothic16","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",sans-serif;font-size:15px;line-height:1.6}
 #ov[hidden],#ov [hidden]{display:none!important}
@@ -122,7 +122,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
       <h3 class="ov-h">刑事の名前と階級</h3>
       <p class="mp-name-row"><span id="mp-name" class="mp-name"></span><button id="mp-name-edit" class="ov-btn small" type="button">変更</button></p>
       <form id="mp-name-form" class="ov-form" hidden>
-        <label for="mp-name-input" class="ov-label">名前（12文字まで。後ろに「刑事」が付いて番付に出ます）</label>
+        <label for="mp-name-input" class="ov-label">名前（12文字まで。後ろに「刑事」が付いて捜査実績表に出ます）</label>
         <div class="ov-row">
           <input id="mp-name-input" class="ov-input" type="text" maxlength="12" autocomplete="nickname" enterkeyhint="done">
           <button class="ov-btn small primary" type="submit">保存</button>
@@ -162,7 +162,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
         <button id="mp-delete" class="ov-btn small danger" type="button">アカウントを削除</button>
       </div>
       <form id="mp-del-form" class="ov-form" hidden>
-        <p class="ov-warn">クラウドに保存したアカウントと記録、番付の記録を削除します。元に戻せません（この端末の記録はそのまま残ります）。確認のため、パスワードを入れてください。</p>
+        <p class="ov-warn">クラウドに保存したアカウントと記録、捜査実績表の記録を削除します。元に戻せません（この端末の記録はそのまま残ります）。確認のため、パスワードを入れてください。</p>
         <label for="mp-del-pass" class="ov-label">パスワード</label>
         <input id="mp-del-pass" class="ov-input" type="password" maxlength="64" autocomplete="current-password">
         <div class="ov-row">
@@ -204,8 +204,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
   </section>
 
   <section id="scr-rank" class="ov-scr" aria-labelledby="rk-h" hidden>
-    <div class="ov-bar"><h2 id="rk-h" class="ov-title">番付</h2><button id="rk-back" class="ov-btn" type="button">もどる</button></div>
-    <p class="ov-lead">難易度ごとの説得スコアの番付（上位50人）。サーバーが打ち手の記録から事件を再生し、本当に解決できた記録だけを載せます。「この事件に挑む」で、同じ事件ファイルに挑戦できます。</p>
+    <div class="ov-bar"><h2 id="rk-h" class="ov-title">捜査実績表</h2><button id="rk-back" class="ov-btn" type="button">もどる</button></div>
+    <p class="ov-lead">難易度ごとの説得スコアの捜査実績表（上位50人）。サーバーが打ち手の記録から事件を再生し、本当に解決できた記録だけを載せます。「この事件に挑む」で、同じ事件ファイルに挑戦できます。</p>
     <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10</p>
     <div id="rk-login" class="ov-card">
       <p>いまはゲストとして、この端末の名前「<span id="rk-guest-name"></span>」で載ります。名前はマイページで変えられます。アカウントを作ると、ほかの端末でも同じ名前と記録で続けられます。</p>
@@ -223,9 +223,9 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
       <ol id="rk-list" class="rk-list"></ol>
       <section class="ov-card">
         <h3 class="ov-h">参加の設定</h3>
-        <label class="ov-check"><input id="rk-join" type="checkbox"> 番付に載る</label>
-        <p class="ov-note">事件を解決すると、表示名・事件番号・打ち手の記録（使ったカードの順番）がこの端末から自動で送られ、番付に名前と説得スコアが載ります。載せたくないときはチェックを外してください（この端末だけの設定）。</p>
-        <button id="rk-leave" class="ov-btn small danger" type="button">番付から自分の記録を消す</button>
+        <label class="ov-check"><input id="rk-join" type="checkbox"> 捜査実績表に載る</label>
+        <p class="ov-note">事件を解決すると、表示名・事件番号・打ち手の記録（使ったカードの順番）がこの端末から自動で送られ、捜査実績表に名前と説得スコアが載ります。載せたくないときはチェックを外してください（この端末だけの設定）。</p>
+        <button id="rk-leave" class="ov-btn small danger" type="button">捜査実績表から自分の記録を消す</button>
         <p id="rk-join-msg" class="ov-note" role="status"></p>
       </section>
     </div>
@@ -570,7 +570,7 @@ function playout(seed, D, maxTurns) {
   }
   return { win: false, turn: g.turn };
 }
-/* ---------- 番付：打ち手の記録から事件を再生して確かめる（サーバーも同じ関数を使う） ---------- */
+/* ---------- 捜査実績表：打ち手の記録から事件を再生して確かめる（サーバーも同じ関数を使う） ---------- */
 // log = [[1ターン目に使ったカードid…], [2ターン目…], …]。最後の1枚で自首100になった記録だけが勝ち
 const RANK_BASE = { easy: 1000, normal: 2000, hard: 3500, oni: 5000 };
 function rankScore(diffKey, turn, hp) { return RANK_BASE[diffKey] + Math.max(0, 10 - turn) * 300 + hp * 10; }
@@ -692,8 +692,8 @@ function outlineText(t, x, y, fill, stroke, lw) {
 var SAVE_KEY = 'tojinbo_suspense_v2';               // (キー名はそのまま。古いセーブをその場で読み替える)
 var DEVICE_KEY = SAVE_KEY + '.device';              // この端末の印（同期しない）
 var ACCOUNT_KEY = SAVE_KEY + '.account';            // この端末のログイン {user, token, adapter, lastSync}
-var RANKJOIN_KEY = SAVE_KEY + '.rankJoin';          // 番付に載る（この端末の設定。'0' のときだけ載せない）
-var GUEST_KEY = SAVE_KEY + '.guest';                // ゲストの印（番付用の秘密の値。同期しない）
+var RANKJOIN_KEY = SAVE_KEY + '.rankJoin';          // 捜査実績表に載る（この端末の設定。'0' のときだけ載せない）
+var GUEST_KEY = SAVE_KEY + '.guest';                // ゲストの印（捜査実績表用の秘密の値。同期しない）
 var PROFILE_NAME_MAX = 12, DEFAULT_PLAYER_NAME = 'ななし', COUNT_MAX = 10000000;
 var MERIT_BASE = { easy: 10, normal: 30, hard: 80, oni: 200 };   // 功績の基本点（難易度ごと）
 var SOLVED_MAX = 400;                                            // 功績を出した事件を覚えておく数
@@ -832,7 +832,7 @@ function fullName(name) { const n = (name || DEFAULT_PLAYER_NAME).replace(/刑�
 function myFullName() { return fullName(SAVE.profile.name); }
 if (SAVE.gradeSeen < 0) SAVE.gradeSeen = gradeIndex();     // (階級ができる前のセーブ：今の階級から始める。昇進の演出は出さない)
 function meritFor(rankIdx, kanUsed) { return Math.round(MERIT_BASE[D.key] * [1, 1.1, 1.25, 1.5][rankIdx] * (kanUsed ? 1 : 1.2)); }
-function rankJoin() { return lsGet(RANKJOIN_KEY) !== '0'; }      // 何も選ばなくても番付に載る
+function rankJoin() { return lsGet(RANKJOIN_KEY) !== '0'; }      // 何も選ばなくても捜査実績表に載る
 function guestSecret() {
   let g = lsGet(GUEST_KEY);
   if (!/^[0-9a-f]{64}$/.test(g || '')) { g = randHex(32); lsSet(GUEST_KEY, g); }
@@ -2035,7 +2035,7 @@ function drawTitle() {
   });
   button(T_RULE, 'ルール説明', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'trule');
   button(T_MY, 'マイページ', null, '#2e6a50', '#14382a', true, false, hoverBtn === 'tmy');
-  button(T_RANK, '番付', null, '#8a6a10', '#4a3500', true, false, hoverBtn === 'trank');
+  button(T_RANK, '捜査実績表', null, '#8a6a10', '#4a3500', true, false, hoverBtn === 'trank');
   rr(40, 780, 460, 48, 12); ctx.fillStyle = 'rgba(40,30,8,0.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,213,107,0.6)'; ctx.lineWidth = 3; ctx.stroke();
   ctx.textAlign = 'left'; ctx.font = `15px ${MINCHO}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('県民の勘', 58, 805);
   ctx.font = `19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 805, '#fff', '#000', 4);
@@ -2082,14 +2082,14 @@ const RULE_PAGES = [
     ['#b0ffc8', '事件を解決すると「功績」がたまる。かんたん10・ふつう30・むずかしい80・崖っぷち200。'],
     ['#b0ffc8', '説得ランクS×1.5／A×1.25／B×1.1。県民の勘を使わずに解決すると、さらに×1.2。同じ事件は最初の1回だけ。'],
     ['#ffd56b', '功績と解決数の条件を満たすと昇進：巡査 → 巡査長 → 巡査部長 → 警部補 → 警部 → 警視 → 警視正 → 警視長 → 警視監 → 警視総監。'],
-    ['#ddd', '上の階級ほど、難しい難易度での解決や速い解決が必要。条件はマイページで確かめられる。名前には「刑事」が付き、階級と一緒に番付に載る。'],
+    ['#ddd', '上の階級ほど、難しい難易度での解決や速い解決が必要。条件はマイページで確かめられる。名前には「刑事」が付き、階級と一緒に捜査実績表に載る。'],
   ] },
   { title: '県民の勘', items: [
     ['#ffd56b', '説得に成功すると「県民の勘」が手に入る（かんたん・ふつう +1、むずかしい +2、崖っぷち +3）。'],
     ['#ffd56b', 'バトル中に左下の「県民の勘」を押すと1つ消費して、その場で一番良い一手を教えてくれる。おすすめのカードが金色に光る。'],
     ['#ddd', '勘は手札の範囲で最善を計算する。引いてくるカードまでは読めないので、ここぞという場面で使おう。'],
     ['#ddd', '勘は保存され、次のプレイにも持ち越せる。マイページでログインすると、ほかの端末とも同期できる。'],
-    ['#ffd56b', '事件を解決すると、説得スコアが番付に自動で載る（ゲストでも）。タイトルの「番付」で順位を見られる。'],
+    ['#ffd56b', '事件を解決すると、説得スコアが捜査実績表に自動で載る（ゲストでも）。タイトルの「捜査実績表」で順位を見られる。'],
     ['#b0ffc8', 'どの事件も「その場で見えている情報だけで正しく打てばクリアできる」ことを開始前に確認済み。運任せの事件は出ない。'],
   ] },
 ];
@@ -2403,7 +2403,7 @@ function sha256Hex(text) {
 }
 // パスワードは入力したまま外に出さない。ユーザー名を塩にしてこの端末でハッシュにする
 function passwordHash(user, pass) { return sha256Hex('tojinbo-suspense:' + user.toLowerCase() + ':' + pass); }
-// 番付の週：日本時間の月曜（サーバーも同じ数え方）
+// 捜査実績表の週：日本時間の月曜（サーバーも同じ数え方）
 function rankWeekKey(now) {
   const d = new Date(now + 9 * 3600 * 1000);
   d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
@@ -2456,7 +2456,7 @@ var MockCloudAdapter = {
       return this.write(db) ? { ok: true } : { ok: false, error: 'storage' };
     });
   },
-  // 番付（この端末の中だけ。本物のサーバーと同じく、打ち手の記録を再生して確かめる。ログインしていなければゲスト）
+  // 捜査実績表（この端末の中だけ。本物のサーバーと同じく、打ち手の記録を再生して確かめる。ログインしていなければゲスト）
   uidOf(db, who) {
     if (who.token) { const u = this.byToken(db, who.token); return u ? u.name.toLowerCase() : null; }
     return who.guest ? 'g:' + who.guest.slice(0, 20) : null;
@@ -2545,7 +2545,7 @@ var SYNC_ERRORS = {
   offline: 'クラウドにつながりませんでした。通信できる状態で、もう一度試してください。',
   storage: '保存できませんでした。ブラウザの保存容量や設定を確かめてください。',
   nologin: 'ログインしていません。',
-  rejected: '番付に載せられない記録でした。',
+  rejected: '捜査実績表に載せられない記録でした。',
   notfound: '同期サーバーがこの操作に対応していません（サーバーの更新が必要です）。',
   user: 'ユーザー名は3〜16文字の英数字・かな・漢字・_ - で入力してください。',
   pass: 'パスワードは6文字以上で入力してください。'
@@ -2592,7 +2592,7 @@ var SyncManager = {
       this.logout(); return { ok: true };
     }, () => ({ ok: false, error: 'offline' }));
   },
-  // 番付：ログイン中はアカウント、そうでなければこの端末のゲストとして
+  // 捜査実績表：ログイン中はアカウント、そうでなければこの端末のゲストとして
   rank(fn, ...args) {
     const acc = this.account(), who = { token: acc ? acc.token : null, guest: guestSecret() };
     return this.adapter[fn](who, ...args).then(r => {
@@ -2640,7 +2640,7 @@ function agoText(t) {
   return '最終同期: ' + Math.floor(s / 86400) + '日前';
 }
 
-/* ---------- 戦績と番付への送信（勝ち負けが決まったとき） ---------- */
+/* ---------- 戦績と捜査実績表への送信（勝ち負けが決まったとき） ---------- */
 function recordResult(win, rankIdx) {
   const dev = myDev();
   dev.plays[D.key] = Math.min(COUNT_MAX, dev.plays[D.key] + 1);
@@ -2660,24 +2660,24 @@ function recordResult(win, rankIdx) {
 }
 function submitRank() {
   G.rankMsg = '';
-  if (!rankJoin()) { G.rankMsg = '番付に載せない設定です（番付の画面で変えられます）'; return; }
+  if (!rankJoin()) { G.rankMsg = '捜査実績表に載せない設定です（捜査実績表の画面で変えられます）'; return; }
   const run = RUN, g = G, key = D.key;
   const r = replayLog(D, g.seed, g.log);              // (送る前に、この端末でも同じ記録になるか確かめる)
-  if (!r || !r.win) { g.rankMsg = '番付に送れない記録でした'; return; }
-  g.rankMsg = '番付に送信中……';
+  if (!r || !r.win) { g.rankMsg = '捜査実績表に送れない記録でした'; return; }
+  g.rankMsg = '捜査実績表に送信中……';
   SyncManager.rank('rankSubmit', { course: key, seed: g.seed, log: g.log, name: displayName(), rk: gradeIndex() }).then(res => {
     if (run !== RUN) return;
-    if (!res.ok) { g.rankMsg = '番付に送れませんでした：' + syncErrorText(res.error); return; }
+    if (!res.ok) { g.rankMsg = '捜査実績表に送れませんでした：' + syncErrorText(res.error); return; }
     return SyncManager.rank('rankGet', key, 'week').then(q => {
       if (run !== RUN) return;
       const me = q.ok && q.entries.find(e => e.me);
-      g.rankMsg = me ? `番付に載りました　今週の${DIFFS.find(d => d.key === key).name}で ${me.rank}位` : '番付に送りました（今週の上位50人の外）';
+      g.rankMsg = me ? `捜査実績表に載りました　今週の${DIFFS.find(d => d.key === key).name}で ${me.rank}位` : '捜査実績表に送りました（今週の上位50人の外）';
     });
   });
 }
 
 /* =========================================================
-   マイページと番付の画面（文字入力があるので HTML で重ねる）
+   マイページと捜査実績表の画面（文字入力があるので HTML で重ねる）
    ========================================================= */
 var OV = {};
 ['ov', 'scr-mypage', 'scr-rank', 'mp-back', 'mp-name', 'mp-grade', 'mp-merit', 'mp-next', 'mp-ladder', 'mp-name-edit', 'mp-name-form', 'mp-name-input', 'mp-name-cancel', 'mp-grid', 'mp-table',
@@ -2770,7 +2770,7 @@ function wireOverlay() {
   OV['mp-name-cancel'].onclick = () => { OV['mp-name-form'].hidden = true; };
   OV['mp-name-form'].onsubmit = e => {
     e.preventDefault(); setDisplayName(OV['mp-name-input'].value); OV['mp-name-form'].hidden = true;
-    setMpMsg('名前を保存しました。番付には次に送る記録から反映されます。'); renderMypage();
+    setMpMsg('名前を保存しました。捜査実績表には次に送る記録から反映されます。'); renderMypage();
   };
   OV['mp-open-auth'].onclick = () => { OV['mp-auth'].hidden = false; setMpMsg(''); renderAccount(); OV['mp-user'].focus(); };
   OV['mp-auth-cancel'].onclick = () => { OV['mp-auth'].hidden = true; setMpMsg(''); renderAccount(); };
@@ -2791,15 +2791,15 @@ function wireOverlay() {
   OV['rk-join'].onchange = () => {
     const on = OV['rk-join'].checked;
     lsSet(RANKJOIN_KEY, on ? '1' : '0');
-    if (on) { OV['rk-join-msg'].textContent = '次に事件を解決したときから、番付に載ります。'; return; }
-    OV['rk-join-msg'].textContent = 'これからの記録は番付に載せません（もう載っている記録は「番付から自分の記録を消す」で消せます）。';
+    if (on) { OV['rk-join-msg'].textContent = '次に事件を解決したときから、捜査実績表に載ります。'; return; }
+    OV['rk-join-msg'].textContent = 'これからの記録は捜査実績表に載せません（もう載っている記録は「捜査実績表から自分の記録を消す」で消せます）。';
   };
   OV['rk-leave'].onclick = () => {
-    OV['rk-join-msg'].textContent = '番付から記録を消しています……';
+    OV['rk-join-msg'].textContent = '捜査実績表から記録を消しています……';
     SyncManager.rank('rankLeave').then(r => {
       if (!r.ok) { OV['rk-join-msg'].textContent = syncErrorText(r.error); return; }
       lsSet(RANKJOIN_KEY, '0'); OV['rk-join'].checked = false;
-      OV['rk-join-msg'].textContent = '番付からあなたの記録を消しました。これからの記録も載せません。'; loadRanking();
+      OV['rk-join-msg'].textContent = '捜査実績表からあなたの記録を消しました。これからの記録も載せません。'; loadRanking();
     });
   };
   SyncManager.onChange(() => { if (ovScreen === 'mypage') renderAccount(); });
@@ -2825,8 +2825,8 @@ function renderRankingFrame() {
     b.onclick = () => { rkState.period = b.dataset.period; sndClick(); renderRankingFrame(); loadRanking(); };
   });
 }
-var RANK_TITLES = ['横綱', '大関', '関脇'];
-// 番付の名前：「○○刑事」と階級
+var RANK_TITLES = ['警視総監賞', '刑事部長賞', '署長賞'];   // 上位3人（警察の表彰になぞらえて）
+// 捜査実績表の名前：「○○刑事」と階級
 function rkName(cls, e) {
   const sp = el('span', cls, fullName(e.name) + (e.me ? '（あなた）' : ''));
   const rk = e.me ? gradeIndex() : (Number.isInteger(e.rk) ? e.rk : null);
@@ -2865,7 +2865,7 @@ function loadRanking() {
     if (i >= 0) {
       const up = es[i - 1];
       OV['rk-me'].textContent = `あなたは ${i + 1}位（${es[i].score.toLocaleString()}）` + (up ? `。ひとつ上の ${up.name} まであと ${(up.score - es[i].score + 1).toLocaleString()} 点` : '。トップです！');
-    } else OV['rk-me'].textContent = rankJoin() ? 'あなたの記録はまだ載っていません。事件を解決すると自動で載ります。' : 'あなたは番付に載せない設定です（下の設定で変えられます）。';
+    } else OV['rk-me'].textContent = rankJoin() ? 'あなたの記録はまだ載っていません。事件を解決すると自動で載ります。' : 'あなたは捜査実績表に載せない設定です（下の設定で変えられます）。';
   });
 }
 wireOverlay();
@@ -2879,8 +2879,8 @@ const OB_SLIDES = [
   { h: '② 崖っぷちの犯人を説得せよ', t: '東尋坊の崖に追い詰められた犯人を説得して、「自首」メーターを100にすれば事件解決。犯人は毎ターン崖の端へ近づきます。残り0歩になるか、刑事のメンタルが尽きると失敗です。', pic: 'cliff' },
   { h: '③ 3つのカードを使い分ける', t: '青の【証拠】で心の壁（心壁）を崩し、緑の【人情】で自首メーターを上げます。心壁が残っていると人情は届きにくい。赤の【グルメ】は犯人を動揺させたり、APや手札を増やしたり。', pic: 'cards' },
   { h: '④ 犯人の狙いを読む', t: '画面の左上に、犯人が次にすることと、その対策が出ます。毎ターン変わる「心境」でカードの効き方も変わります。カードの数字は「今使ったらどうなるか」です。', pic: 'read' },
-  { h: '⑤ 県民の勘・階級・番付', t: '迷ったら「県民の勘」で一番いい手を教えてもらえます。どの事件も、推理すれば必ず解決できることを確かめてから出しています。解決すると「功績」がたまって巡査から警視総監まで昇進し、説得スコアが番付に自動で載ります。', pic: 'win' },
-  { h: 'アカウントを作成またはログインしますか？', t: 'アカウントがあると、ほかの端末でも記録と県民の勘を引き継げて、番付にも同じ名前で載ります。作るのはユーザー名とパスワードだけ（メールアドレスは不要）。あとからマイページでもできます。', acc: true, pic: 'acc' },
+  { h: '⑤ 県民の勘・階級・捜査実績表', t: '迷ったら「県民の勘」で一番いい手を教えてもらえます。どの事件も、推理すれば必ず解決できることを確かめてから出しています。解決すると「功績」がたまって巡査から警視総監まで昇進し、説得スコアが捜査実績表に自動で載ります。', pic: 'win' },
+  { h: 'アカウントを作成またはログインしますか？', t: 'アカウントがあると、ほかの端末でも記録と県民の勘を引き継げて、捜査実績表にも同じ名前で載ります。作るのはユーザー名とパスワードだけ（メールアドレスは不要）。あとからマイページでもできます。', acc: true, pic: 'acc' },
 ];
 const OBE = {};
 ['ob-step', 'ob-pic', 'ob-h', 'ob-text', 'ob-sound', 'ob-sound-state', 'ob-sound-test', 'ob-acc', 'ob-acc-state', 'ob-acc-yes', 'ob-acc-no',
@@ -2942,7 +2942,7 @@ function renderObSound() {
 }
 function renderObAcc() {
   const acc = SyncManager.account();
-  OBE['ob-acc-state'].textContent = acc ? `ログイン中：${acc.user}` : `いまはゲスト（番付には「${myFullName()}」で載ります）`;
+  OBE['ob-acc-state'].textContent = acc ? `ログイン中：${acc.user}` : `いまはゲスト（捜査実績表には「${myFullName()}」で載ります）`;
   OBE['ob-acc-yes'].hidden = !!acc;
   OBE['ob-acc-no'].textContent = acc ? '捜査をはじめる' : 'ゲストではじめる';
 }
