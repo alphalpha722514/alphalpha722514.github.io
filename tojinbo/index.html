@@ -120,6 +120,19 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .nw-pts{margin:0;padding-left:1.3em;font-size:14px;line-height:1.7}
 .nw-old summary{cursor:pointer;color:#9fd3ff;min-height:40px;display:flex;align-items:center}
 .nw-old .nw-list{margin-top:6px}
+.zk-sum{margin:0 0 8px;font-size:13.5px;color:#d8d8e4}
+.zk-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.zk-item{background:#0d0d17;border:3px solid #000;padding:8px 10px;display:flex;flex-direction:column;gap:4px;box-shadow:3px 3px 0 rgba(0,0,0,.6);min-height:64px}
+.zk-item.got{border-color:#4a4458}
+.zk-item.unknown{background:#141420;color:#6a6a7a}
+.zk-item canvas{width:80px;height:96px;image-rendering:pixelated;align-self:center}
+.zk-name{font-size:15px;color:#fff;text-shadow:2px 2px 0 #000;overflow-wrap:anywhere}
+.zk-item.unknown .zk-name{color:#6a6a7a;text-shadow:none;letter-spacing:.2em}
+.zk-tag{font-size:12px;color:#a9a9b8}
+.zk-desc{font-size:12.5px;line-height:1.55;color:#d8d8e4}
+.zk-item.unknown .zk-desc{color:#7a7a8a}
+.zk-cnt{font-size:11.5px;color:#b0ffc8}
+.zk-h{margin:12px 0 6px;font-size:14px;color:#ffd56b;font-weight:400}
 .ob-link{background:none;border:0;padding:6px;color:#9fd3ff;font:inherit;font-size:13.5px;text-decoration:underline;cursor:pointer}
 </style>
 </head>
@@ -211,6 +224,18 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
       <label class="ov-check ob-check"><input id="ob-hide" type="checkbox" checked> 次回から表示しない</label>
       <button id="ob-more" class="ob-link" type="button">くわしいルールを見る</button>
     </div>
+  </section>
+
+  <section id="scr-zukan" class="ov-scr" aria-labelledby="zk-h" hidden>
+    <div class="ov-bar"><h2 id="zk-h" class="ov-title">捜査図鑑</h2><button id="zk-back" class="ov-btn" type="button">もどる</button></div>
+    <div id="zk-tabs" class="ov-tabs" role="group" aria-label="図鑑の種類">
+      <button class="ov-btn small" type="button" data-kind="culprits" aria-pressed="true">犯人</button>
+      <button class="ov-btn small" type="button" data-kind="cards" aria-pressed="false">カード</button>
+      <button class="ov-btn small" type="button" data-kind="combos" aria-pressed="false">コンボ</button>
+      <button class="ov-btn small" type="button" data-kind="endings" aria-pressed="false">エンディング</button>
+    </div>
+    <p id="zk-sum" class="zk-sum" role="status"></p>
+    <div id="zk-body"></div>
   </section>
 
   <section id="scr-news" class="ov-scr ob-scr" role="dialog" aria-modal="true" aria-labelledby="nw-h" hidden>
@@ -817,6 +842,33 @@ var RANKJOIN_KEY = SAVE_KEY + '.rankJoin';          // 捜査実績表に載る�
 var GUEST_KEY = SAVE_KEY + '.guest';                // ゲストの印（捜査実績表用の秘密の値。同期しない）
 var PROFILE_NAME_MAX = 12, DEFAULT_PLAYER_NAME = 'ななし', COUNT_MAX = 10000000;
 var MERIT_BASE = { easy: 10, normal: 30, hard: 80, oni: 200 };   // 功績の基本点（難易度ごと）
+/* ---------- マルチエンディング（上から順に、最初に当てはまったもの。G.turn・G.hp・G.maxHp・G.kanUsed・G.log と犯人だけで決める） ---------- */
+function logCount(log) {
+  const n = { ev: 0, hu: 0, gu: 0, all: 0 };
+  for (const t of log) for (const id of t) if (CARDS[id]) { n[CARDS[id].type]++; n.all++; }
+  return n;
+}
+const ENDINGS = [
+  { key: 'legend', grade: '伝説', name: '完全説得', col: '#ffe86a', sky: 'dawn', hint: '無傷のまま、3ターン以内に、県民の勘を使わずに',
+    test: (g, n, cu) => g.hp >= g.maxHp && g.turn <= 3 && !g.kanUsed,
+    line: '……刑事さんの言葉、ひとつ残らず胸に届きました。' },
+  { key: 'tome', grade: '人情', name: 'トメ婆ちゃん', col: '#ff9ad0', sky: 'sunset', hint: '前川トメを、グルメだけで',
+    test: (g, n, cu) => cu === 'tome' && n.gu > 0 && n.gu === n.all,
+    line: 'あんたの持ってきたもん、どれもおいしかったわ。……ごちそうさん。' },
+  { key: 'cold', grade: '冷徹', name: '証拠のみの解決', col: '#9fc4ff', sky: 'night', hint: '人情もグルメも使わずに',
+    test: (g, n, cu) => n.ev > 0 && n.ev === n.all,
+    line: '……ここまで調べ上げられたら、もう言い逃れはできん。' },
+  { key: 'katsudon', grade: '福井', name: 'カツ丼エンド', col: '#ffb37a', sky: 'sunset', hint: 'グルメを10枚以上使って',
+    test: (g, n, cu) => n.gu >= 10,
+    line: '……腹いっぱいや。ソースカツ丼、署でもう一杯ええか？' },
+  { key: 'dawn', grade: '真', name: '朝焼けの自首', col: '#ffd890', sky: 'dawn', hint: 'Sランク（3ターン以内）で、県民の勘を使わずに',
+    test: (g, n, cu) => g.turn <= 3 && !g.kanUsed, line: null },
+  { key: 'good', grade: '良', name: '夜明け前の自首', col: '#ffcf5a', sky: 'sunset', hint: 'S・Aランク（4ターン以内）で',
+    test: (g, n, cu) => g.turn <= 4, line: null },
+  { key: 'rain', grade: '普', name: '雨の自首', col: '#cfd8e8', sky: 'rain', hint: 'B・Cランク（5ターン以上）で',
+    test: () => true, line: null },
+];
+function pickEnding(g, cu) { const n = logCount(g.log); return ENDINGS.find(e => e.test(g, n, cu)) || ENDINGS[ENDINGS.length - 1]; }
 var SOLVED_MAX = 400;                                            // 功績を出した事件を覚えておく数
 var DIFF_KEYS = ['easy', 'normal', 'hard', 'oni'];
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -836,13 +888,24 @@ function deviceId() {
 }
 function cleanName(v) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, PROFILE_NAME_MAX) : ''; }
 function blankDev() { const z = {}; DIFF_KEYS.forEach(k => z[k] = 0); return { earn: 0, spend: 0, merit: 0, plays: Object.assign({}, z), wins: Object.assign({}, z) }; }
-const ONBOARD_VER = 1;   // はじめての捜査（説明）の版。上げると、見た人にももう一度出す
-function blankSave() { return { schema: 3, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 } }; }
+const ONBOARD_VER = 2;   // はじめての捜査（説明）の版。上げると、見た人にも「増えた分」だけもう一度出す
+const OB_NEW_FROM = { 2: 5 };   // 版 → その版で増えた説明（OB_SLIDES の番号）。v2 で「コンボと崖っぷちタイム」を追加
+// schema 4：図鑑（zukan）を追加。中身は「種類 → { key: 解決した回数 }」
+const ZUKAN_KINDS = ['culprits', 'cards', 'combos', 'endings'];
+function blankZukan() { return { culprits: {}, cards: {}, combos: {}, endings: {} }; }
+function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan() }; }
+// 図鑑に載せてよい key（知らない key は捨てる）
+function zukanKeys(kind) {
+  if (kind === 'culprits') return CULPRITS.map(c => c.key);
+  if (kind === 'cards') return Object.keys(CARDS);
+  if (kind === 'combos') return COMBOS.map(c => c.id);
+  return ENDINGS.map(e => e.key);
+}
 // 何が来ても（壊れたセーブ・クラウドから届いた値でも）正しい形に直す
 function coerceSave(raw) {
   const out = blankSave();
   if (!isObj(raw)) return out;
-  if (raw.schema !== 3) {                            // schema 2（アカウント以前）: {kan, clear, seenRules}
+  if (raw.schema !== 3 && raw.schema !== 4) {        // schema 2（アカウント以前）: {kan, clear, seenRules}
     const kan = cInt(raw.kan, 0, COUNT_MAX);
     if (kan) { const d = blankDev(); d.earn = kan; out.devs[deviceId()] = d; }
   } else if (isObj(raw.devs)) {
@@ -872,6 +935,13 @@ function coerceSave(raw) {
   if (Array.isArray(raw.solved)) out.solved = raw.solved.filter(v => typeof v === 'string' && /^[a-z]+:\d{1,10}(:[a-z]+)?$/.test(v)).slice(-SOLVED_MAX);
   out.gradeSeen = raw.gradeSeen == null ? -1 : cInt(raw.gradeSeen, -1, 9);
   if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
+  // 図鑑（schema 4）。schema 3 以前には無いので空から。解決したことがあれば、それまでの唯一の犯人「岩城」は会ったことにする
+  if (isObj(raw.zukan)) {
+    for (const k of ZUKAN_KINDS) {
+      const src = isObj(raw.zukan[k]) ? raw.zukan[k] : {}, ok = zukanKeys(k);
+      for (const key of Object.keys(src)) if (ok.includes(key)) { const n = cInt(src[key], 0, COUNT_MAX); if (n > 0) out.zukan[k][key] = n; }
+    }
+  } else if (Object.values(out.devs).some(d => DIFF_KEYS.some(k => d.wins[k] > 0))) out.zukan.culprits.iwaki = 1;
   return out;
 }
 // この端末とクラウドの、よいほうを合わせる（帳簿と回数は端末ごとに多いほう、ベストはよいほう、名前は新しいほう）
@@ -893,13 +963,18 @@ function mergeSaves(a, b) {
   out.solved = L.solved.concat(C.solved.filter(v => !L.solved.includes(v))).slice(-SOLVED_MAX);
   out.gradeSeen = Math.max(L.gradeSeen, C.gradeSeen);
   if (C.profile.at > L.profile.at) out.profile = Object.assign({}, C.profile);
+  for (const k of ZUKAN_KINDS) for (const key of Object.keys(C.zukan[k])) out.zukan[k][key] = Math.max(out.zukan[k][key] || 0, C.zukan[k][key]);   // 図鑑：どちらかで見つけていれば見つけた
   return out;
 }
 function loadSave() {
   let raw = null;
   try { raw = JSON.parse(lsGet(SAVE_KEY) || 'null'); } catch (e) { lsSet(SAVE_KEY + '.backup-unreadable', lsGet(SAVE_KEY) || ''); }
   const s = coerceSave(raw);
-  if (isObj(raw) && raw.schema !== 3) { lsSet(SAVE_KEY + '.backup-s2', JSON.stringify(raw)); lsSet(SAVE_KEY, JSON.stringify(s)); }
+  if (isObj(raw) && raw.schema !== 3 && raw.schema !== 4) { lsSet(SAVE_KEY + '.backup-s2', JSON.stringify(raw)); lsSet(SAVE_KEY, JSON.stringify(s)); }
+  else if (isObj(raw) && raw.schema === 3) {                      // schema 3 → 4：元のセーブを控えに残してから、図鑑つきで書き直す
+    if (!lsGet(SAVE_KEY + '.backup-s3')) lsSet(SAVE_KEY + '.backup-s3', JSON.stringify(raw));
+    lsSet(SAVE_KEY, JSON.stringify(s));
+  }
   return s;
 }
 var SAVE = loadSave();
@@ -911,6 +986,29 @@ function save() {
 function myDev() { const id = deviceId(); if (!SAVE.devs[id]) SAVE.devs[id] = blankDev(); return SAVE.devs[id]; }
 function kanNow() { let n = 0; for (const id in SAVE.devs) n += SAVE.devs[id].earn - SAVE.devs[id].spend; return Math.max(0, n); }
 function earnKan(n) { myDev().earn = Math.min(COUNT_MAX, myDev().earn + n); }
+/* ---------- 図鑑 ---------- */
+// 図鑑に1つ数える。初めてなら true（＝新発見）
+function zukanAdd(kind, key) {
+  if (!ZUKAN_KINDS.includes(kind) || !zukanKeys(kind).includes(key)) return false;
+  const z = SAVE.zukan[kind], first = !z[key];
+  z[key] = Math.min(COUNT_MAX, (z[key] || 0) + 1);
+  return first;
+}
+// 解決したときに：犯人・使ったカード・成立したコンボ・エンディングを図鑑へ。新発見の名前を返す
+function zukanRecordWin(end) {
+  const out = [];
+  const cu = culpritByKey(D.culprit || 'iwaki');
+  if (zukanAdd('culprits', cu.key)) out.push('犯人「' + cu.name + '」');
+  const used = [];
+  for (const t of G.log) for (const id of t) if (CARDS[id] && !used.includes(id)) used.push(id);
+  for (const id of used) if (zukanAdd('cards', id)) out.push('カード「' + CARDS[id].name + '」');
+  for (const id of G.firedCombos) if (zukanAdd('combos', id)) out.push('コンボ「' + COMBOS.find(c => c.id === id).name + '」');
+  if (zukanAdd('endings', end.key)) out.push('エンディング「' + end.grade + '・' + end.name + '」');
+  return out;
+}
+function zukanCount(kind) { return Object.keys(SAVE.zukan[kind]).length; }
+function zukanTotal() { return ZUKAN_KINDS.reduce((a, k) => a + zukanCount(k), 0); }
+function zukanMax() { return ZUKAN_KINDS.reduce((a, k) => a + zukanKeys(k).length, 0); }
 function spendKan() { if (kanNow() <= 0) return false; myDev().spend++; return true; }
 function statSum(field, k) { let n = 0; for (const id in SAVE.devs) n += k ? SAVE.devs[id][field][k] : DIFF_KEYS.reduce((a, d) => a + SAVE.devs[id][field][d], 0); return n; }
 function displayName() { return SAVE.profile.name || DEFAULT_PLAYER_NAME; }
@@ -967,10 +1065,13 @@ const RANKS = ['C', 'B', 'A', 'S'];
 const SND = { ctx: null, muted: false };
 const NOTE = n => 440 * Math.pow(2, (n - 69) / 12);
 function ok() { return !!SND.ctx; }
+// 音の準備。ブラウザは「画面を触った瞬間」にしか音を出させてくれないので、触るたびに呼んで起こす
 function audioInit() {
-  if (SND.ctx) { if (SND.ctx.state === 'suspended') SND.ctx.resume(); return; }
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) { }   // (iPhone：ゲームの音として鳴らす)
+  if (SND.ctx) { audioWake(); return; }
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-  const c = new AC(); SND.ctx = c;
+  let c; try { c = new AC(); } catch (e) { return; }
+  SND.ctx = c;
   SND.master = c.createGain(); SND.master.gain.value = 0.8;
   const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
   SND.master.connect(comp); comp.connect(c.destination);
@@ -988,6 +1089,20 @@ function audioInit() {
   SND.rev.buffer = ir; SND.revG = c.createGain(); SND.revG.gain.value = 0.3;
   SND.rev.connect(SND.revG); SND.revG.connect(SND.master);
   startSea(b2);
+  c.onstatechange = () => { if (c.state === 'running') bgmEnsure(); };
+  audioWake();
+}
+// 止まっている（suspended／iPhone の interrupted）音を起こす。iPhone 向けに、無音を1つ鳴らして鍵を開ける
+function audioWake() {
+  const c = SND.ctx; if (!c) return;
+  try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) { }
+  if (c.state !== 'running') { try { const p = c.resume(); if (p && p.then) p.then(bgmEnsure, () => { }); } catch (e) { } }
+  else bgmEnsure();
+}
+// 鳴っているはずのBGMを鳴らす（音の準備より先に始まった画面でも、あとから流れる）
+function bgmEnsure() {
+  if (!SND.ctx || SND.ctx.state !== 'running' || BGM.on) return;
+  if (phase === 'battle' || phase === 'title') bgmStart();
 }
 function startSea(buf) {
   const c = SND.ctx;
@@ -1010,6 +1125,7 @@ function startSea(buf) {
   s.connect(f); f.connect(g); g.connect(SND.seaG); s.start(); l.start();
 }
 function osc(type, freq, t, dur, vol, dest, o = {}) {
+  if (SPEED > 1 && dest !== SND.bgm && dur > 0.3) dur = 0.3 + (dur - 0.3) / SPEED;   // (倍速では長い余韻を短く)
   const c = SND.ctx, a = o.a || 0.005;
   const os = c.createOscillator(); os.type = type; os.frequency.setValueAtTime(freq, t);
   if (o.slide) os.frequency.exponentialRampToValueAtTime(o.slide, t + a + dur);
@@ -1019,6 +1135,7 @@ function osc(type, freq, t, dur, vol, dest, o = {}) {
   os.connect(g); g.connect(dest || SND.sfx); os.start(t); os.stop(t + a + dur + 0.05);
 }
 function noiseHit(t, dur, vol, type, f1, f2, dest) {
+  if (SPEED > 1 && dur > 0.3) dur = 0.3 + (dur - 0.3) / SPEED;
   const c = SND.ctx, s = c.createBufferSource(); s.buffer = SND.noise;
   const f = c.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(f1, t);
   if (f2) f.frequency.exponentialRampToValueAtTime(f2, t + dur);
@@ -1136,8 +1253,9 @@ function sndPiano() {
 const BGM = { on: false, next: 0, step: 0, tempo: 78, tension: 0 };
 const PROG = [[38, 41, 45], [34, 38, 41], [31, 34, 38], [33, 37, 40]];
 function bgmStart() {
-  if (!ok()) return; BGM.on = true; BGM.next = SND.ctx.currentTime + 0.1; BGM.step = 0;
-  const g = SND.bgm.gain, t = SND.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(0.55, t, 0.6);
+  if (!ok()) return;
+  if (!BGM.on) { BGM.on = true; BGM.next = SND.ctx.currentTime + 0.1; BGM.step = 0; }
+  const g = SND.bgm.gain, t = SND.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(phase === 'title' ? 0.35 : 0.55, t, 0.6);   // (タイトルでは少し小さく)
 }
 function bgmStop(fade) {
   BGM.on = false; if (!ok()) return;
@@ -1159,8 +1277,9 @@ function bgmStep(s, t) {
   if (BGM.tension > 0.7 && i === 15) osc('sawtooth', NOTE(ch[0] + 37), t, spb * 2, 0.02, SND.bgm, { slide: NOTE(ch[0] + 36) });
 }
 setInterval(() => {
-  if (!SND.ctx || !BGM.on) return;
+  if (!SND.ctx || !BGM.on || SND.ctx.state !== 'running') return;
   const spb = 60 / BGM.tempo / 4;
+  if (BGM.next < SND.ctx.currentTime - 0.2) BGM.next = SND.ctx.currentTime + 0.05;   // (止まっていたあとに、たまった分を一度に鳴らさない)
   while (BGM.next < SND.ctx.currentTime + 0.12) { bgmStep(BGM.step, BGM.next); BGM.next += spb; BGM.step++; }
 }, 25);
 
@@ -1191,6 +1310,7 @@ function newGame(diff, seed) {
   V.kneelT = 0; V.kneel = 0; V.culpritA = 1; V.dark = 0; V.sunset = 0; V.cracks = []; V.crackT = 0;
   V.flying = []; V.floats = []; V.banner = null; V.bannerQ = []; V.cx = cliffX(G.crisis);
   V.cutin = null; V.zoom = 1; V.zoomHold = 0; V.slow = 0;                 // カットイン・カメラ・スロー
+  V.skyT = null; V.dawn = 0; V.rain = 0; V.parts = V.parts.filter(p => !p.rain);   // エンディングの空
   if (typeof heartStop === 'function') heartStop();
 }
 newGame(DIFFS[1]);
@@ -1238,7 +1358,7 @@ const INTENT_TXT = {
   retreat: '大きく後ずさる',
 };
 function startTurn() {
-  coreStartTurn(G, D); G.hint = null; G.log.push([]);
+  coreStartTurn(G, D); G.hint = null; G._undo = null; G.log.push([]);
   V.intentPulse = 1.2;
   drawCards(4);
   G.busy = false;
@@ -1249,6 +1369,7 @@ function playCard(card) {
   if (G.busy || phase !== 'battle') return;
   const d = card.def;
   if (d.cost > G.ap) { sndBuzz(); addFloat(U.hintX, U.handY - 16, 'APが足りない！', '#ff7b7b', 20); return; }
+  const snap = G.undoTurn !== G.turn ? gameSnap() : null;              // 待った用（使う前の状態。このターンにまだ待ったしていなければ）
   G.hand = G.hand.filter(c => c !== card); G.disc.push(card.id); G.totalPlayed++; G.log[G.log.length - 1].push(card.id);
   G.hint = null;
   V.flying.push({ c: card, t: 0, kind: 'play' });
@@ -1272,6 +1393,8 @@ function playCard(card) {
   if (r.boostHu) addFloat(fx, fy + 90, '次の人情×1.5', '#b0ffc8', 18);
   if (r.boostEv) addFloat(fx, fy + 90, '次の証拠×1.5', '#b0d8ff', 18);
   if (r.tags.length) addFloat(fx - 10, fy - 58, r.tags.join(' '), '#ffe9b0', 15);
+  // 待った：カードを引いた（山札が見えた）・崖っぷちタイムが始まった・決着したときは戻せない
+  G._undo = snap && !r.draw && !r.cliff && G.sur < 100 ? snap : null;
   if (r.broke) shieldBreak();
   for (const c of r.combos) {                                            // 捜査コンボ
     banner(c.name + '！', '#ffd56b'); cutin(c.name, c.text, '#ffd56b'); sndCombo();
@@ -1282,6 +1405,24 @@ function playCard(card) {
   if (G.sur >= 100) { winSequence(); return; }
   playCardQuirks(d, surBefore, alertBefore, prevId);
   if (r.cliff) startCliffTime();
+}
+/* ---------- 待った（1ターン1回。直前に使った1枚を、使う前に戻す） ----------
+   山札・捨て札・記録まで含めてゲームの状態をまるごと写して戻す（cloneSim の写しには山札が入らないため）。勘の使用数は戻さない */
+function gameSnap() {
+  const o = {};
+  for (const k of Object.keys(G)) if (k !== 'hand' && k !== '_undo') o[k] = structuredClone(G[k]);
+  o._hand = G.hand.map(c => ({ id: c.id, uid: c.uid }));
+  return o;
+}
+function canUndo() { return phase === 'battle' && !!G && !G.busy && !!G._undo && G.undoTurn !== G.turn && !(G.gamble && G.gamble.active); }
+function doUndo() {
+  if (!canUndo()) { if (phase === 'battle' && !G.busy) { sndBuzz(); addFloat(UNDO.x + UNDO.w / 2, UNDO.y - 14, G.undoTurn === G.turn ? '待ったは1ターン1回' : '戻せる手がない', '#ffb0b0', 16); } return; }
+  const sn = G._undo, keepKan = G.kanUsed, turn = G.turn, old = new Map(G.hand.map(c => [c.uid, c]));
+  for (const k of Object.keys(sn)) if (k !== '_hand') G[k] = sn[k];
+  G.hand = sn._hand.map(h => old.get(h.uid) || { id: h.id, def: CARDS[h.id], x: U.hintX, y: U.handY - 80, tx: 0, ty: 0, uid: h.uid });
+  G.kanUsed = keepKan; G.undoTurn = turn; G._undo = null; G.hint = null;
+  V.flying = []; sndClick(); addFloat(V.cx, 200, '待った！', '#cfe3ff', 26);
+  say(DN, '……いや、今のは無しや。言い直させてくれ。', DC, 700);
 }
 // 自首99以上に届いた瞬間、1回だけスローモーション
 function slowCheck() { if (G.sur >= 99 && !G._flagSlow) { G._flagSlow = true; V.slow = 0.9; } }
@@ -1325,7 +1466,7 @@ function playCardQuirks(d, surBefore, alertBefore, prevId) {
 }
 function shieldBreak() {
   V.flash = 1; V.flashCol = '#ffffff'; V.shake = 22; V.shakenT = 4;
-  makeCracks(V.cx, 220); sndBreak(); banner('心の壁が、崩れた――！！', '#ff4a4a');
+  makeCracks(V.cx, 220); sndBreak(); banner('心の壁が、崩れた――！！', '#ff4a4a'); vib(60);
   cutin('心壁崩壊', `${cuWho()}の顔から、余裕が消えた`, '#ff4a4a');
   if (!G._flagZoom) { G._flagZoom = true; V.zoomHold = 0.9; }          // 犯人へ寄る（1事件1回。0.9秒で戻る）
 }
@@ -1412,19 +1553,25 @@ async function winSequence() {
   const prev = SAVE.clear[D.key];
   newRecord = prev == null || rank > prev;
   if (newRecord) SAVE.clear[D.key] = rank;
-  recordResult(true, rank);          // (戦績・自己ベスト。中で save する)
+  // エンディングと図鑑（演出の途中でやり直されても残るよう、報酬と一緒にここで確定させる）
+  const end = pickEnding(G, D.culprit || 'iwaki'); G.ending = end;
+  G.zukanNew = zukanRecordWin(end);
+  recordResult(true, rank);          // (戦績・自己ベスト・図鑑。中で save する)
   submitRank();
+  V.skyT = end.sky;                  // 空：朝焼け／夕焼け／夜／雨
   await sleep(900);
   await say(CN, '……すんません……。俺が……俺が、やりました……', CC, 1300);
   V.kneelT = 1; sndPiano();
   await sleep(1200);
-  await say(CN, '自首します。……おっかちゃんに、ちゃんと謝らな……', CC, 1400);
-  await say(DN, 'ほやの。……寒いし、帰ろっさ。署であったかいそばでも食べよか。', DC, 1600);
+  await say(CN, end.line || '自首します。……おっかちゃんに、ちゃんと謝らな……', CC, 1400);
+  await say(DN, end.sky === 'rain' ? 'ほやの。……濡れるし、帰ろっさ。署であったかいそばでも食べよか。'
+    : end.sky === 'dawn' ? 'ほやの。……夜が明けたな。署であったかいそばでも食べよか。'
+    : 'ほやの。……寒いし、帰ろっさ。署であったかいそばでも食べよか。', DC, 1600);
   phase = 'win'; resultT = 0; V.banner = null; V.bannerQ = []; V.cutin = null;   // (結果画面にバナーを残さない)
   if (G.promo >= 0) later(1400, sndPromo);
 }
 async function lose(kind) {
-  loseKind = kind; phase = 'losing'; G.busy = true; G.hint = null;
+  loseKind = kind; phase = 'losing'; G.busy = true; G.hint = null; vib([120, 80, 200]);
   recordResult(false);
   try { G.route = solveRoute(G.seed, D); } catch (e) { G.route = null; }   // (正解ルート。敗北が決まったあと1回だけ)
   bgmStop(1.2); sndLose();
@@ -1467,13 +1614,23 @@ async function findSolvableSeed(diff, run) {
   return null;
 }
 // diff：難易度（犯人入りでもよい）。ck：犯人の key（省略時は diff の犯人、なければタイトルで選んだ犯人）
-async function beginGame(diffIn, seed, ck) {
+// opts.check：シードを指定したときも、解けるか確かめてから始める（URLで共有された事件）。opts.note：始める前のお知らせ
+async function beginGame(diffIn, seed, ck, opts) {
+  opts = opts || {};
   const diff = withCulprit(diffByKey(diffIn.key), ck || diffIn.culprit || curCulprit);
+  const sameCase = seed != null && G && G.seed === seed && D.key === diff.key && D.culprit === diff.culprit;   // (同じ事件のやり直し：確認済みかどうかを引き継ぐ)
+  const keepVerified = sameCase ? G.verified : true;
   resetRun(); const run = RUN;
   newGame(diff, 1); phase = 'battle'; bgmStart();
   if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.55, t, 0.5); }
   G.busy = true;
-  let verified = seed != null;
+  let verified = seed != null && keepVerified;
+  if (seed != null && opts.check) {
+    say(NN, '共有された事件ファイルを照合中……（推理でクリアできるか確認しています）', NC, 60000);
+    await new Promise(r => setTimeout(r, 30));
+    if (run !== RUN) return;
+    verified = playout(seed, diff, 20, 200000).win;
+  }
   if (seed == null) {
     say(NN, '事件ファイルを照合中……（この事件が推理でクリアできるか確認しています）', NC, 60000);
     const found = await findSolvableSeed(diff, run);
@@ -1482,6 +1639,8 @@ async function beginGame(diffIn, seed, ck) {
   }
   newGame(diff, seed); G.verified = verified; G.busy = true; dlg = null; dlgResolve = null;
   const cu = cuNow();
+  if (opts.note) await say(NN, opts.note, NC, 1400);
+  if (!verified) await say(NN, '※この事件は、推理でクリアできるかどうか確かめられていません（運が悪いと解けないことがあります）。', '#ffb0a0', 1600);
   await say(NN, `【${D.name}】事件ファイル No.${caseNo(seed)}――福井県・東尋坊。荒れる日本海を望む断崖に、${cu.name}（${cu.sub}）が追い詰められていた。`, NC, 900);
   await say(CN, '来るな！ それ以上近づいたら……飛び降りるぞ！', CC, 800);
   await say(DN, `（証拠で心の壁を崩して、人情で心を溶かす……。崖の端まで、あと${G.crisis}歩や）`, DC, 800);
@@ -1563,9 +1722,11 @@ function makeCracks(cx, cy) {
    ========================================================= */
 function update(dt) {
   if (paused || (rules && phase === 'battle')) return; // ポーズ中・バトル中のルール表示は時間を止める
+  const realDt = dt;
   if (V.slow > 0) { V.slow = Math.max(0, V.slow - dt); dt *= 0.25; }   // スローモーション（実時間0.9秒）
+  dt *= SPEED;                                                       // 倍速モード（台詞・待ち時間・演出がまとめて速くなる）
   T += dt; GT += dt;
-  if (G.gamble && G.gamble.active) { G.gamble.t += dt; if (G.gamble.t >= CLIFF_TIME) endCliffTime(false); }
+  if (G.gamble && G.gamble.active) { G.gamble.t += realDt; if (G.gamble.t >= CLIFF_TIME) endCliffTime(false); }   // (崖っぷちタイムの制限時間は、倍速・スローでも実時間)
   if (V.cutin) { V.cutin.t += dt; if (V.cutin.t > 1.6) V.cutin = null; }
   V.zoomHold = Math.max(0, (V.zoomHold || 0) - dt);
   V.zoom = lerp(V.zoom || 1, V.zoomHold > 0 ? 1.22 : 1, Math.min(1, dt * 8)); if (Math.abs(V.zoom - 1) < 0.002 && !V.zoomHold) V.zoom = 1;
@@ -1577,7 +1738,11 @@ function update(dt) {
   V.crackT = Math.max(0, V.crackT - dt);
   V.intentPulse = Math.max(0, V.intentPulse - dt);
   if (V.banner) { V.banner.t += dt; if (V.banner.t > 1.9) V.banner = (V.bannerQ && V.bannerQ.shift()) || null; }
-  const sTarget = (phase === 'winning' || phase === 'win') ? 1 : G.sur / 100;
+  const won = phase === 'winning' || phase === 'win';
+  const sTarget = won ? ({ night: 0.15, rain: 0.3 }[V.skyT] ?? 1) : G.sur / 100;
+  V.dawn = lerp(V.dawn || 0, won && V.skyT === 'dawn' ? 1 : 0, Math.min(1, dt * 0.8));
+  V.rain = lerp(V.rain || 0, won && V.skyT === 'rain' ? 1 : 0, Math.min(1, dt * 1.5));
+  if (V.rain > 0.2) for (let i = 0; i < 6; i++) V.parts.push({ x: rand(-WX, W - WX), y: rand(-20, 0), vx: -60, vy: rand(520, 680), life: 1.1, r: 2, rain: true });   // 雨粒
   V.sunset = lerp(V.sunset, sTarget, Math.min(1, dt * 1.2));
   V.cx = lerp(V.cx, cliffX(Math.max(G.crisis, 0)), Math.min(1, dt * 3));
   V.kneel = lerp(V.kneel, V.kneelT, Math.min(1, dt * 1.6));
@@ -1764,7 +1929,8 @@ const SCENE_PAL = ['#000000', '#0a0a10', '#151a26', '#232a3a', '#343b4b', '#4a50
   '#2b1f5e', '#4a2a6e', '#7a3070', '#a8406a', '#c8484f', '#e06848', '#f08a40', '#ffb24f', '#ffd890', '#fff0c0',
   '#0d1620', '#1d2a38', '#2c3c50', '#3a4656', '#4e5e72', '#231a3a', '#4a2e5e', '#6e3a6a', '#a0507a', '#c86a8a',
   '#171717', '#22161c', '#2e2a2a', '#3d3a3a', '#45403d', '#5a3b3a', '#6a6560', '#8a847c', '#b07a62', '#6e4a42', '#ffc290', '#e8a080',
-  '#600010', '#96101e', '#3a1a2a'].map(h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+  '#600010', '#96101e', '#3a1a2a',
+  '#6a9ad8', '#9ec4ec', '#c8dcf0', '#f4c8b8', '#ffe6c8'].map(h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
 const qCache = new Int16Array(32768).fill(-1);
 function qIndex(r, g, b) {
   const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
@@ -1817,7 +1983,9 @@ function renderPixelWorld() {
   const g = lowCtx, fr = Math.floor(T * 3.2) % 2;
   // しぶき
   g.fillStyle = '#ffffff';
-  for (const p of V.parts) if (p.life > 0.25) g.fillRect(Math.round((p.x + WX) / PX), Math.round(p.y / PX), p.r > 3.5 ? 2 : 1, p.r > 3.5 ? 2 : 1);
+  for (const p of V.parts) if (p.life > 0.25 && !p.rain) g.fillRect(Math.round((p.x + WX) / PX), Math.round(p.y / PX), p.r > 3.5 ? 2 : 1, p.r > 3.5 ? 2 : 1);
+  g.fillStyle = '#a8b0bc';
+  for (const p of V.parts) if (p.rain && p.y < SCENE_H) g.fillRect(Math.round((p.x + WX) / PX), Math.round(p.y / PX), 1, 3);
   // 人物
   g.drawImage(detectiveSprite(fr), Math.round((105 + WX) / PX) - SPR_AX, Math.round(358 / PX) - SPR_AY);
   const expr = culpritExpr(), kneel = V.kneel > 0.5;
@@ -1873,6 +2041,15 @@ function drawSky() {
   }
   ctx.fillStyle = mix('#1e222c', '#3a2442', f);
   ctx.beginPath(); ctx.moveTo(40, 300); ctx.quadraticCurveTo(70, 284, 110, 286); ctx.quadraticCurveTo(150, 284, 175, 300); ctx.fill();
+  if (V.dawn > 0.01) {                                                  // 真エンド：朝焼け
+    ctx.save(); ctx.globalAlpha = V.dawn;
+    const d = ctx.createLinearGradient(0, 0, 0, 300);
+    d.addColorStop(0, '#6a9ad8'); d.addColorStop(0.5, '#c8dcf0'); d.addColorStop(0.85, '#f4c8b8'); d.addColorStop(1, '#ffe6c8');
+    ctx.fillStyle = d; ctx.fillRect(-WX, 0, W, 300);
+    ctx.fillStyle = '#fff0c0'; ctx.beginPath(); ctx.arc(330, 300 - V.dawn * 70, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  if (V.rain > 0.01) { ctx.fillStyle = `rgba(40,46,58,${0.55 * V.rain})`; ctx.fillRect(-WX, 0, W, 300); }   // 普エンド：雨雲
 }
 function drawSea() {
   const f = V.sunset;
@@ -2056,17 +2233,25 @@ function drawScene() {
    RENDER — UI
    ========================================================= */
 let hover = null, mouse = { x: -1, y: -1 }, hoverBtn = null;
-const BTN = { x: 150, y: 872, w: 240, h: 62 };
-const KAN = { x: 14, y: 872, w: 126, h: 62 };
+const BTN = { x: 134, y: 872, w: 176, h: 62 };
+const KAN = { x: 14, y: 872, w: 112, h: 62 };
 const PAUSE = { x: 400, y: 872, w: 126, h: 62 };
+const UNDO = { x: 318, y: 872, w: 74, h: 62 };      // 待った
 // ポーズメニュー
 const PM = {
   resume:  { x: 110, y: 300, w: 320, h: 66 },
   restart: { x: 110, y: 384, w: 320, h: 66 },
   diff:    { x: 110, y: 468, w: 320, h: 66 },
-  rules:   { x: 110, y: 552, w: 155, h: 56 },
-  sound:   { x: 275, y: 552, w: 155, h: 56 },
+  rules:   { x: 110, y: 552, w: 100, h: 64 },
+  sound:   { x: 220, y: 552, w: 100, h: 64 },
+  speed:   { x: 330, y: 552, w: 100, h: 64 },
 };
+// 倍速モード（この端末に覚える）
+var SPEED_KEY = SAVE_KEY + '.speed';
+var SPEED = lsGet(SPEED_KEY) === '2' ? 2 : 1;
+function toggleSpeed() { SPEED = SPEED === 2 ? 1 : 2; lsSet(SPEED_KEY, String(SPEED)); sndClick(); }
+// バイブレーション（対応している端末だけ。ほかでは何もしない）
+function vib(p) { try { if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(p); } catch (e) { } }
 let pmConfirm = null; // 'restart' | 'diff'（2回タップで実行）
 function setDuck(on) {
   if (!SND.master || SND.muted) return;
@@ -2092,7 +2277,8 @@ function drawPause() {
   button(PM.restart, cr ? '本当にやり直す？' : '最初からやり直す', cr ? 'もう一度タップで実行' : '同じ事件を1ターン目から', cr ? '#c43a2a' : '#7a4a1a', cr ? '#6a1410' : '#3a2008', true, cr, hoverBtn === 'pm_restart');
   button(PM.diff, cd ? '本当に戻る？' : '難易度を選び直す', cd ? 'もう一度タップで実行' : 'タイトル画面へ戻る', cd ? '#c43a2a' : '#2a4a7a', cd ? '#6a1410' : '#152540', true, cd, hoverBtn === 'pm_diff');
   button(PM.rules, 'ルール', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'pm_rules');
-  button(PM.sound, SND.muted ? '音：OFF' : '音：ON', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'pm_sound');
+  button(PM.sound, '音', SND.muted ? 'OFF' : 'ON', '#3a3a4a', '#20202a', true, false, hoverBtn === 'pm_sound');
+  button(PM.speed, '倍速', SPEED === 2 ? 'ON（×2）' : 'OFF', SPEED === 2 ? '#8a6a10' : '#3a3a4a', SPEED === 2 ? '#4a3500' : '#20202a', true, false, hoverBtn === 'pm_speed');
   ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888';
   ctx.fillText('※やり直しても、使った県民の勘は戻りません', W / 2, 628);
 }
@@ -2226,6 +2412,7 @@ function drawUI() {
   };
   chip(D.name, D.col, 'rgba(255,255,255,0.1)');
   chip('犯人 ' + cuNow().short, cuNow().col, 'rgba(255,255,255,0.1)');
+  if (SPEED > 1) chip('倍速×2', '#ffe07a', 'rgba(160,120,0,0.35)');
   chip(`TURN ${G.turn}`, '#ddd', 'rgba(255,255,255,0.1)');
   chip(`警戒 Lv.${G.alert}`, G.alert >= 2 ? '#ffb347' : '#ccc', G.alert >= 2 ? 'rgba(160,80,0,0.4)' : 'rgba(255,255,255,0.08)');
   if (G.daze) chip('動揺中', '#ffd0a0', 'rgba(200,60,40,0.45)');
@@ -2265,6 +2452,7 @@ function drawUI() {
   button(KAN, '県民の勘', `残り ×${kanNow()}`, '#8a6a10', '#4a3500', en && kanNow() > 0 || (en && !!G.hint), false, hoverBtn === 'kan');
   button(BTN, G.turn === 0 ? '開幕前' : (G.busy ? '犯人のターン' : 'ターン終了'), null, '#c43a2a', '#6a1410', en, !!(G.hint && !G.hint.id), hoverBtn === 'end');
   button(PAUSE, 'ポーズ', 'やり直し・設定', '#2a4a7a', '#152540', phase === 'battle', false, hoverBtn === 'pause');
+  button(UNDO, '待った', WIDE ? (canUndo() ? '直前の1枚を戻す' : '1ターン1回') : null, '#5a5a6a', '#2a2a36', canUndo(), false, hoverBtn === 'undo');
 }
 
 /* =========================================================
@@ -2316,11 +2504,12 @@ function drawBanner() {
 // タイトル：難易度選択
 const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 282 + i * 72, w: 460, h: 64, d }));
 // 犯人を選ぶ（難易度の下）。選んだ犯人はこの端末に覚える
-const CU_BTNS = CULPRITS.map((c, i) => ({ x: 40 + i * 118, y: 600, w: 106, h: 56, c }));
+const CU_BTNS = CULPRITS.map((c, i) => ({ x: 40 + i * 118, y: 598, w: 106, h: 64, c }));
 var CULPRIT_KEY = SAVE_KEY + '.culprit';
 var curCulprit = culpritByKey(lsGet(CULPRIT_KEY)) ? lsGet(CULPRIT_KEY) : 'iwaki';
 function pickCulprit(k) { curCulprit = k; lsSet(CULPRIT_KEY, k); }
-const T_RULE = { x: 40, y: 712, w: 146, h: 56 }, T_MY = { x: 197, y: 712, w: 146, h: 56 }, T_RANK = { x: 354, y: 712, w: 146, h: 56 };
+// 下の4ボタン（高さ64＝幅375pxのスマホでも44px以上）
+const T_RULE = { x: 40, y: 716, w: 107, h: 64 }, T_MY = { x: 157, y: 716, w: 107, h: 64 }, T_RANK = { x: 274, y: 716, w: 107, h: 64 }, T_ZUKAN = { x: 391, y: 716, w: 109, h: 64 };
 const T_NEWS = { x: 396, y: 18, w: 126, h: 46 };
 function drawTitle() {
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
@@ -2351,22 +2540,27 @@ function drawTitle() {
     else { ctx.fillStyle = '#777'; ctx.fillText('未クリア', b.x + b.w - 16, b.y + 23); }
     ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('勘 +' + d.reward, b.x + b.w - 16, b.y + 47);
   });
-  ctx.textAlign = 'center'; ctx.font = `15px ${MINCHO}`; outlineText('― 説得する犯人 ―', W / 2, 584, '#fff', '#000', 3);
+  ctx.textAlign = 'center'; ctx.font = `15px ${MINCHO}`; outlineText('― 説得する犯人 ―', W / 2, 582, '#fff', '#000', 3);
   CU_BTNS.forEach((b, i) => {                                                     // 犯人を選ぶ（選んでいる人は光る）
     const sel = b.c.key === curCulprit;
     button(b, b.c.short, b.c.sub, sel ? '#8a2a20' : '#2a2a3a', sel ? '#3a1500' : '#14141c', true, false, hoverBtn === 'cu' + i);
     if (sel) { ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 3; ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12); }
   });
-  { const c = culpritByKey(curCulprit); ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = c.col; ctx.fillText(`${c.name}（${c.sub}）：${c.desc}`, W / 2, 680); }
-  button(T_RULE, 'ルール説明', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'trule');
+  { // 選んでいる犯人を大きく：名前と、能力のひとこと
+    const c = culpritByKey(curCulprit); ctx.textAlign = 'center';
+    ctx.font = `18px ${MINCHO}`; outlineText(`${c.name}（${c.sub}）`, W / 2, 684, c.col, '#000', 4);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#e8e8f0'; ctx.fillText(c.desc, W / 2, 704);
+  }
+  button(T_RULE, 'ルール', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'trule');
   button(T_MY, 'マイページ', null, '#2e6a50', '#14382a', true, false, hoverBtn === 'tmy');
-  button(T_RANK, '捜査実績表', null, '#8a6a10', '#4a3500', true, false, hoverBtn === 'trank');
-  rr(40, 780, 460, 48, 12); ctx.fillStyle = 'rgba(40,30,8,0.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,213,107,0.6)'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.textAlign = 'left'; ctx.font = `15px ${MINCHO}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('県民の勘', 58, 805);
-  ctx.font = `19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 805, '#fff', '#000', 4);
+  button(T_RANK, '実績表', null, '#8a6a10', '#4a3500', true, false, hoverBtn === 'trank');
+  button(T_ZUKAN, '図鑑', `${zukanTotal()} / ${zukanMax()}`, '#6a3a7a', '#341a3e', true, false, hoverBtn === 'tzukan');
+  rr(40, 790, 460, 44, 12); ctx.fillStyle = 'rgba(40,30,8,0.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,213,107,0.6)'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.font = `15px ${MINCHO}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('県民の勘', 58, 813);
+  ctx.font = `19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 813, '#fff', '#000', 4);
   const acc = typeof SyncManager !== 'undefined' && SyncManager ? SyncManager.account() : null;
   ctx.textAlign = 'right'; ctx.font = `13px ${GOTH}`; ctx.fillStyle = acc ? '#b0ffc8' : '#aaa';
-  ctx.fillText(`${myFullName()}［${gradeName(gradeIndex())}］　` + (acc ? 'ログイン中' : 'ゲスト'), 484, 805);
+  ctx.fillText(`${myFullName()}［${gradeName(gradeIndex())}］　` + (acc ? 'ログイン中' : 'ゲスト'), 484, 813);
   ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#999';
   ctx.fillText('県民の勘：クリアで入手。バトル中に使うと、その場の最善手を1つ教えてくれる', W / 2, 852);
   ctx.fillText('※音が出ます', W / 2, 876);
@@ -2480,7 +2674,7 @@ function drawRules() {
   button(R_NEXT, last ? (rules.fromTitle ? 'はじめる' : 'とじる') : '次へ', null, '#c43a2a', '#6a1410', true, false, hoverBtn === 'rnext');
 }
 function openRules(fromTitle, onClose) { rules = { page: 0, fromTitle, onClose }; }
-function closeRules() { const cb = rules && rules.onClose; rules = null; SAVE.seenRules = true; save(); if (cb) cb(); }
+function closeRules() { const cb = rules && rules.onClose; rules = null; SAVE.seenRules = true; save(); if (cb) cb(); else if (typeof runPendingCase === 'function') runPendingCase(); }
 
 const RETRY = { x: 40, y: 680, w: 220, h: 60 }, NEWCASE = { x: 280, y: 680, w: 220, h: 60 };
 const TOTITLE = { x: 40, y: 756, w: 220, h: 56 }, SHARE = { x: 280, y: 756, w: 220, h: 56 };
@@ -2510,7 +2704,13 @@ function shareText() {
     `説得ランク ${resultRank()}／スコア ${rankScore(D.key, G.turn, G.hp).toLocaleString('ja-JP')}\n` +
     `称号：${t.icon}${t.name}\n` +
     `${G.turn}ターン・残りメンタル ${G.hp}\n` +
-    `#東尋坊ディスウェイド #東尋坊説得隊\n` + location.href;
+    (G.ending ? `エンディング：${G.ending.grade}・${G.ending.name}\n` : '') +
+    `同じ事件に挑戦→ ${challengeUrl()}\n` +
+    `#東尋坊ディスウェイド #東尋坊説得隊`;
+}
+// 同じ事件に挑めるURL。case= には表示用の5桁（caseNo）ではなく、本当のシード値（G.seed）を入れる。難易度と犯人も付ける
+function challengeUrl() {
+  return location.href.split(/[?#]/)[0] + '?case=' + G.seed + '&d=' + D.key + '&c=' + (D.culprit || 'iwaki');
 }
 // X の投稿画面を別タブで開く（スマホではタップの pointerdown だとポップアップが止められるので click で呼ぶ）
 function shareResult() {
@@ -2524,8 +2724,11 @@ function drawResult() {
   ctx.fillStyle = phase === 'win' ? 'rgba(40,15,0,0.55)' : 'rgba(0,0,0,0.7)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (phase === 'win') {
-    ctx.font = `22px ${MINCHO}`; outlineText(`―― 事件解決【${D.name}・${cuNow().short}】――`, W / 2, 250, '#ffe2a0', '#000', 5);
-    ctx.font = `60px ${MINCHO}`; outlineText('自首成立', W / 2, 304, '#ffcf5a', '#3a1500', 9);
+    const en = G.ending || ENDINGS[ENDINGS.length - 1];
+    ctx.font = `20px ${MINCHO}`; outlineText(`―― 事件解決【${D.name}・${cuNow().short}】${en.grade}エンド ――`, W / 2, 250, '#ffe2a0', '#000', 5);
+    ctx.font = `56px ${MINCHO}`;                                                    // 見出し＝エンディング名
+    { const tw = ctx.measureText(en.name).width; if (tw > W - 50) ctx.font = `${Math.floor(56 * (W - 50) / tw)}px ${MINCHO}`; }
+    outlineText(en.name, W / 2, 304, en.col, '#3a1500', 9);
     const tl = pickTitle();                                                       // 称号（絵文字はふちを付けずに描く）
     ctx.font = `28px ${MINCHO}`;
     const nw = ctx.measureText(tl.name).width, iw = ctx.measureText(tl.icon).width + 8, tx = W / 2 - (nw + iw) / 2;
@@ -2558,6 +2761,11 @@ function drawResult() {
       ctx.font = `32px ${MINCHO}`; outlineText(`${gradeName(G.promo)}に任命`, 0, 18, col, '#000', 6);
       ctx.restore();
     }
+    if (G.zukanNew && G.zukanNew.length) {
+      ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b';
+      const zt = `図鑑に新発見 ${G.zukanNew.length}件：` + G.zukanNew.join('・');
+      ctx.fillText(wrap(zt, W - 60)[0] + (wrap(zt, W - 60).length > 1 ? '…' : ''), W / 2, 658);
+    }
     if (G.rankMsg) { ctx.font = `13px ${GOTH}`; ctx.fillStyle = /載りました|送りました/.test(G.rankMsg) ? '#b0ffc8' : '#ccc'; ctx.fillText(G.rankMsg, W / 2, 636); }
   } else {
     ctx.font = `56px ${MINCHO}`; outlineText('説得失敗', W / 2, 270, '#ff5a5a', '#200', 9);
@@ -2584,7 +2792,7 @@ function drawResult() {
       ctx.textAlign = 'center';
     } else {
       ctx.font = `14px ${GOTH}`; ctx.fillStyle = '#aaa';
-      ctx.fillText('この事件は、推理でクリアできることを確認済み。', W / 2, 400);
+      ctx.fillText(G.verified ? 'この事件は、推理でクリアできることを確認済み。' : 'この事件は、クリアできるか確かめられていない事件でした。', W / 2, 400);
       ctx.fillText('「同じ事件に再挑戦」で、打ち筋を見直してみよう。', W / 2, 424);
     }
     ctx.fillStyle = '#888'; ctx.font = `12px ${GOTH}`;
@@ -2671,9 +2879,9 @@ function updateHover() {
   }
   if (phase === 'title') {
     DIFF_BTNS.forEach((b, i) => { if (inRect(cm, b)) hoverBtn = 'd' + i; });
-    CU_BTNS.forEach((b, i) => { if (inBtn(cm, b)) hoverBtn = 'cu' + i; });
+    CU_BTNS.forEach((b, i) => { if (inRect(cm, b)) hoverBtn = 'cu' + i; });
     if (inRect(cm, T_RULE)) hoverBtn = 'trule'; else if (inRect(cm, T_MY)) hoverBtn = 'tmy'; else if (inRect(cm, T_RANK)) hoverBtn = 'trank';
-    else if (inRect(cm, T_NEWS)) hoverBtn = 'tnews';
+    else if (inRect(cm, T_NEWS)) hoverBtn = 'tnews'; else if (inRect(cm, T_ZUKAN)) hoverBtn = 'tzukan';
     return;
   }
   if (phase === 'win' || phase === 'lose') {
@@ -2686,9 +2894,10 @@ function updateHover() {
   hover = cardAt(mouse);
   if (inRect(mouse, BTN)) hoverBtn = 'end';
   else if (inRect(mouse, KAN)) hoverBtn = 'kan';
+  else if (inRect(mouse, UNDO)) hoverBtn = 'undo';
 }
 function goTitle() {
-  resetRun(); phase = 'title'; bgmStop(0.5);
+  resetRun(); phase = 'title'; bgmStart();          // (タイトルでもBGM。小さめ)
   newGame(D); V.sunset = 0;
 }
 cv.addEventListener('pointermove', e => { mouse = toLogical(e); });
@@ -2725,6 +2934,7 @@ cv.addEventListener('pointerdown', e => {
     }
     if (inRect(p, PM.rules)) { sndClick(); pmConfirm = null; openRules(false, null); return; }
     if (inRect(p, PM.sound)) { toggleMute(); pmConfirm = null; return; }
+    if (inRect(p, PM.speed)) { toggleSpeed(); pmConfirm = null; return; }
     pmConfirm = null;
     return;
   }
@@ -2734,11 +2944,12 @@ cv.addEventListener('pointerdown', e => {
       beginGame(b.d, null, curCulprit);
       return;
     }
-    for (const b of CU_BTNS) if (inBtn(p, b)) { sndClick(); pickCulprit(b.c.key); return; }
+    for (const b of CU_BTNS) if (inRect(p, b)) { sndClick(); pickCulprit(b.c.key); return; }
     if (inRect(p, T_RULE)) { sndClick(); openOnboarding(); }
     else if (inRect(p, T_MY)) { sndClick(); openMypage(); }
     else if (inRect(p, T_RANK)) { sndClick(); openRanking(); }
     else if (inRect(p, T_NEWS)) { sndClick(); openNews(false); }
+    else if (inRect(p, T_ZUKAN)) { sndClick(); openZukan(); }
     return;
   }
   p = p0;
@@ -2755,6 +2966,7 @@ cv.addEventListener('pointerdown', e => {
   if (G.busy) { dlgAdvance(); return; }
   if (phase !== 'battle') return;
   if (inRect(p, KAN)) { useKan(); return; }
+  if (inRect(p, UNDO)) { doUndo(); return; }
   const c = cardAt(p);
   if (c) { playCard(c); return; }
   if (inRect(p, BTN)) { endTurn(); return; }
@@ -2765,6 +2977,7 @@ function toggleMute() {
   if (SND.master) { const t = SND.ctx.currentTime; SND.master.gain.cancelScheduledValues(t); SND.master.gain.value = SND.muted ? 0 : (paused ? 0.25 : 0.8); }
   if (!SND.muted) sndClick();
 }
+['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => addEventListener(ev, () => audioInit(), { capture: true, passive: true }));
 // PC：Esc / P でポーズ
 addEventListener('keydown', e => {
   if ((e.key === ' ' || e.key === 'Enter') && !e.repeat && G.gamble && G.gamble.active && !paused && !rules && !ovScreen) { e.preventDefault(); cliffTap(); return; }   // 崖っぷちタイム（PC）
@@ -2776,7 +2989,7 @@ addEventListener('keydown', e => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && phase === 'battle' && !paused) { paused = true; pmConfirm = null; setDuck(true); }
   if (!SND.ctx) return;
-  if (document.hidden) SND.ctx.suspend(); else SND.ctx.resume();
+  if (document.hidden) SND.ctx.suspend(); else audioWake();
 });
 
 /* =========================================================
@@ -3123,9 +3336,10 @@ function showOverlay(which) {
   OV['scr-rank'].hidden = which !== 'rank';
   document.getElementById('scr-onboard').hidden = which !== 'onboard';
   document.getElementById('scr-news').hidden = which !== 'news';
+  document.getElementById('scr-zukan').hidden = which !== 'zukan';
   if (which) { OV.ov.scrollTop = 0; mouse = { x: -1, y: -1 }; }
 }
-function closeOverlay() { showOverlay(null); sndClick(); }
+function closeOverlay() { showOverlay(null); sndClick(); if (typeof runPendingCase === 'function') runPendingCase(); }
 function setMpMsg(t, bad) { OV['mp-msg'].textContent = t || ''; OV['mp-msg'].classList.toggle('bad', !!bad); }
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
@@ -3311,6 +3525,7 @@ const OB_SLIDES = [
   { h: '③ 3つのカードを使い分ける', t: '青の【証拠】で心の壁（心壁）を崩し、緑の【人情】で自首メーターを上げます。心壁が残っていると人情は届きにくい。赤の【グルメ】は犯人を動揺させたり、APや手札を増やしたり。', pic: 'cards' },
   { h: '④ 犯人の狙いを読む', t: '画面の左上に、犯人が次にすることと、その対策が出ます。毎ターン変わる「心境」でカードの効き方も変わります。カードの数字は「今使ったらどうなるか」です。', pic: 'read' },
   { h: '⑤ 県民の勘・階級・捜査実績表', t: '迷ったら「県民の勘」で一番いい手を教えてもらえます。どの事件も、推理すれば必ず解決できることを確かめてから出しています。解決すると「功績」がたまって巡査から警視総監まで昇進し、説得スコアが捜査実績表に自動で載ります。', pic: 'win' },
+  { h: '⑥ コンボと崖っぷちタイム', t: '決まった組み合わせでカードを使うと「捜査コンボ」が成立（カードに「○○コンボ！」と出たら狙いどき）。自首が70に届くと一度だけ「崖っぷちタイム」。1.6秒以内に画面を3回タップすると自首 +15。犯人は4人から選べて、それぞれ攻め方が違います。', pic: 'combo' },
   { h: 'アカウントを作成またはログインしますか？', t: 'アカウントがあると、ほかの端末でも記録と県民の勘を引き継げて、捜査実績表にも同じ名前で載ります。作るのはユーザー名とパスワードだけ（メールアドレスは不要）。あとからマイページでもできます。', acc: true, pic: 'acc' },
 ];
 const OBE = {};
@@ -3336,6 +3551,15 @@ function drawObPic(kind) {
   } else if (kind === 'cliff') {
     cliff(); spr(detectiveSprite(fr), 26, 52); spr(culpritSprite('angry', false, fr, 0), 84, 50);
     g.fillStyle = '#ff6b6b'; g.fillRect(98, 6, 18, 9); g.fillStyle = '#fff'; g.fillRect(100, 8, 3, 5); g.fillRect(105, 8, 3, 5); g.fillRect(110, 8, 3, 5);
+  } else if (kind === 'combo') {                                        // コンボ：3枚が並んで光る＋「タップ！」
+    const on = Math.floor(t * 3) % 4;
+    [['ev', '#2f6fd6'], ['hu', '#2e9e5b'], ['gu', '#d6453a']].forEach(([k, a], i) => {
+      const x = 10 + i * 22, y = 14;
+      g.fillStyle = i < on ? '#ffd84a' : '#000'; g.fillRect(x - 1, y - 1, 20, 30); g.fillStyle = a; g.fillRect(x, y, 18, 28); g.fillStyle = '#f4ecd8'; g.fillRect(x + 2, y + 6, 14, 14);
+    });
+    g.fillStyle = '#000'; g.fillRect(78, 10, 36, 40); g.fillStyle = '#5a1418'; g.fillRect(79, 11, 34, 38);
+    g.fillStyle = fr ? '#ffd56b' : '#ff8a5a'; g.fillRect(84, 18 + fr, 24, 10); g.fillRect(92, 30 + fr, 8, 12);
+    g.fillStyle = '#ffffff'; for (let i = 0; i < 3; i++) g.fillRect(84 + i * 9, 46, 5, 2 + (i < on ? 1 : 0));
   } else if (kind === 'cards') {
     [['ev', '#2f6fd6', '#173a7a'], ['hu', '#2e9e5b', '#155a32'], ['gu', '#d6453a', '#7a1d17']].forEach(([k, a, b], i) => {
       const x = 14 + i * 34, y = 8 + (i === Math.floor(t * 1.5) % 3 ? -3 : 0);
@@ -3366,7 +3590,9 @@ function obLoop() {
   obAnim = requestAnimationFrame(obLoop);
 }
 function renderObSound() {
+  const st = SND.ctx ? SND.ctx.state : 'none';
   OBE['ob-sound-state'].textContent = SND.muted ? 'いまのゲームの音：オフ（このままでは音が出ません）'
+    : obTried && st !== 'running' ? 'ブラウザが音を止めています。もう一度「音を鳴らしてみる」を押してください。'
     : obTried ? '「ジャッジャーン！」が聞こえたら準備OK。聞こえないときは、消音モードと音量を確かめてください。'
     : 'いまのゲームの音：オン';
   OBE['ob-sound-test'].textContent = SND.muted ? '音をオンにして鳴らしてみる' : '音を鳴らしてみる';
@@ -3377,20 +3603,24 @@ function renderObAcc() {
   OBE['ob-acc-yes'].hidden = !!acc;
   OBE['ob-acc-no'].textContent = acc ? '捜査をはじめる' : 'ゲストではじめる';
 }
+// obOnly：前の版の説明を見た人には、増えた1枚だけを見せる（OB_NEW_FROM）
+let obOnly = null;
 function renderOnboarding() {
   const sl = OB_SLIDES[obIndex];
-  OBE['ob-step'].textContent = `${obIndex + 1} / ${OB_SLIDES.length}`;
+  OBE['ob-step'].textContent = obOnly != null ? '新しいルール' : `${obIndex + 1} / ${OB_SLIDES.length}`;
   OBE['ob-h'].textContent = sl.h;
   OBE['ob-text'].textContent = sl.t;
   OBE['ob-dots'].replaceChildren(...OB_SLIDES.map((_, i) => { const d = document.createElement('i'); if (i === obIndex) d.className = 'on'; return d; }));
-  OBE['ob-prev'].disabled = obIndex === 0;
-  OBE['ob-next'].hidden = obIndex >= OB_SLIDES.length - 1;
+  OBE['ob-prev'].disabled = obOnly != null || obIndex === 0;
+  OBE['ob-next'].hidden = obOnly == null && obIndex >= OB_SLIDES.length - 1;
+  OBE['ob-next'].textContent = obOnly != null ? 'とじる' : '次へ';
+  OBE['ob-dots'].hidden = obOnly != null;
   OBE['ob-sound'].hidden = !sl.sound; if (sl.sound) renderObSound();
   OBE['ob-acc'].hidden = !sl.acc; if (sl.acc) renderObAcc();
   drawObPic(sl.pic);
 }
-function openOnboarding() {
-  obIndex = 0; obTried = false;
+function openOnboarding(only) {
+  obOnly = only == null ? null : only; obIndex = obOnly == null ? 0 : obOnly; obTried = false;
   OBE['ob-hide'].checked = true;                   // 「次回から表示しない」は最初からチェック。外すと次回も出る
   showOverlay('onboard'); renderOnboarding();
   try { OBE['ob-h'].focus({ preventScroll: true }); } catch (e) { }
@@ -3401,16 +3631,22 @@ function closeOnboarding(next) {
   SAVE.onboard = OBE['ob-hide'].checked ? ONBOARD_VER : 0;
   SAVE.seenRules = true;
   save();
-  showOverlay(null); sndClick();
+  showOverlay(null); sndClick(); obOnly = null;
   if (next === 'account') { openMypage(); OV['mp-open-auth'].click(); }
   else if (next === 'rules') openRules(false, null);
+  else if (typeof newsUnseen === 'function' && newsUnseen().length && !newsFresh) openNews(true);   // 増えた説明のあとに、アップデートのお知らせ
+  else if (typeof runPendingCase === 'function') runPendingCase();
 }
 OBE['ob-prev'].onclick = () => { if (obIndex > 0) { obIndex--; sndClick(); renderOnboarding(); } };
-OBE['ob-next'].onclick = () => { if (obIndex < OB_SLIDES.length - 1) { obIndex++; sndClick(); renderOnboarding(); } };
+OBE['ob-next'].onclick = () => { if (obOnly != null) { closeOnboarding(); return; } if (obIndex < OB_SLIDES.length - 1) { obIndex++; sndClick(); renderOnboarding(); } };
 OBE['ob-sound-test'].onclick = () => {
   audioInit();
   if (SND.muted) toggleMute();
-  sndSting('ev'); obTried = true; renderObSound();
+  const play = () => { sndSting('ev'); obTried = true; renderObSound(); };
+  const c = SND.ctx;
+  if (!c) { obTried = true; renderObSound(); return; }
+  if (c.state === 'running') play();
+  else { const p = c.resume(); (p && p.then ? p : Promise.resolve()).then(play, play); setTimeout(() => { if (c.state !== 'running') renderObSound(); }, 600); }
 };
 OBE['ob-acc-yes'].onclick = () => closeOnboarding('account');
 OBE['ob-acc-no'].onclick = () => closeOnboarding();
@@ -3425,6 +3661,14 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 8, ver: '1.8', date: '2026-10-09', title: '図鑑・7つのエンディング・事件の共有', items: [
+    '「捜査図鑑」を追加。会った犯人・使ったカード・成立したコンボ・見たエンディングが登録されます（タイトルの「図鑑」）',
+    'エンディングが7種類に。解決のしかたで、朝焼け・雨・カツ丼……と結末が変わります',
+    'シェアした投稿のURLから、同じ事件（同じ難易度・犯人・山札）に挑戦できるように',
+    '1ターンに1回、直前のカードを取り消せる「待った」ボタン',
+    'ポーズ画面に「倍速」モード。心壁崩壊と失敗のときにスマホが振動します（対応端末のみ）',
+    'はじめての説明に「コンボと崖っぷちタイム」の1枚を追加',
+    '音が出ないことがある問題を修正。画面のどこを触っても音が始まり、タイトル画面からBGMが流れます'] },
   { id: 7, ver: '1.7', date: '2026-10-09', title: 'コンボ・崖っぷちタイム・4人の犯人', items: [
     '名前のついた「捜査コンボ」を5種追加（科学捜査コンボ・人証コンボ・人情の連鎖・福井グルメの三段活用・逆転の口上）',
     '自首70で1回だけ「崖っぷちタイム」。1.6秒以内に3回タップで自首 +15',
@@ -3482,16 +3726,102 @@ function closeNews() {
   if (ovScreen !== 'news') return;
   lsSet(NEWS_KEY, String(CHANGELOG[0].id));
   showOverlay(null); sndClick();
+  runPendingCase();
 }
 document.getElementById('nw-ok').onclick = closeNews;
 // 初めて開いたとき（または説明の版が上がったとき）は説明を出す。お知らせは見たことにする
 // それ以外で、まだ見ていないアップデートがあればお知らせを出す
+/* ---------- 図鑑の画面（#ov の中の1画面。タブで犯人・カード・コンボ・エンディング） ---------- */
+// カードの効果をひとことで
+function cardSummary(c) {
+  const a = [];
+  if (c.dmg && c.type !== 'gu') a.push(`心壁−${c.dmg}`); if (c.pct) a.push(`残り心壁の${c.pct}%`);
+  if (c.sur) a.push(`自首+${c.sur}`); if (c.dmg && c.type === 'gu') a.push(`心壁−${c.dmg}`);
+  if (c.chainEv) a.push(`連携+${c.chainEv}`); if (c.alertBonus) a.push(`警戒1につき+${c.alertBonus}`);
+  if (c.breakSur) a.push(`割ったら自首+${c.breakSur}`); if (c.hpCost) a.push(`メンタル−${c.hpCost}`);
+  if (c.perHu) a.push(`人情1枚につき+${c.perHu}`); if (c.pierce) a.push('心壁を貫く');
+  if (c.crisisBonus) a.push('危機2以下で×2'); if (c.step) a.push(`犯人を${c.step}歩戻す`);
+  if (c.daze) a.push('動揺'); if (c.boostHu) a.push('次の人情×1.5'); if (c.boostEv) a.push('次の証拠×1.5');
+  if (c.surFlat) a.push(`自首+${c.surFlat}`); if (c.ap) a.push(`AP+${c.ap}`); if (c.heal) a.push(`メンタル+${c.heal}`);
+  if (c.alert) a.push(`警戒${c.alert > 0 ? '+' : '−'}${Math.abs(c.alert)}`); if (c.draw) a.push(`${c.draw}枚引く`);
+  return a.join('・');
+}
+var zkKind = 'culprits';
+function zkItem(got, name, tag, desc, n) {
+  const li = el('li', 'zk-item ' + (got ? 'got' : 'unknown'));
+  if (tag) li.append(el('span', 'zk-tag', tag));
+  li.append(el('span', 'zk-name', got ? name : '？？？'));
+  if (desc) li.append(el('span', 'zk-desc', desc));
+  if (got && n) li.append(el('span', 'zk-cnt', `解決 ${n}回`));
+  return li;
+}
+function renderZukan() {
+  const z = SAVE.zukan[zkKind], body = document.getElementById('zk-body');
+  document.querySelectorAll('#zk-tabs [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === zkKind)));
+  const keys = zukanKeys(zkKind);
+  document.getElementById('zk-sum').textContent = `発見 ${zukanCount(zkKind)} / ${keys.length}　（全体 ${zukanTotal()} / ${zukanMax()}）　事件を解決すると登録されます。`;
+  const lists = [];
+  if (zkKind === 'culprits') {
+    const ul = el('ul', 'zk-grid');
+    for (const c of CULPRITS) {                                             // 会った犯人は姿、まだの犯人は黒いシルエット
+      const got = !!z[c.key], li = zkItem(got, c.name, got ? c.sub : '犯人', got ? c.desc : null, z[c.key]);
+      const cv = document.createElement('canvas'); cv.width = SPR_W; cv.height = SPR_H; const g = cv.getContext('2d');
+      g.drawImage(culpritSprite('angry', false, 0, 0, c.key), 0, 0);
+      if (!got) { g.globalCompositeOperation = 'source-in'; g.fillStyle = '#05050a'; g.fillRect(0, 0, SPR_W, SPR_H); }
+      li.prepend(cv); ul.append(li);
+    }
+    lists.push(ul);
+  } else if (zkKind === 'cards') {
+    for (const [t, lab] of [['ev', '証拠'], ['hu', '人情'], ['gu', 'グルメ']]) {
+      const ids = keys.filter(k => CARDS[k].type === t), ul = el('ul', 'zk-grid');
+      for (const id of ids) { const c = CARDS[id], got = !!z[id]; const li = zkItem(got, c.name, `【${lab}】コスト${c.cost}${c.r === 3 ? '・★レア' : ''}`, got ? cardSummary(c) : null, z[id]); li.style.borderLeftColor = TYPE[t].col; li.style.borderLeftWidth = '6px'; ul.append(li); }
+      lists.push(el('h3', 'zk-h', `${lab}（${ids.filter(k => z[k]).length} / ${ids.length}）`), ul);
+    }
+  } else if (zkKind === 'combos') {
+    const ul = el('ul', 'zk-grid');
+    for (const c of COMBOS) ul.append(zkItem(!!z[c.id], c.name, '捜査コンボ', z[c.id] ? c.text : null, z[c.id]));
+    lists.push(ul);
+  } else {
+    const ul = el('ul', 'zk-grid');
+    for (const e of ENDINGS) { const got = !!z[e.key]; const li = zkItem(got, e.name, e.grade + 'エンド', 'ヒント：' + e.hint, z[e.key]); if (got) li.querySelector('.zk-name').style.color = e.col; ul.append(li); }
+    lists.push(ul);
+  }
+  body.replaceChildren(...lists);
+}
+function openZukan(kind) { if (kind) zkKind = kind; renderZukan(); showOverlay('zukan'); }
+document.getElementById('zk-back').onclick = closeOverlay;
+document.querySelectorAll('#zk-tabs [data-kind]').forEach(b => b.onclick = () => { zkKind = b.dataset.kind; sndClick(); renderZukan(); });
+
+// ・はじめての人／毎回表示にしている人（onboard 0）：説明を全部
+// ・前の版の説明を「次回から表示しない」で閉じた人（0 < onboard < 今の版）：増えた1枚だけを1回。そのあとお知らせ
+var newsFresh = false;              // (はじめての人にはお知らせを出さない)
 if (SAVE.onboard < ONBOARD_VER) {
-  if (SAVE.onboard === 0 && !SAVE.seenRules) lsSet(NEWS_KEY, String(CHANGELOG[0].id));
-  openOnboarding();
+  if (SAVE.onboard === 0 && !SAVE.seenRules) { lsSet(NEWS_KEY, String(CHANGELOG[0].id)); newsFresh = true; }
+  if (SAVE.onboard > 0 && OB_NEW_FROM[ONBOARD_VER] != null) openOnboarding(OB_NEW_FROM[ONBOARD_VER]);
+  else openOnboarding();
 } else {
   if (newsSeen() < 0) lsSet(NEWS_KEY, String(CHANGELOG[0].id - 1));   // (お知らせができる前から遊んでいる人には、最新の1件だけ)
   if (newsUnseen().length) openNews(true);
+}
+
+/* ---------- 同じ事件チャレンジ（URL の ?case=シード&d=難易度&c=犯人） ----------
+   開いたURLから事件を読み、説明やお知らせを閉じたあとで始める。読めない値なら、ふつうの出題にする */
+function readCaseUrl() {
+  let q = null; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (!q.has('case')) return null;
+  const raw = q.get('case') || '', n = /^\d{1,10}$/.test(raw) ? Number(raw) : NaN;
+  const d = diffByKey(q.get('d') || '') ? q.get('d') : 'normal', c = culpritByKey(q.get('c') || '') ? q.get('c') : 'iwaki';
+  try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { }   // (再読み込みで同じ事件が勝手に始まらないように)
+  return { seed: Number.isInteger(n) && n >= 1 && n <= 0xFFFFFFFF ? n : null, d, c };
+}
+var PENDING_CASE = readCaseUrl();
+function runPendingCase() {
+  const pc = PENDING_CASE;
+  if (!pc || ovScreen || rules || phase !== 'title') return;
+  PENDING_CASE = null;
+  pickCulprit(pc.c);
+  if (pc.seed) beginGame(diffByKey(pc.d), pc.seed, pc.c, { check: true, note: `共有された事件に挑戦！（${DIFF_NAME[pc.d]}・犯人 ${culpritByKey(pc.c).short}）` });
+  else beginGame(diffByKey(pc.d), null, pc.c, { note: '共有された事件番号が読めなかったので、別の事件を出題します。' });
 }
 
 /* ---------- レイアウトの切り替え（縦長 540×960 ／ 横長 1600×900） ---------- */
@@ -3499,9 +3829,9 @@ function applyLayout(wide) {
   WIDE = wide;
   if (wide) { W = 1600; H = 900; UI_TOP = 520; WX = 417; CX = 530; U = U_WIDE; CS = 1.4;
     Object.assign(KAN, { x: 1242, y: 560, w: 336, h: 62 }); Object.assign(BTN, { x: 1242, y: 640, w: 336, h: 86 });
-    Object.assign(PAUSE, { x: 1242, y: 744, w: 336, h: 62 }); Object.assign(MUTE, { x: 1536, y: 834, w: 42, h: 34 });
+    Object.assign(PAUSE, { x: 1418, y: 744, w: 160, h: 62 }); Object.assign(UNDO, { x: 1242, y: 744, w: 160, h: 62 }); Object.assign(MUTE, { x: 1536, y: 834, w: 42, h: 34 });
   } else { W = 540; H = 960; UI_TOP = 520; WX = 0; CX = 0; U = U_TALL; CS = 1;
-    Object.assign(KAN, { x: 14, y: 872, w: 126, h: 62 }); Object.assign(BTN, { x: 150, y: 872, w: 240, h: 62 });
+    Object.assign(KAN, { x: 14, y: 872, w: 112, h: 62 }); Object.assign(BTN, { x: 134, y: 872, w: 176, h: 62 }); Object.assign(UNDO, { x: 318, y: 872, w: 74, h: 62 });
     Object.assign(PAUSE, { x: 400, y: 872, w: 126, h: 62 }); Object.assign(MUTE, { x: 488, y: 528, w: 42, h: 34 });
   }
   LW = Math.ceil(W / PX); lowCv.width = LW; lowCv.height = LH;
@@ -3514,6 +3844,7 @@ function applyLayout(wide) {
 layoutReady = true;
 applyLayout(isWideWindow());
 resize();
+runPendingCase();                     // (URL で共有された事件。説明やお知らせが出ているときは、閉じたあと)
 </script>
 </body>
 </html>
