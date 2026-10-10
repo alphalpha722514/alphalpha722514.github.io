@@ -1361,6 +1361,7 @@ function newGame(diff, seed) {
   D = diff.culprit ? diff : withCulprit(diff, 'iwaki');
   CN = '犯人・' + cuNow().short;
   G = Object.assign(coreNewGame(D, seed || 1), { busy: true, totalPlayed: 0, hint: null, kanUsed: 0, verified: false, log: [], rankMsg: '', bestUp: false, daily: 0, dailyRes: null });
+  histReset();                                                            // 展開グラフ用の記録（CORE の外・セーブしない）
   V.kneelT = 0; V.kneel = 0; V.culpritA = 1; V.dark = 0; V.sunset = 0; V.cracks = []; V.crackT = 0;
   V.flying = []; V.floats = []; V.banner = null; V.bannerQ = []; V.cx = cliffX(G.crisis);
   V.cutin = null; V.zoom = 1; V.zoomHold = 0; V.slow = 0;                 // カットイン・カメラ・スロー
@@ -1431,6 +1432,7 @@ function playCard(card) {
   const surBefore = G.sur, alertBefore = G.alert, prevId = G._flagPrevId;   // (演出用。ルールには使わない)
   G._flagPrevId = card.id;
   const r = cardEffect(G, card.id, D);
+  histCard(card.id, d, r, surBefore);                                    // (展開グラフ・ツッコミ称号用。待ったで戻すと一緒に消える)
   say(DN, d.flav, DC);
   const fx = V.cx, fy = 200;
   if (r.shieldDmg) { addFloat(fx, fy, '心壁 −' + r.shieldDmg, '#8fc1ff', 26); V.cshake = 1; V.shake = Math.max(V.shake, 6); }
@@ -1473,13 +1475,59 @@ function gameSnap() {
 function canUndo() { return phase === 'battle' && !!G && !G.busy && !!G._undo && G.undoTurn !== G.turn && !(G.gamble && G.gamble.active); }
 function doUndo() {
   if (!canUndo()) { if (phase === 'battle' && !G.busy) { sndBuzz(); addFloat(UNDO.x + UNDO.w / 2, UNDO.y - 14, G.undoTurn === G.turn ? '待ったは1ターン1回' : '戻せる手がない', '#ffb0b0', 16); } return; }
-  const sn = G._undo, keepKan = G.kanUsed, turn = G.turn, old = new Map(G.hand.map(c => [c.uid, c]));
+  const sn = G._undo, keepKan = G.kanUsed, keepHK = G.histKan, turn = G.turn, old = new Map(G.hand.map(c => [c.uid, c]));
   for (const k of Object.keys(sn)) if (k !== '_hand') G[k] = sn[k];
   G.hand = sn._hand.map(h => old.get(h.uid) || { id: h.id, def: CARDS[h.id], x: U.hintX, y: U.handY - 80, tx: 0, ty: 0, uid: h.uid });
-  G.kanUsed = keepKan; G.undoTurn = turn; G._undo = null; G.hint = null;
+  G.kanUsed = keepKan; G.histKan = keepHK; G.undoTurn = turn; G._undo = null; G.hint = null;
   V.flying = []; sndClick(); addFloat(V.cx, 200, '待った！', '#cfe3ff', 26);
   say(DN, '……いや、今のは無しや。言い直させてくれ。', DC, 700);
 }
+/* ---------- 展開グラフの記録 G.hist（CORE の外。画面の出来事を数えるだけで、ルール・検証・セーブ・送信には使わない） ----------
+   G.hist：ターン終了（犯人の行動のあと）と解決の瞬間に1件ずつ { turn, sur, wall, wallMax, crisis, alert, ev[] }
+   G.histCur：今のターンの出来事（心壁崩壊・コンボ・崖っぷち成功／失敗）。G.histCards：使ったカード1枚ずつ
+   どちらも G の中にあるので、待ったで G を戻すと、戻したカードの出来事も一緒に消える。勘（G.histKan）だけは戻さない */
+function histReset() {
+  G.hist = []; G.histCur = []; G.histCards = []; G.histKan = []; G.histAlertMax = G.alert;
+  G.hist0 = { turn: 0, sur: G.sur, wall: G.shield, wallMax: G.maxShield, crisis: G.crisis, alert: G.alert, ev: [] };
+}
+function histEv(k) { if (G.histCur) G.histCur.push(k); }
+function histCard(id, d, r, surBefore) {
+  if (!G.histCards) return;
+  G.histCards.push({ id, type: d.type, turn: G.turn, sur: r.sur || 0, before: surBefore, broke: !!r.broke, pct: !!d.pct });
+  if (r.broke) histEv('break');
+  for (let i = 0; i < r.combos.length; i++) histEv('combo');
+  G.histAlertMax = Math.max(G.histAlertMax || 0, G.alert);
+}
+function histPush() {
+  if (!G.hist) return;
+  G.histAlertMax = Math.max(G.histAlertMax || 0, G.alert);
+  const ev = G.histCur.slice(); if (G.histKan.includes(G.turn)) ev.push('kan');
+  G.hist.push({ turn: G.turn, sur: G.sur, wall: G.shield, wallMax: G.maxShield, crisis: G.crisis, alert: G.alert, ev });
+  G.histCur = [];
+}
+// ツッコミ称号（見た目だけの一言。上から順に調べて最初に当たった1つ。当たらなければ null）。公式の称号・図鑑・功績には使わない
+function tsukkomiTitle(g, cu) {
+  g = g || G; cu = cu || (D && D.culprit) || 'iwaki';
+  const plays = [].concat(...(g.log || [])).filter(id => CARDS[id]);
+  const n = { ev: 0, hu: 0, gu: 0 }; plays.forEach(id => n[CARDS[id].type]++);
+  const ev = [].concat(...(g.hist || []).map(h => h.ev));
+  const cards = g.histCards || [];
+  const cliffs = ev.filter(e => e === 'cliffWin' || e === 'cliffLose').length;
+  const L = [
+    [n.gu >= 6, '崖の上の食堂'],
+    [cliffs === 0, '問答無用'],
+    [g.crisis === 1, '紙一重の説得'],
+    [ev.includes('cliffLose'), '指がつった刑事'],
+    [(g.histAlertMax || 0) >= 5, '火に油を注ぐ人'],
+    [plays.some((id, i) => i > 0 && plays[i - 1] === id), 'その話、さっきも聞いた'],
+    [g.undoTurn != null, '今のは無しや'],
+    [cu === 'tome' && cards.filter(c => c.type === 'gu').reduce((s, c) => s + c.sur, 0) >= 20, '胃袋から落とす'],
+    [cu === 'kanzaki' && cards.some(c => c.type === 'ev' && c.pct && c.broke), '論破されたい教授'],
+    [cu === 'hosono' && cards.some(c => c.type === 'hu' && c.before > 50 && c.sur >= 30), '下町の人情'],
+  ];
+  const t = L.find(x => x[0]); return t ? t[1] : null;
+}
+const TSUKKOMI_ALL = ['崖の上の食堂', '問答無用', '紙一重の説得', '指がつった刑事', '火に油を注ぐ人', 'その話、さっきも聞いた', '今のは無しや', '胃袋から落とす', '論破されたい教授', '下町の人情'];
 // 自首99以上に届いた瞬間、1回だけスローモーション
 function slowCheck() { if (G.sur >= 99 && !G._flagSlow) { G._flagSlow = true; V.slow = 0.9; } }
 
@@ -1504,6 +1552,7 @@ function cliffTap() {
 function endCliffTime(okTap) {
   const q = G.gamble; if (!q || !q.active) return;
   q.active = false; heartStop();
+  histEv(okTap ? 'cliffWin' : 'cliffLose');
   if (okTap) {
     const r = cliffBonus(G); G.log[G.log.length - 1].push(CLIFF_MOVE);
     V.flash = 0.6; V.flashCol = '#fff4d6'; sndPromo();
@@ -1513,6 +1562,7 @@ function endCliffTime(okTap) {
     if (G.sur >= 100) { winSequence(); return; }
   } else {
     const up = cliffFail(G);                     // 失敗：警戒 +1（記録には残さない。再生でも同じく失敗として数える）
+    G.histAlertMax = Math.max(G.histAlertMax || 0, G.alert);
     sndBuzz(); addFloat(V.cx, 230, '……言葉が、届かんかった', '#cfd8e8', 22);
     if (up) { addFloat(V.cx, 262, '警戒 +1', '#ffb347', 24); banner('警戒された……！', '#ffb347'); }
   }
@@ -1595,6 +1645,7 @@ async function enemyTurn() {
   }
   const crisisBefore = G.crisis;
   applyEnemy(G, rec.hpShown ? Object.assign({}, rec, { dmg: 0 }) : rec);
+  histPush();                                                            // ターン終了（犯人の行動のあと）の値を1件
   if (rec.regen > 0) { addFloat(V.cx, 230, '心壁 回復 +' + rec.regen, '#8fc1ff', 20); sndShieldUp(); }
   if (G.hp <= 0) { await lose('mental'); return; }
   sndStep(); if (rec.crisis >= 2) later(250, sndStep);
@@ -1605,6 +1656,7 @@ async function enemyTurn() {
   await say(NN, G.crisis <= 2 ? `${cuWho()}が${steps}歩、崖の端へ……！　残り${G.crisis}歩！` : `${cuWho()}が${steps}歩後ずさる。崖の端まで、あと${G.crisis}歩。`, G.crisis <= 2 ? '#ff9a9a' : NC, 700);
 }
 async function winSequence() {
+  histPush();                                                            // 解決の瞬間の値を1件
   phase = 'winning'; G.busy = true; G.hint = null;
   hitStop(250); V.white = 0.6;                                            // 止め 250ms → 画面全体を白へ 0.3秒 → テロップ「落ちた。」
   later(320, () => showTelop('落ちた。', 'white', 96, 1.5));
@@ -1799,7 +1851,7 @@ function useKan() {
   if (G.busy || phase !== 'battle') return;
   if (G.hint) { say(KN, G.hint.text, KC); return; }
   if (kanNow() <= 0) { sndBuzz(); addFloat(KAN.x + KAN.w / 2, KAN.y - 18, 'クリアで入手！', '#ffb0b0', 18); say('ヒント', '「県民の勘」は説得に成功すると手に入る。難しい難易度ほどたくさんもらえるぞ。', '#9fd3ff'); return; }
-  spendKan(); G.kanUsed++; save();
+  spendKan(); G.kanUsed++; save(); G.histKan.push(G.turn);              // (勘の印。待ったでも消さない)
   const best = solve(G, D);
   const first = best.seq[0] || null;
   G.hint = { id: first, text: hintReason(best.seq) };
@@ -3226,9 +3278,9 @@ function pickTitle() {
 }
 function resultRank() { return RANK_LETTER[G.turn <= 3 ? 3 : G.turn <= 4 ? 2 : G.turn <= 5 ? 1 : 0]; }
 function shareText() {               // X の 280 字（日本語は1字=2、URL は23）に収まる3行＋タグ
-  const t = pickTitle(), en = G.ending || ENDINGS[ENDINGS.length - 1];
+  const t = pickTitle(), en = G.ending || ENDINGS[ENDINGS.length - 1], tz = tsukkomiTitle(G, D.culprit || 'iwaki');
   return `東尋坊ディスウェイド【${en.grade}・${en.name}】\n` +
-    `${G.turn}ターン・${resultRank()}ランク／${t.name}／No.${caseNo(G.seed)}（${cuNow().name}）\n` +
+    `${G.turn}ターン・${resultRank()}ランク／${t.name}／No.${caseNo(G.seed)}（${cuNow().name}）${tz ? '／' + tz : ''}\n` +
     `同じ事件に挑戦→ ${challengeUrl()}\n` +
     `#東尋坊ディスウェイド #ブラウザゲーム #インディーゲーム #ゲーム実況`;
 }
@@ -3236,71 +3288,204 @@ function shareText() {               // X の 280 字（日本語は1字=2、URL
 function challengeUrl() {
   return location.href.split(/[?#]/)[0] + '?case=' + G.seed + '&d=' + D.key + '&c=' + (D.culprit || 'iwaki');
 }
-// 結果画像（1200×630）。画面の ctx とは別の Canvas に描くので、outlineText などは使わずこの中で完結させる
+// 文字を幅に収めて折り返す（どのキャンバスでも使える。c.font を先に決めておく）
+function wrapC(c, text, maxW) {
+  const out = []; let line = '';
+  for (const ch of text) {
+    const t = line + ch;
+    if (c.measureText(t).width > maxW && line) {
+      if ('、。！？」』）…ーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.includes(ch)) { line = t; continue; }    // (句読点・小さい字は行頭に来ないように前の行へ)
+      out.push(line); line = ch;
+    } else line = t;
+  }
+  if (line) out.push(line);
+  return out;
+}
+// 説得ランクの朱の判子（直径 d）。画面とシェア画像の両方で使う
+function drawSeal(c, cx, cy, d, rank, seed) {
+  const R = d / 2, red = '#d23a2e', r = fxRand((seed || 7) * 31 + 5);
+  c.save(); c.translate(cx, cy); c.rotate(-0.14);
+  c.fillStyle = 'rgba(210,58,46,0.16)'; c.beginPath(); c.arc(0, 0, R, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = red; c.lineWidth = Math.max(3, d * 0.075); c.beginPath(); c.arc(0, 0, R - c.lineWidth / 2, 0, Math.PI * 2); c.stroke();
+  c.lineWidth = Math.max(1, d * 0.02); c.beginPath(); c.arc(0, 0, R * 0.78, 0, Math.PI * 2); c.stroke();
+  c.font = `${Math.round(d * 0.56)}px ${PIXFONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = red;
+  for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [0, 0]]) c.fillText(rank, ox * d * 0.012, -d * 0.04 + oy * d * 0.012);
+  c.font = `${Math.max(9, Math.round(d * 0.13))}px ${PIXFONT}`; c.fillText('説得', 0, R * 0.56);
+  c.fillStyle = 'rgba(255,244,224,0.55)';                                   // 朱肉のかすれ（見た目だけの乱数）
+  for (let i = 0; i < 14; i++) { const a = r() * Math.PI * 2, rr = R * (0.55 + r() * 0.42), s = Math.max(1, Math.round(d * 0.025)); c.fillRect(Math.cos(a) * rr, Math.sin(a) * rr, s, s); }
+  c.restore();
+}
+// 展開グラフ：ターンごとの自首（白い折れ線）・心壁（灰色の棒）・危機（崖の▲の数）・出来事の印。画面とシェア画像の両方で使う
+const HIST_MARK = ['break', 'combo', 'cliffWin', 'cliffLose', 'kan'];
+function drawHistGraph(c, x, y, w, h, g) {
+  const pts = [g.hist0 || { turn: 0, sur: 0, wall: 1, wallMax: 1, crisis: 0, ev: [] }].concat(g.hist || []);
+  const n = pts.length, fs = Math.max(10, Math.round(h * 0.085));
+  c.save();
+  c.fillStyle = 'rgba(8,8,16,0.82)'; c.fillRect(x, y, w, h);
+  c.strokeStyle = 'rgba(255,255,255,0.32)'; c.lineWidth = 2; c.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  const mkH = Math.round(h * 0.27), crH = Math.round(h * 0.1), lbH = Math.round(h * 0.11);
+  const py0 = y + mkH + 4, py1 = y + h - crH - lbH - 6, ph = py1 - py0;
+  const bw0 = Math.max(5, Math.min(36, n > 1 ? (w * 0.85 / (n - 1)) * 0.42 : 36));
+  const padL = Math.round(fs * 2.2 + 10 + bw0 / 2), padR = Math.round(Math.max(14, bw0 / 2 + 8));
+  const step = n > 1 ? (w - padL - padR) / (n - 1) : 0;
+  const X = i => n > 1 ? x + padL + i * step : x + w / 2;
+  const wallMax = Math.max(1, ...pts.map(p => p.wallMax || p.wall || 1));
+  c.textAlign = 'right'; c.textBaseline = 'middle'; c.font = `${fs}px ${PIXFONT}`;
+  for (const v of [50, 70, 100]) {                                          // 目盛り（自首 50・70・100）
+    const yy = Math.round(py1 - v / 100 * ph);
+    c.fillStyle = v === 100 ? 'rgba(255,213,107,0.45)' : 'rgba(255,255,255,0.18)';
+    for (let xx = x + fs * 2.2 + 8; xx < x + w - 6; xx += 8) c.fillRect(xx, yy, 4, 1);
+    c.fillStyle = 'rgba(255,255,255,0.55)'; c.textAlign = 'left'; c.fillText(String(v), x + 6, yy);
+  }
+  const bw = Math.max(5, Math.min(36, n > 1 ? step * 0.42 : 36));
+  pts.forEach((p, i) => {                                                   // 心壁の棒
+    const bh = Math.round(clamp(p.wall / wallMax, 0, 1) * ph);
+    c.fillStyle = '#7a7268'; c.fillRect(Math.round(X(i) - bw / 2), py1 - bh, Math.round(bw), bh);
+    c.fillStyle = '#9a9286'; c.fillRect(Math.round(X(i) - bw / 2), py1 - bh, Math.round(bw), Math.min(bh, 2));
+  });
+  c.strokeStyle = '#ffffff'; c.lineWidth = Math.max(2, Math.round(h / 38)); c.lineJoin = 'round'; c.beginPath();   // 自首の折れ線
+  pts.forEach((p, i) => { const yy = py1 - clamp(p.sur, 0, 100) / 100 * ph; i ? c.lineTo(X(i), yy) : c.moveTo(X(i), yy); });
+  c.stroke();
+  pts.forEach((p, i) => { const yy = py1 - clamp(p.sur, 0, 100) / 100 * ph, s = c.lineWidth * 2 + 1; c.fillStyle = p.sur >= 100 ? '#ffd56b' : '#ffffff'; c.fillRect(Math.round(X(i) - s / 2), Math.round(yy - s / 2), s, s); });
+  const gs = Math.max(10, Math.min(Math.floor(mkH / 2) - 2, n > 1 ? Math.floor(step / 3.2) : 22, 22));
+  pts.forEach((p, i) => {                                                   // 出来事の印（同じ種類は1つにまとめ、コンボは数を添える）
+    const kinds = HIST_MARK.filter(k => (p.ev || []).includes(k));
+    kinds.forEach((k, j) => {
+      const col = j % 3, row = Math.floor(j / 3), inRow = Math.min(3, kinds.length - row * 3);
+      const mx = X(i) + (col - (inRow - 1) / 2) * (gs + 2), my = y + 6 + gs / 2 + row * (gs + 2);
+      drawHistMark(c, k, mx, my, gs, (p.ev || []).filter(e => e === k).length);
+    });
+  });
+  pts.forEach((p, i) => {                                                   // 危機：崖の端までの歩数を▲の数で
+    const k = Math.min(7, Math.max(0, p.crisis || 0)), tw = Math.max(3, Math.min(9, n > 1 ? (step - 6) / 7 : 9)), th = Math.max(4, Math.min(crH - 2, tw));
+    const x0 = X(i) - k * (tw + 1) / 2, yb = py1 + 4 + th;
+    c.fillStyle = k <= 2 ? '#ff7a6a' : '#c9b38a';
+    for (let m = 0; m < k; m++) { c.beginPath(); c.moveTo(x0 + m * (tw + 1), yb); c.lineTo(x0 + m * (tw + 1) + tw / 2, yb - th); c.lineTo(x0 + m * (tw + 1) + tw, yb); c.closePath(); c.fill(); }
+  });
+  c.textAlign = 'center'; c.font = `${Math.max(9, Math.round(lbH * 0.85))}px ${PIXFONT}`;
+  const every = n > 1 && step < 26 ? 2 : 1;
+  pts.forEach((p, i) => {                                                   // ターン（最初は「開始」）
+    if (i && i % every && i !== n - 1) return;
+    c.fillStyle = i === n - 1 && p.sur >= 100 ? '#ffd56b' : 'rgba(255,255,255,0.7)';
+    c.fillText(i ? (i === n - 1 && p.sur >= 100 ? '解決' : String(p.turn)) : '開始', X(i), y + h - lbH / 2 - 3);
+  });
+  c.restore();
+}
+function drawHistMark(c, k, x, y, s, cnt) {
+  c.save(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = `${s}px ${PIXFONT}`;
+  if (k === 'break') {                                                      // 心壁崩壊：ひびの印
+    c.strokeStyle = '#ffffff'; c.lineWidth = Math.max(2, s / 8); c.beginPath();
+    c.moveTo(x - s * 0.1, y - s / 2); c.lineTo(x + s * 0.15, y - s * 0.15); c.lineTo(x - s * 0.2, y + s * 0.1); c.lineTo(x + s * 0.1, y + s / 2);
+    c.moveTo(x + s * 0.15, y - s * 0.15); c.lineTo(x + s * 0.45, y - s * 0.05); c.stroke();
+  } else if (k === 'combo') { c.fillStyle = '#ffd54a'; c.fillText('★', x, y); if (cnt > 1) { c.font = `${Math.round(s * 0.5)}px ${PIXFONT}`; c.fillStyle = '#fff'; c.fillText(String(cnt), x + s * 0.45, y + s * 0.35); } }
+  else if (k === 'cliffWin') { c.fillStyle = '#ff3b30'; c.fillText('!', x, y); }
+  else if (k === 'cliffLose') { c.fillStyle = '#9a9aa4'; c.fillText('×', x, y); }
+  else if (k === 'kan') {                                                   // 県民の勘：小さな目の印
+    c.strokeStyle = '#9fe0ff'; c.lineWidth = Math.max(1.5, s / 10); c.beginPath(); c.ellipse(x, y, s * 0.42, s * 0.24, 0, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = '#9fe0ff'; c.beginPath(); c.arc(x, y, s * 0.13, 0, Math.PI * 2); c.fill();
+  }
+  c.restore();
+}
+// 改心顔：今の犯人の描画関数で 48×48 の小さなキャンバスに描き（ひざまずく＋涙）、呼んだ側で拡大する
+function remorseCanvas(cu) {
+  const cv2 = document.createElement('canvas'); cv2.width = 48; cv2.height = 48;
+  const g = cv2.getContext('2d'); if (!g) return null;
+  const ox = Math.floor((48 - SPR_W) / 2), oy = 48 - SPR_H;
+  try { g.drawImage(culpritSprite('remorse', true, 1, 3, cu, 'kneel', culpritFlags('kneel')), ox, oy); drawFaceFx(g, ox, oy, 'kneel', 0.4, cu); } catch (e) { }
+  return cv2;
+}
+const RESULT_LAST_LINE = '自首します。……おっかちゃんに、ちゃんと謝らな……';
+// 結果画像（1200×630）。画面の ctx とは別の Canvas に描く。画面用の outlineText は使わず、telop（キャンバスを引数で受け取る）とこの中の text で描く
 function makeResultImage() {
-  const g = G, d = D, cu = cuNow(), en = g.ending || ENDINGS[ENDINGS.length - 1], tl = pickTitle();
+  const g = G, d = D, cuKey = d.culprit || 'iwaki', cu = cuNow(), en = g.ending || ENDINGS[ENDINGS.length - 1], tl = pickTitle(), tz = tsukkomiTitle(g, cuKey);
   const rank = resultRank(), score = rankScore(d.key, g.turn, g.hp), no = caseNo(g.seed);
   const fontsReady = Promise.race([
     (document.fonts ? Promise.all([document.fonts.ready, document.fonts.load('64px "DotGothic16"')]) : Promise.resolve()),
     new Promise(r => setTimeout(r, 1500))]).catch(() => { });          // (フォントが来なくても1.5秒で端末の字で描く)
   return fontsReady.then(() => new Promise((resolve, reject) => {
-    const IW = 1200, IH = 630, cv2 = document.createElement('canvas');
+    const IW = 1200, IH = 630, LW = 480, BAND_Y = 590, cv2 = document.createElement('canvas');
     cv2.width = IW; cv2.height = IH;
     const c = cv2.getContext('2d');
     if (!c) { reject(new Error('no canvas')); return; }
-    let r = (g.seed >>> 0) || 1;                                         // 見た目だけの乱数（ゲームの乱数 rngFor には触れない）
-    const rnd = () => { r = (Math.imul(r, 1103515245) + 12345) >>> 0; return r / 4294967296; };
-    const SKY = {
-      dawn: ['#2b1f5e', '#5a3a7a', '#a8507a', '#e8806a', '#ffc890'],
-      sunset: ['#1e0f30', '#4a1a48', '#8a2e4a', '#d0503a', '#f0903a'],
-      night: ['#03050f', '#070c22', '#0d1634', '#152248', '#1f2e5c'],
-      rain: ['#14181f', '#1f2530', '#2b3340', '#384250', '#465060'] }[en.sky] || null;
-    const sky = SKY || ['#1e0f30', '#4a1a48', '#8a2e4a', '#d0503a', '#f0903a'];
-    const BAND = 64;                                                     // ドット風の段々グラデーション（境目は市松でぼかす）
-    for (let i = 0; i < sky.length; i++) { c.fillStyle = sky[i]; c.fillRect(0, i * BAND, IW, BAND); }
-    for (let i = 1; i < sky.length; i++) {
-      c.fillStyle = sky[i - 1];
-      for (let y = i * BAND; y < i * BAND + 12; y += 6) for (let x = ((y / 6) % 2) * 6; x < IW; x += 12) c.fillRect(x, y, 6, 6);
-    }
-    if (en.sky === 'night') for (let k = 0; k < 90; k++) { c.fillStyle = rnd() < 0.2 ? '#ffe8a0' : '#cfd8ff'; c.fillRect(Math.floor(rnd() * 200) * 6, Math.floor(rnd() * 45) * 6, 6, 6); }
-    if (en.sky === 'dawn' || en.sky === 'sunset') {                     // 日の出・夕日
-      c.fillStyle = en.sky === 'dawn' ? '#fff0b0' : '#ffb060';
-      for (let y = -60; y <= 60; y += 6) { const w = Math.floor(Math.sqrt(3600 - y * y) / 6) * 6; c.fillRect(300 - w, 330 + y, w * 2, 6); }
-    }
-    c.fillStyle = '#0c1a33'; c.fillRect(0, 320, IW, IH - 320);           // 日本海
-    c.fillStyle = '#1a3358';
-    for (let k = 0; k < 70; k++) c.fillRect(Math.floor(rnd() * 190) * 6, 330 + Math.floor(rnd() * 48) * 6, 18 + Math.floor(rnd() * 4) * 6, 6);
-    for (let x = 930, k = 0; x < IW; x += 18, k++) {                     // 東尋坊の柱状節理（右下の崖。海に向かって低くなる）
-      const top = 300 - Math.floor((x - 930) / 270 * 12) * 6 + [0, 6, 0, 12, 6, 0, 6][k % 7];
-      c.fillStyle = '#120c0a'; c.fillRect(x, top, 18, IH - top);
-      c.fillStyle = '#2a1c16'; c.fillRect(x, top, 6, IH - top);
-      c.fillStyle = '#3a2a20'; c.fillRect(x, top, 18, 6);
-    }
-    if (en.sky === 'rain') { c.fillStyle = 'rgba(200,215,240,0.55)'; for (let k = 0; k < 160; k++) { const x = rnd() * IW, y = rnd() * IH; c.fillRect(Math.floor(x / 3) * 3, Math.floor(y / 3) * 3, 3, 18); } }
-    c.fillStyle = 'rgba(0,0,0,0.3)'; c.fillRect(0, 0, IW, IH);           // 文字を読みやすく
-    const F = '"DotGothic16","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",sans-serif';
+    const rnd = fxRand(g.seed);                                         // 見た目だけの乱数（ゲームの乱数 rngFor には触れない）
+    const F = PIXFONT;
     const text = (t, x, y, size, fill, stroke, lw, align) => {           // ふち付き文字（この Canvas 専用）
       c.font = `${size}px ${F}`; c.textAlign = align || 'center'; c.textBaseline = 'middle';
       if (stroke) { c.lineJoin = 'round'; c.lineWidth = lw; c.strokeStyle = stroke; c.strokeText(t, x, y); }
       c.fillStyle = fill; c.fillText(t, x, y);
     };
     const fit = (t, size, maxW) => { c.font = `${size}px ${F}`; const w = c.measureText(t).width; return w > maxW ? Math.floor(size * maxW / w) : size; };
-    c.fillStyle = '#ff4a3a'; c.fillRect(0, 0, IW, 10); c.fillRect(0, IH - 10, IW, 10);   // 上下の帯
-    text('東尋坊ディスウェイド', 48, 58, 40, '#ff6a4a', '#2a0000', 8, 'left');
-    text(`【${d.name}】事件ファイル No.${no}　犯人：${cu.name}`, IW - 48, 58, 26, '#ffe2a0', '#000', 6, 'right');
-    text(`―― ${en.grade}エンド ――`, IW / 2, 150, 34, '#ffe2a0', '#000', 6);
-    text(en.name, IW / 2, 232, fit(en.name, 104, IW - 120), en.col, '#3a1500', 14);
-    const tsz = 46; c.font = `${tsz}px ${F}`;                            // 称号（絵文字はふちなし）
-    const nw = c.measureText(tl.name).width, iw = c.measureText(tl.icon).width + 14, tx = IW / 2 - (nw + iw) / 2;
-    c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#fff'; c.fillText(tl.icon, tx, 330);
-    text(tl.name, tx + iw, 330, tsz, tl.gold ? '#ffe86a' : '#ffffff', '#000', 8, 'left');
-    c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(250, 390, 700, 120);     // ランクとスコアの枠
-    c.strokeStyle = '#ffd56b'; c.lineWidth = 4; c.strokeRect(250, 390, 700, 120);
-    text('説得ランク', 360, 422, 26, '#ffd56b', null, 0);
-    text(rank, 360, 470, 80, rank === 'S' ? '#ffe86a' : '#ffffff', '#000', 6); text(rank, 362, 470, 80, rank === 'S' ? '#ffe86a' : '#ffffff', null, 0);
-    text(`スコア ${score.toLocaleString('ja-JP')}`, 690, 432, 40, '#ffffff', '#000', 6);
-    text(`${g.turn}ターン・残りメンタル ${g.hp}`, 690, 482, 26, '#dddddd', null, 0);
-    text('同じ事件に挑戦できる ▶ alphalpha722514.github.io/tojinbo', IW / 2, 572, 26, '#ffffff', '#000', 5);
+    // ---- 右：見出し・称号・判子・グラフの地 ----
+    c.fillStyle = '#100d18'; c.fillRect(LW, 0, IW - LW, IH);
+    c.fillStyle = 'rgba(255,255,255,0.025)'; for (let yy = 0; yy < IH; yy += 6) c.fillRect(LW, yy, IW - LW, 2);   // 走査線
+    // ---- 左：エンディングの空と崖・改心顔 ----
+    c.save(); c.beginPath(); c.rect(0, 0, LW, BAND_Y); c.clip();
+    const sky = SKY5[en.sky] || SKY5.sunset, BAND = 66;
+    for (let i = 0; i < sky.length; i++) { c.fillStyle = sky[i]; c.fillRect(0, i * BAND, LW, BAND); }
+    for (let i = 1; i < sky.length; i++) { c.fillStyle = sky[i - 1]; for (let yy = i * BAND; yy < i * BAND + 12; yy += 6) for (let xx = ((yy / 6) % 2) * 6; xx < LW; xx += 12) c.fillRect(xx, yy, 6, 6); }
+    const HOR = 330;
+    if (en.sky === 'night') for (let k = 0; k < 60; k++) { c.fillStyle = rnd() < 0.2 ? '#ffe8a0' : '#cfd8ff'; c.fillRect(Math.floor(rnd() * 80) * 6, Math.floor(rnd() * 50) * 6, 6, 6); }
+    if (en.sky === 'night') { c.fillStyle = '#f4f0d8'; for (let yy = -24; yy <= 24; yy += 6) { const w = Math.floor(Math.sqrt(576 - yy * yy) / 6) * 6; c.fillRect(380 - w, 80 + yy, w * 2, 6); } c.fillStyle = sky[0]; for (let yy = -24; yy <= 24; yy += 6) { const w = Math.floor(Math.sqrt(576 - yy * yy) / 6) * 6; c.fillRect(392 - w, 74 + yy, w * 2, 6); } }
+    if (en.sky === 'dawn' || en.sky === 'sunset') {                     // 日の出・夕日（水平線に半分沈む）
+      c.fillStyle = en.sky === 'dawn' ? '#fff0b0' : '#ffb060';
+      for (let yy = -54; yy <= 0; yy += 6) { const w = Math.floor(Math.sqrt(2916 - yy * yy) / 6) * 6; c.fillRect(330 - w, HOR + yy, w * 2, 6); }
+    }
+    c.fillStyle = '#0c1a33'; c.fillRect(0, HOR, LW, BAND_Y - HOR);         // 日本海
+    c.fillStyle = en.sky === 'dawn' || en.sky === 'sunset' ? '#7a4a4a' : '#1a3358';
+    for (let k = 0; k < 40; k++) c.fillRect(Math.floor(rnd() * 80) * 6, HOR + 6 + Math.floor(rnd() * 30) * 6, 18 + Math.floor(rnd() * 4) * 6, 6);
+    const TOP = 470, warm = en.sky === 'dawn' || en.sky === 'sunset';       // 東尋坊の柱状節理（犯人がひざまずく岩場）
+    for (let xx = -6, k = 0; xx < 430; xx += 18, k++) {
+      const top = TOP + [0, 6, 0, 0, 6, 0, 12][k % 7];
+      c.fillStyle = warm ? '#2a1a14' : '#15110f'; c.fillRect(xx, top, 18, BAND_Y - top);
+      c.fillStyle = warm ? '#5a3a2a' : '#2c2420'; c.fillRect(xx + 6, top, 6, BAND_Y - top);
+      c.fillStyle = warm ? '#7a5038' : '#3a302a'; c.fillRect(xx, top, 18, 6);
+      c.fillStyle = '#0a0806'; c.fillRect(xx, top, 2, BAND_Y - top);
+    }
+    if (en.sky === 'rain') { c.fillStyle = 'rgba(200,215,240,0.5)'; for (let k = 0; k < 90; k++) c.fillRect(Math.floor(rnd() * 160) * 3, Math.floor(rnd() * 196) * 3, 3, 18); }
+    const spr = remorseCanvas(cuKey);                                   // 改心顔（ひざまずく＋涙）を8倍のドット絵で
+    if (spr) { c.imageSmoothingEnabled = false; c.drawImage(spr, 48, TOP + 8 - 48 * 8, 384, 384); c.imageSmoothingEnabled = true; }
+    const line = '「' + (en.line || RESULT_LAST_LINE) + '」';           // 犯人の最後のひとこと
+    let ls = 24; c.font = `${ls}px ${F}`; let lines = wrapC(c, line, LW - 40);
+    while (lines.length > 2 && ls > 16) { ls -= 2; c.font = `${ls}px ${F}`; lines = wrapC(c, line, LW - 40); }
+    const boxH = lines.length * (ls + 8) + 30, by = BAND_Y - boxH;
+    c.fillStyle = 'rgba(0,0,0,0.62)'; c.fillRect(0, by, LW, boxH);
+    text(cu.name, 20, by + 14, 16, '#ffd56b', null, 0, 'left');
+    lines.forEach((l, i) => text(l, LW / 2, by + 36 + i * (ls + 8) + ls / 2 - 6, ls, '#ffffff', '#000', 4));
+    c.restore();
+    c.fillStyle = '#000'; c.fillRect(LW - 2, 0, 6, BAND_Y); c.fillStyle = en.col; c.fillRect(LW + 4, 0, 3, BAND_Y);
+    // ---- 右上：「○○エンド」とエンディング名 ----
+    const RX = LW + 20, RW = IW - LW - 40, RC = RX + RW / 2;
+    telop(c, `${en.grade}エンド`, RC, 62, fit(`${en.grade}エンド`, 40, RW), 'white');
+    telop(c, en.name, RC, 122, fit(en.name, 64, RW - 10), 'white');
+    // ---- 称号：公式（金）とツッコミ称号（赤のテロップ・44px） ----
+    const tY = tz ? 192 : 214, tsz = fit(tl.icon + ' ' + tl.name, 34, RW);
+    c.font = `${tsz}px ${F}`;
+    const nw = c.measureText(tl.name).width, iw = c.measureText(tl.icon).width + 10, tx = RC - (nw + iw) / 2;
+    c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#fff'; c.fillText(tl.icon, tx, tY);
+    text(tl.name, tx + iw, tY, tsz, '#ffd54a', '#2a1a00', 6, 'left');
+    if (tz) telop(c, tz, RC, 242, fit(tz, 44, RW), 'red');
+    // ---- 判子と説得スコア ----
+    drawSeal(c, RX + 66, 326, 100, rank, g.seed);
+    text('説得スコア', RX + 150, 292, 24, '#ffd56b', null, 0, 'left');
+    text(score.toLocaleString('ja-JP'), RX + 150, 332, 52, '#ffffff', '#000', 6, 'left');
+    text(`${g.turn}ターン・残りメンタル ${g.hp}／${g.maxHp}` + (g.kanUsed ? `・勘 ${g.kanUsed}` : ''), RX + 150, 370, 20, '#d8d8e0', null, 0, 'left');
+    // ---- 展開グラフ（680×150）と凡例 ----
+    drawHistGraph(c, LW + 10, 398, 680, 150, g);
+    c.font = `15px ${F}`; c.textBaseline = 'middle'; c.textAlign = 'left';
+    const LEG = [['line', '自首'], ['bar', '心壁'], ['tri', '崖まで'], ['break', '心壁崩壊'], ['combo', 'コンボ'], ['cliffWin', '崖っぷち成功'], ['cliffLose', '失敗'], ['kan', '県民の勘']];
+    let lx = LW + 14; const ly = 569;
+    for (const [k, lab] of LEG) {
+      if (k === 'line') { c.fillStyle = '#fff'; c.fillRect(lx, ly - 2, 16, 4); }
+      else if (k === 'bar') { c.fillStyle = '#7a7268'; c.fillRect(lx + 4, ly - 8, 8, 16); }
+      else if (k === 'tri') { c.fillStyle = '#c9b38a'; c.beginPath(); c.moveTo(lx + 2, ly + 6); c.lineTo(lx + 8, ly - 6); c.lineTo(lx + 14, ly + 6); c.closePath(); c.fill(); }
+      else drawHistMark(c, k, lx + 8, ly, 16, 1);
+      c.font = `15px ${F}`; c.textAlign = 'left'; c.fillStyle = '#c8c8d0'; c.fillText(lab, lx + 20, ly + 1);
+      lx += 20 + c.measureText(lab).width + 14;
+    }
+    // ---- 一番下の帯 ----
+    c.fillStyle = '#000'; c.fillRect(0, BAND_Y, IW, IH - BAND_Y);
+    const band = `東尋坊ディスウェイド ／ ${d.name}・No.${no}・${cu.name} ／ 同じ事件に挑戦できる ▶ alphalpha722514.github.io/tojinbo`;
+    text(band, IW / 2, BAND_Y + 21, fit(band, 20, IW - 40), '#ffffff', null, 0);
     try { cv2.toBlob(b => b ? resolve(b) : reject(new Error('toBlob')), 'image/png'); } catch (e) { reject(e); }
   }));
 }
@@ -3337,6 +3522,18 @@ function drawResult() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (phase === 'win') {
     const en = G.ending || ENDINGS[ENDINGS.length - 1];
+    {                                                                              // 上部：シェア画像と同じ判子・ツッコミ称号・展開グラフ
+      const tz = tsukkomiTitle(G, D.culprit || 'iwaki');
+      ctx.fillStyle = 'rgba(10,8,16,0.86)'; ctx.fillRect(-CX, 0, W + 2 * CX, 240);   // (後ろの心壁・危機の表示が透けないように)
+      drawSeal(ctx, 62, 70, 84, resultRank(), G.seed);
+      if (tz) {
+        ctx.font = `34px ${PIXFONT}`; const tw = ctx.measureText(tz).width, sz = tw > 360 ? Math.floor(34 * 360 / tw) : 34;
+        telop(ctx, tz, 330, 58, sz, 'red');
+        ctx.font = `13px ${GOTH}`; ctx.textAlign = 'center'; ctx.fillStyle = '#e8d8c8'; ctx.fillText('ツッコミ称号（シェア画像にも載ります）', 330, 98);
+      } else { ctx.font = `14px ${GOTH}`; ctx.textAlign = 'center'; ctx.fillStyle = '#e8d8c8'; ctx.fillText('この事件の展開（シェア画像にも載ります）', 330, 72); }
+      drawHistGraph(ctx, 20, 120, W - 40, 112, G);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    }
     ctx.font = `20px ${MINCHO}`; outlineText(`―― 事件解決【${D.name}・${cuNow().short}】${en.grade}エンド ――`, W / 2, 250, '#ffe2a0', '#000', 5);
     ctx.font = `56px ${MINCHO}`;                                                    // 見出し＝エンディング名
     { const tw = ctx.measureText(en.name).width; if (tw > W - 50) ctx.font = `${Math.floor(56 * (W - 50) / tw)}px ${MINCHO}`; }
@@ -3363,9 +3560,9 @@ function drawResult() {
     outlineText(G.meritDup ? '功績 +0（解決済みの事件）' : `功績 +${G.merit}` + (G.kanUsed ? '' : '（勘なし×1.2）'), W / 2, 584, '#b0ffc8', '#000', 3);
     ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ddd';
     ctx.fillText(`${myFullName()}［${gradeName(gi)}］` + (nx ? `　次の「${gradeName(gi + 1)}」まで：${nx.label}${nx.flag ? '' : ' あと' + (nx.need - nx.cur).toLocaleString() + (nx.unit || '')}` : '　最高位です'), W / 2, 610);
-    if (G.promo >= 0 && resultT > 1.4) {                                   // 昇進
+    if (G.promo >= 0 && resultT > 1.4 && resultT < 5.4) {                  // 昇進（4秒出して消す。下の展開グラフが見えるように）
       const q = clamp((resultT - 1.4) * 4, 0, 1), col = GRADE_COL[G.promo];
-      ctx.save(); ctx.translate(W / 2, 168); ctx.scale(0.5 + q * 0.5, 0.5 + q * 0.5);
+      ctx.save(); ctx.globalAlpha *= clamp((5.4 - resultT) / 0.4, 0, 1); ctx.translate(W / 2, 168); ctx.scale(0.5 + q * 0.5, 0.5 + q * 0.5);
       ctx.fillStyle = '#000'; ctx.fillRect(-222, -51, 444, 102);
       ctx.fillStyle = Math.floor(T * 4) % 2 ? col : '#ffffff'; ctx.fillRect(-219, -48, 438, 96);
       ctx.fillStyle = '#0c0a14'; ctx.fillRect(-213, -42, 426, 84);
@@ -4283,6 +4480,11 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 14, ver: '1.14', date: '2026-10-11', title: 'シェア画像を一新・展開グラフ・ツッコミ称号', items: [
+    'シェア画像を作り直し。左に犯人の改心顔（ひざまずいて涙）と最後のひとこと、右にエンディング名・称号・説得ランクの判子・スコア',
+    '「展開グラフ」：ターンごとの自首・心壁・崖までの歩数と、心壁崩壊・コンボ・崖っぷちタイム・県民の勘の印。結果画面の上にも出ます',
+    'プレイの出来事から付く「ツッコミ称号」（全10種）。例：「崖の上の食堂」「今のは無しや」。シェア文の2行目にも入ります',
+    'ツッコミ称号は見た目だけの一言で、公式の称号・図鑑・功績には関わりません'] },
   { id: 13, ver: '1.13', date: '2026-10-11', title: '見た目の大改装：犯人の表情・東尋坊の空と崖・カード', items: [
     '6人の犯人の見た目をはっきり区別。神崎は丸めがね、細野は白いひげと手ぬぐい。表情が頑な・逆上・動揺・改心・崖っぷちで変わります',
     '東尋坊の柱状の岩と波・風を描き直し。空はくもり・夕焼け・夜明け・夜・雨の5種類。危機が近づくほど波と風が荒れます',
