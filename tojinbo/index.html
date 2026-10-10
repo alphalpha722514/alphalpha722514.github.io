@@ -312,7 +312,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
    ========================================================= */
 
 /*CORE-START*/
-/* ---------- カード（全48種） ----------
+/* ---------- カード（全60種：証拠・人情・グルメ 各20） ----------
    r: 1=よくある 2=ときどき 3=レア
    ev 証拠: dmg 心壁ダメージ / pct 残り心壁の割合ダメージ / chainEv 直前が証拠なら追加 /
             alertBonus 警戒1につき追加 / breakSur 心壁を割ったら自首+
@@ -339,6 +339,10 @@ const CARDS = {
   kizu:     { type: 'ev', r: 2, name: '手の甲の傷', cost: 2, dmg: 50, hpCost: 6, flav: '（ぐいっと腕をつかむ）この傷……被害者ともみ合った時のもんやろ！' },
   kanshiki: { type: 'ev', r: 3, name: '鑑識の最終報告', cost: 3, pct: 70, flav: '鑑識の結果が出た。……もう言い逃れはできんぞ。' },
   ashiato:  { type: 'ev', r: 1, name: '雪に残った足跡', cost: 1, dmg: 18, breakSur: 8, flav: '大雪の朝や。現場から続く足跡、サイズはあんたの靴と同じやった。' },
+  chizu:    { type: 'ev', r: 1, name: '一乗谷の古地図', cost: 1, dmg: 15, chainEv: 12, flav: '朝倉氏の一乗谷の古地図……余白の書き込み、あんたの字やな。' },
+  shinkansen:{ type: 'ev', r: 1, name: '北陸新幹線の乗車記録', cost: 2, dmg: 26, alertBonus: 4, flav: 'あの日、あんたのICカードが芦原温泉駅の改札を通っとる。' },
+  kaseki:   { type: 'ev', r: 2, name: '恐竜化石の発掘メモ', cost: 2, pct: 35, breakSur: 10, flav: '勝山の発掘現場のメモや。几帳面な字……あんたの手帳と同じ筆跡やな。' },
+  uchihamono:{ type: 'ev', r: 3, name: '越前打刃物の刃こぼれ', cost: 3, dmg: 50, alert: -1, draw: 1, flav: '武生の刃物職人が言うとった。「この刃こぼれは、あの晩に研いだ跡や」ってな。' },
   // ===== 人情 =====
   hoya:     { type: 'hu', r: 1, name: 'ほやほやの言葉', cost: 1, sur: 16, flav: 'ほやほや……おめさんの気持ちも、わからんことないんやざ。' },
   haha:     { type: 'hu', r: 1, name: '故郷の母', cost: 2, sur: 32, flav: '大野のおっかちゃん、毎日あんたの帰り待っとるんやで。' },
@@ -356,6 +360,10 @@ const CARDS = {
   shashin:  { type: 'hu', r: 1, name: '同窓会の写真', cost: 1, sur: 12, heal: 6, flav: '去年の同窓会の写真や。みんな、あんたのこと心配しとる。' },
   kotatsu:  { type: 'hu', r: 2, name: 'こたつの記憶', cost: 2, sur: 24, alert: -1, heal: 4, flav: '冬はこたつで水ようかん。……あったかい家、まだあるんやで。' },
   izoku:    { type: 'hu', r: 3, name: 'ご遺族の言葉', cost: 3, sur: 40, pierce: true, flav: '「本当のことを話してほしい。それだけでええ」……ご遺族の言葉や。' },
+  yuhi:     { type: 'hu', r: 1, name: '東尋坊の夕日', cost: 2, sur: 22, heal: 6, flav: 'ほら、見てみ。日本海に沈む夕日……毎日ちゃんと、明日が来るんやざ。' },
+  asaichi:  { type: 'hu', r: 1, name: '大野の朝市の声', cost: 1, sur: 11, perHu: 7, flav: '「兄ちゃん、今朝も里芋買うてってや」……朝市のおばちゃん、あんたのこと覚えとったで。' },
+  toudai:   { type: 'hu', r: 2, name: '三国港の灯台', cost: 2, sur: 18, crisisBonus: true, alert: -1, flav: '三国港の灯台は、迷った船を毎晩照らしとる。……あんたも、帰ってこられるんや。' },
+  hakusan:  { type: 'hu', r: 3, name: '白山に登る約束', cost: 3, sur: 30, pierce: true, draw: 1, flav: '「いつか一緒に白山に登ろう」……あの約束、まだ終わっとらんやろ。' },
   // ===== グルメ =====
   katsudon: { type: 'gu', r: 1, name: 'ヨーロッパ軒のソースカツ丼', cost: 1, daze: true, draw: 1, flav: 'ほら、ソースカツ丼や。甘辛いソースの匂い、たまらんやろ？' },
   soba:     { type: 'gu', r: 1, name: 'あったかい越前そば', cost: 0, ap: 1, heal: 5, flav: '大根おろしの辛みが沁みるのう……ほら、あんたの分もあるで。' },
@@ -373,6 +381,10 @@ const CARDS = {
   gomadofu: { type: 'gu', r: 2, name: '永平寺のごま豆腐', cost: 1, alert: -2, surFlat: 4, flav: '永平寺のごま豆腐や。心を落ち着けて、深呼吸せえ。' },
   volga:    { type: 'gu', r: 3, name: 'ボルガライス', cost: 2, ap: 2, draw: 2, boostHu: true, flav: '越前市名物ボルガライス！ オムライスにカツや、元気出るで。' },
   rakkyo:   { type: 'gu', r: 1, name: '花らっきょう', cost: 0, boostEv: true, flav: '三里浜の花らっきょう、ポリッとな。……さて、話の続きや。' },
+  satoimo:  { type: 'gu', r: 1, name: '上庄里芋の煮っころがし', cost: 1, heal: 6, surFlat: 4, flav: '大野の上庄里芋や。ころっと煮えて、ほくほくやろ？' },
+  karei:    { type: 'gu', r: 1, name: '若狭がれいの一夜干し', cost: 0, heal: 3, draw: 1, flav: '炙った若狭がれい、骨までパリッといけるで。' },
+  oboro:    { type: 'gu', r: 2, name: 'おぼろ昆布のおにぎり', cost: 1, daze: true, boostEv: true, flav: '敦賀の職人が手で削ったおぼろ昆布や。……ふわっとしとる間に、もう一つ聞くで。' },
+  sasazuke: { type: 'gu', r: 3, name: '小鯛のささ漬け', cost: 1, ap: 1, draw: 1, boostHu: true, alert: -1, flav: '若狭の小鯛のささ漬けや。酢の香りで、ほっと肩の力が抜けるやろ。' },
 };
 const POOL = { ev: [], hu: [], gu: [] };
 for (const [id, c] of Object.entries(CARDS)) POOL[c.type].push(id);
@@ -436,12 +448,14 @@ const DIFFS = [
     moods: ['nostalgia', 'hungry', 'doubt', 'doubt', 'rage', 'reject', 'reject', 'guarded', 'guarded'], intents: { atk: 4, alert: 2, wall: 3, retreat: 3 }, reward: 3 },
 ];
 
-/* ---------- 犯人（4人）：難易度の値に上乗せ・上書きして、同じ計算の道すじで効かせる ---------- */
+/* ---------- 犯人（6人）：難易度の値に上乗せ・上書きして、同じ計算の道すじで効かせる ---------- */
 const CULPRITS = [
   { key: 'iwaki',  name: '岩城 徹',    short: '岩城',   sub: '元銀行員', col: '#9fc4ff', who: '男', desc: '標準。基本に忠実に攻めよう', mod: {} },
   { key: 'washio', name: '鷲尾 権造',  short: '鷲尾',   sub: '県会議員', col: '#ffb347', who: '男', desc: '心壁が毎ターン+12回復。警戒が高いと反論が激しい', mod: { regenAdd: 12, alertAtkAdd: 1 } },
   { key: 'tome',   name: '前川 トメ',  short: 'トメ',   sub: '人情犯',   col: '#ff9ad0', who: '女', desc: '心壁があると人情×0.25。グルメの自首・心壁・回復が×2.5', mod: { huUnderMax: 0.25, guMul: 2.5 } },
   { key: 'minamo', name: '柏木 みなも', short: 'みなも', sub: '元看護師', col: '#7dffa8', who: '女', desc: 'いつも「拒絶」。自首50を超えると人情×2', mod: { fixedMood: 'reject', huLate: 2 } },
+  { key: 'kanzaki', name: '神崎 理',   short: '神崎',   sub: '大学教授', col: '#c9a0ff', who: '男', desc: '割合ダメージの証拠×1.5。警戒を下げる効果は半分', mod: { pctMul: 1.5, alertDownHalf: true } },
+  { key: 'hosono', name: '細野 誠一',  short: '細野',   sub: '町工場主', col: '#ffe07a', who: '男', desc: '序盤は硬い（心壁+10回復・人情×0.35）。自首50超で人情×2.5', mod: { regenAdd: 10, huUnderMax: 0.35, huLate: 2.5 } },
 ];
 function culpritByKey(k) { return CULPRITS.find(c => c.key === k) || null; }
 // 難易度 D に犯人の効果を重ねた D を返す（key・name はそのまま。culprit に犯人の key）
@@ -455,6 +469,8 @@ function withCulprit(D, ck) {
   if (m.guMul) E.guMul = m.guMul;
   if (m.fixedMood) E.fixedMood = m.fixedMood;
   if (m.huLate) E.huLate = m.huLate;
+  if (m.pctMul) E.pctMul = m.pctMul;                 // 割合ダメージ（pct）の証拠に倍率
+  if (m.alertDownHalf) E.alertDownHalf = true;       // 警戒を下げる効果は半分（端数切り捨て。−1 は効かない）
   return E;
 }
 
@@ -489,7 +505,9 @@ function combosHit(s, id) {
   return out;
 }
 // 崖っぷちタイムの成功（自首 +15）。画面ではタップ3回、打ち手の記録では '!cliff'
+// 失敗（時間切れ）は警戒 +1。記録には残さない：発動したカードの次に '!cliff' が無ければ失敗、として再生・検証のどちらも同じ cliffFail を通す
 const CLIFF_AT = 70, CLIFF_SUR = 15, CLIFF_MOVE = '!cliff';
+function cliffFail(s) { const before = s.alert; s.alert = Math.min(5, s.alert + 1); return s.alert - before; }
 function cliffBonus(s) {
   const r = { sur: Math.min(CLIFF_SUR, 100 - s.sur), stepBack: false };
   s.sur += r.sur;
@@ -535,7 +553,7 @@ function cardEffect(s, id, D) {
   let alertD = d.alert || 0;
   if (d.type === 'ev') {
     let base = d.dmg || 0;
-    if (d.pct) { base = Math.max(10, Math.round(s.shield * d.pct / 100)); r.tags.push('残り心壁の' + d.pct + '%'); }
+    if (d.pct) { base = Math.max(10, Math.round(s.shield * d.pct / 100 * (D.pctMul || 1))); r.tags.push('残り心壁の' + d.pct + '%' + (D.pctMul ? '×' + D.pctMul : '')); }
     if (d.chainEv && s.lastType === 'ev') { base += d.chainEv; r.tags.push('連携+' + d.chainEv); }
     if (d.alertBonus && s.alert > 0) { base += d.alertBonus * s.alert; r.tags.push('警戒+' + d.alertBonus * s.alert); }
     let mult = m;
@@ -585,6 +603,7 @@ function cardEffect(s, id, D) {
   if (d.hpCost) { r.hpCost = Math.min(d.hpCost, s.hp - 1); s.hp -= r.hpCost; }
   if (r.heal) { r.heal = Math.min(r.heal, s.maxHp - s.hp); s.hp += r.heal; }
   if (r.ap) s.ap += r.ap;
+  if (alertD < 0 && D.alertDownHalf) { alertD = -Math.floor(-alertD / 2); r.tags.push('警戒が下がりにくい'); }
   if (alertD) { const before = s.alert; s.alert = Math.max(0, Math.min(5, s.alert + alertD)); r.alert = s.alert - before; }
   s.drawn += r.draw;
   // 捜査コンボ（直近6枚。成立したら上乗せ）
@@ -593,7 +612,7 @@ function cardEffect(s, id, D) {
   for (const c of r.combos) {
     const b = c.bonus; s.firedCombos.push(c.id);
     if (b.shield) hitShield(b.shield);
-    if (b.alert) { const before = s.alert; s.alert = Math.max(0, Math.min(5, s.alert + b.alert)); r.alert += s.alert - before; }
+    if (b.alert) { const ba = b.alert < 0 && D.alertDownHalf ? -Math.floor(-b.alert / 2) : b.alert, before = s.alert; s.alert = Math.max(0, Math.min(5, s.alert + ba)); r.alert += s.alert - before; }
     if (b.sur) { s.sur += b.sur; r.sur += b.sur; }
     if (b.ap) { s.ap += b.ap; r.ap += b.ap; }
     if (b.draw) { r.draw += b.draw; s.drawn += b.draw; }
@@ -670,7 +689,7 @@ function solve(g, D, cap) {
       const id = s.hand[i];
       if (tried.has(id) || CARDS[id].cost > s.ap) continue;
       tried.add(id);
-      const n = cloneSim(s); n.hand.splice(i, 1); cardEffect(n, id, D);
+      const n = cloneSim(s); n.hand.splice(i, 1); if (cardEffect(n, id, D).cliff) cliffFail(n);   // (崖っぷちタイムは失敗するものとして読む)
       seq.push(id);
       const v = evaluate(s0, n, D);
       if (v > best.v + 1e-6) best = { v, seq: seq.slice() };
@@ -729,6 +748,7 @@ function playout(seed, D, maxTurns, maxNodes) {
       if (!id) break;
       g.hand.splice(g.hand.indexOf(id), 1); g.disc.push(id);
       const r = cardEffect(g, id, D); if (r.draw) g.hand.push(...coreDraw(g, r.draw));
+      if (r.cliff) cliffFail(g);                 // 崖っぷちタイムは「失敗した」として検証する（失敗しても解ける事件だけを出題）
       if (g.sur >= 100) return { win: true, turn: g.turn, hp: g.hp, crisis: g.crisis };
     }
     g.disc.push(...g.hand); g.hand = [];
@@ -756,6 +776,7 @@ function replayLog(D, seed, log) {
         if (!cliffOpen) return null;
         cliffOpen = false; cliffBonus(g);
       } else {
+        if (cliffOpen) { cliffOpen = false; cliffFail(g); }   // '!cliff' が続かなかった＝失敗（画面では次のカードより先に時間切れになる）
         if (typeof id !== 'string' || !Object.prototype.hasOwnProperty.call(CARDS, id)) return null;
         const i = g.hand.indexOf(id);
         if (i < 0 || CARDS[id].cost > g.ap) return null;
@@ -768,6 +789,7 @@ function replayLog(D, seed, log) {
         return { win: true, turn: g.turn, hp: g.hp, crisis: g.crisis, score: rankScore(D.key, g.turn, g.hp) };
       }
     }
+    if (cliffOpen) cliffFail(g);               // ターンの最後のカードで発動して '!cliff' が無い＝失敗（ターン終了より先）
     if (t === log.length - 1) return null;
     g.disc.push(...g.hand); g.hand = [];
     applyEnemy(g, planEnemy(g, D));
@@ -1459,7 +1481,8 @@ function doUndo() {
 function slowCheck() { if (G.sur >= 99 && !G._flagSlow) { G._flagSlow = true; V.slow = 0.9; } }
 
 /* ---------- 崖っぷちタイム（自首70で1事件1回。1.6秒以内に3回タップで自首 +15） ----------
-   成功は打ち手の記録に '!cliff' として残り、サーバーでも同じように再生される。検証AIは「失敗した」として解けることを確かめている */
+   成功は打ち手の記録に '!cliff' として残り、サーバーでも同じように再生される。失敗すると警戒 +1（cliffFail）。
+   検証AI（playout）と最善手探索（solve）は「失敗した」として解けることを確かめ、再生（replayLog）は '!cliff' が続かなければ失敗として同じ cliffFail を通す */
 const CLIFF_TIME = 1.6;
 function startCliffTime() {
   G.gamble = { active: true, need: 3, have: 0, t: 0 };
@@ -1485,7 +1508,9 @@ function endCliffTime(okTap) {
     slowCheck();
     if (G.sur >= 100) { winSequence(); return; }
   } else {
+    const up = cliffFail(G);                     // 失敗：警戒 +1（記録には残さない。再生でも同じく失敗として数える）
     sndBuzz(); addFloat(V.cx, 230, '……言葉が、届かんかった', '#cfd8e8', 22);
+    if (up) { addFloat(V.cx, 262, '警戒 +1', '#ffb347', 24); banner('警戒された……！', '#ffb347'); }
   }
   if (phase === 'battle') G.busy = false;
 }
@@ -1628,6 +1653,7 @@ function solveRoute(seed, diff, maxTurns) {
       if (!id) break;
       g.hand.splice(g.hand.indexOf(id), 1); g.disc.push(id); log[log.length - 1].push(id);
       const r = cardEffect(g, id, diff); if (r.draw) g.hand.push(...coreDraw(g, r.draw));
+      if (r.cliff) cliffFail(g);                 // (検証AIと同じく、崖っぷちタイムは失敗として)
       if (g.sur >= 100) return { win: true, turn: g.turn, log, first };
     }
     g.disc.push(...g.hand); g.hand = [];
@@ -1911,6 +1937,8 @@ const CU_LOOK = {
   washio: { pal: { suit: '#45454e', suitS: '#2c2c33', tie: '#d8a020', hair: '#6e6e78', hairL: '#9a9aa6' } },
   tome:   { pal: { suit: '#7a4a6a', suitS: '#52304a', tie: '#e8c870', shirt: '#f4e8d0', hair: '#c8c8d2', hairL: '#ececf2', pants: '#3a2a36' }, bun: true, long: 1 },
   minamo: { pal: { suit: '#5a7a9a', suitS: '#3e5872', tie: '#f4f0e8', hair: '#1a1420', hairL: '#3a3044', pants: '#2a3442' }, long: 2 },
+  kanzaki: { pal: { suit: '#2c2c40', suitS: '#1c1c2a', tie: '#8a3ab0', shirt: '#f0f0f8', hair: '#d8d8e0', hairL: '#f4f4fa', pants: '#20202c' } },
+  hosono: { pal: { suit: '#4f6a4a', suitS: '#364a33', tie: '#d8d0b0', shirt: '#e8e0c8', hair: '#3a2c20', hairL: '#5a4634', pants: '#3a3a30' } },
 };
 function culpritSprite(expr, kneel, f, tear, cu) {
   const look = CU_LOOK[cu] || null;
@@ -2606,16 +2634,16 @@ function drawBanner() {
   ctx.restore();
 }
 // タイトル：難易度選択
-const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 282 + i * 66, w: 460, h: 58, d }));
+const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 268 + i * 68, w: 460, h: 64, d }));   // (高さ64＝幅375pxのスマホで44px)
 // 犯人を選ぶ（難易度の下）。選んだ犯人はこの端末に覚える
-const CU_BTNS = CULPRITS.map((c, i) => ({ x: 40 + i * 118, y: 574, w: 106, h: 64, c }));
+const CU_BTNS = CULPRITS.map((c, i) => ({ x: 40 + i * 78, y: 566, w: 70, h: 64, c }));   // 6人を1段に（幅70＝375pxのスマホで約49×44px）
 var CULPRIT_KEY = SAVE_KEY + '.culprit';
 var curCulprit = culpritByKey(lsGet(CULPRIT_KEY)) ? lsGet(CULPRIT_KEY) : 'iwaki';
 function pickCulprit(k) { curCulprit = k; lsSet(CULPRIT_KEY, k); }
 // 下の4ボタン（高さ64＝幅375pxのスマホでも44px以上）
-const T_RULE = { x: 40, y: 692, w: 107, h: 64 }, T_MY = { x: 157, y: 692, w: 107, h: 64 }, T_RANK = { x: 274, y: 692, w: 107, h: 64 }, T_ZUKAN = { x: 391, y: 692, w: 109, h: 64 };
-const T_DAILY = { x: 40, y: 818, w: 300, h: 54 }, T_CASE = { x: 352, y: 818, w: 148, h: 54 };   // 今日の事件・事件番号で挑戦
-const T_NEWS = { x: 396, y: 18, w: 126, h: 46 };
+const T_RULE = { x: 40, y: 682, w: 107, h: 64 }, T_MY = { x: 157, y: 682, w: 107, h: 64 }, T_RANK = { x: 274, y: 682, w: 107, h: 64 }, T_ZUKAN = { x: 391, y: 682, w: 109, h: 64 };
+const T_DAILY = { x: 40, y: 808, w: 300, h: 64 }, T_CASE = { x: 352, y: 808, w: 148, h: 64 };   // 今日の事件・事件番号で挑戦
+const T_NEWS = { x: 396, y: 12, w: 126, h: 64 };
 function drawTitle() {
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2626,7 +2654,7 @@ function drawTitle() {
   ctx.save(); ctx.beginPath(); ctx.rect(0, 120, W, 24); ctx.clip();                          // 上半分を明るく（ドットのツヤ）
   ctx.fillStyle = '#ff9a6a'; ctx.fillText('ディスウェイド', W / 2, 150); ctx.restore();
   ctx.font = `14px ${GOTH}`; ctx.fillStyle = '#ddd'; ctx.fillText('〜 証拠と人情と福井グルメで、犯人を自首させろ 〜', W / 2, 202);
-  ctx.font = `18px ${MINCHO}`; outlineText('― 難易度を選んで開幕 ―', W / 2, 258, '#fff', '#000', 4);
+  ctx.font = `18px ${MINCHO}`; outlineText('― 難易度を選んで開幕 ―', W / 2, 246, '#fff', '#000', 4);
   DIFF_BTNS.forEach((b, i) => {
     const d = b.d, hov = hoverBtn === 'd' + i;
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(b.x + 6, b.y + 6, b.w, b.h);
@@ -2634,38 +2662,38 @@ function drawTitle() {
     ctx.fillStyle = d.col; ctx.fillRect(b.x, b.y, b.w, b.h);
     ctx.fillStyle = hov ? '#2a2018' : '#100e18'; ctx.fillRect(b.x + 6, b.y + 6, b.w - 12, b.h - 12);
     ctx.textAlign = 'left';
-    ctx.font = `24px ${MINCHO}`; outlineText(d.name, b.x + 20, b.y + 21, d.col, '#000', 4);
+    ctx.font = `24px ${MINCHO}`; outlineText(d.name, b.x + 20, b.y + 23, d.col, '#000', 4);
     // 難易度の星
-    ctx.font = `14px ${GOTH}`; ctx.fillStyle = d.col; ctx.fillText('★'.repeat(i + 1) + '☆'.repeat(3 - i), b.x + 172, b.y + 22);
-    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ccc'; ctx.fillText(d.sub, b.x + 20, b.y + 43);
+    ctx.font = `14px ${GOTH}`; ctx.fillStyle = d.col; ctx.fillText('★'.repeat(i + 1) + '☆'.repeat(3 - i), b.x + 172, b.y + 24);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ccc'; ctx.fillText(d.sub, b.x + 20, b.y + 47);
     ctx.textAlign = 'right';
     const cl = SAVE.clear[d.key];
     ctx.font = `13px ${GOTH}`;
-    if (cl != null) { ctx.fillStyle = '#ffd56b'; ctx.fillText('クリア済　ランク ' + RANKS[cl], b.x + b.w - 16, b.y + 21); }
-    else { ctx.fillStyle = '#777'; ctx.fillText('未クリア', b.x + b.w - 16, b.y + 21); }
-    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('勘 +' + d.reward, b.x + b.w - 16, b.y + 43);
+    if (cl != null) { ctx.fillStyle = '#ffd56b'; ctx.fillText('クリア済　ランク ' + RANKS[cl], b.x + b.w - 16, b.y + 23); }
+    else { ctx.fillStyle = '#777'; ctx.fillText('未クリア', b.x + b.w - 16, b.y + 23); }
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('勘 +' + d.reward, b.x + b.w - 16, b.y + 47);
   });
-  ctx.textAlign = 'center'; ctx.font = `15px ${MINCHO}`; outlineText('― 説得する犯人 ―', W / 2, 558, '#fff', '#000', 3);
+  ctx.textAlign = 'center'; ctx.font = `15px ${MINCHO}`; outlineText('― 説得する犯人 ―', W / 2, 551, '#fff', '#000', 3);
   CU_BTNS.forEach((b, i) => {                                                     // 犯人を選ぶ（選んでいる人は光る）
     const sel = b.c.key === curCulprit;
     button(b, b.c.short, b.c.sub, sel ? '#8a2a20' : '#2a2a3a', sel ? '#3a1500' : '#14141c', true, false, hoverBtn === 'cu' + i);
-    if (sel) { ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 3; ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12); }
+    if (sel) { ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 3; ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8); }
   });
   { // 選んでいる犯人を大きく：名前と、能力のひとこと
     const c = culpritByKey(curCulprit); ctx.textAlign = 'center';
-    ctx.font = `18px ${MINCHO}`; outlineText(`${c.name}（${c.sub}）`, W / 2, 660, c.col, '#000', 4);
-    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#e8e8f0'; ctx.fillText(c.desc, W / 2, 680);
+    ctx.font = `18px ${MINCHO}`; outlineText(`${c.name}（${c.sub}）`, W / 2, 651, c.col, '#000', 4);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#e8e8f0'; ctx.fillText(c.desc, W / 2, 669);
   }
   button(T_RULE, 'ルール', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'trule');
   button(T_MY, 'マイページ', null, '#2e6a50', '#14382a', true, false, hoverBtn === 'tmy');
   button(T_RANK, '実績表', null, '#8a6a10', '#4a3500', true, false, hoverBtn === 'trank');
   button(T_ZUKAN, '図鑑', `${zukanTotal()} / ${zukanMax()}`, '#6a3a7a', '#341a3e', true, false, hoverBtn === 'tzukan');
-  rr(40, 766, 460, 44, 12); ctx.fillStyle = 'rgba(40,30,8,0.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,213,107,0.6)'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.textAlign = 'left'; ctx.font = `15px ${MINCHO}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('県民の勘', 58, 789);
-  ctx.font = `19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 789, '#fff', '#000', 4);
+  rr(40, 756, 460, 44, 12); ctx.fillStyle = 'rgba(40,30,8,0.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,213,107,0.6)'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.font = `15px ${MINCHO}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('県民の勘', 58, 779);
+  ctx.font = `19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 779, '#fff', '#000', 4);
   const acc = typeof SyncManager !== 'undefined' && SyncManager ? SyncManager.account() : null;
   ctx.textAlign = 'right'; ctx.font = `13px ${GOTH}`; ctx.fillStyle = acc ? '#b0ffc8' : '#aaa';
-  ctx.fillText(`${myFullName()}［${gradeName(gradeIndex())}］　` + (acc ? 'ログイン中' : 'ゲスト'), 484, 789);
+  ctx.fillText(`${myFullName()}［${gradeName(gradeIndex())}］　` + (acc ? 'ログイン中' : 'ゲスト'), 484, 779);
   ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#999';
   { // 今日の事件（解決済みなら連続日数）と、事件番号で挑戦
     const ds = dailyState(), cu = culpritByKey(ds.culprit), m = Math.floor(ds.key / 100) % 100, dd = ds.key % 100;
@@ -2674,7 +2702,7 @@ function drawTitle() {
     button(T_CASE, '事件番号', 'で挑戦', '#3a3a5a', '#1c1c30', true, false, hoverBtn === 'tcase');
   }
   ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#999';
-  ctx.fillText('県民の勘：クリアで入手。バトル中に使うと、その場の最善手を1つ教えてくれる', W / 2, 889);
+  ctx.fillText('県民の勘：クリアで入手。バトル中に使うと、その場の最善手を1つ教えてくれる', W / 2, 888);
   button(T_NEWS, 'お知らせ', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'tnews');   // アップデートのお知らせ
   if (typeof newsUnseen === 'function' && newsUnseen().length) {
     ctx.fillStyle = '#000'; ctx.fillRect(T_NEWS.x + T_NEWS.w - 21, T_NEWS.y - 12, 33, 21);
@@ -2701,7 +2729,7 @@ const RULE_PAGES = [
     ['#6bd98f', '【人情】（緑）　自首メーターを上げる。ただし心壁が残っていると大きく弱まる（難易度が高いほど効かない）。'],
     ['#ff7a6a', '【グルメ】（赤）　動揺させる・AP回復・ドローなど。食べさせると犯人の足も止まりやすい。'],
     ['#b0ffc8', '「緩急」：証拠を使った直後の人情は ×1.3。カードを使う順番も大事！'],
-    ['#ffe9b0', 'カードは全48種類。毎回ランダムに山札が組まれる。★レアは強力、◆はときどき出るカード。'],
+    ['#ffe9b0', 'カードは全60種類。毎回ランダムに山札が組まれる。★レアは強力、◆はときどき出るカード。'],
   ] },
   { title: 'カードの特殊効果', items: [
     ['#7fb2ff', '連携：直前に証拠を使っていると追加ダメージ。'],
@@ -2733,7 +2761,7 @@ const RULE_PAGES = [
     ['#ffb347', '鷲尾 権造（県会議員）：心壁が毎ターン+12回復し、警戒が高いと反論が激しい。割って止め、警戒を下げよう。'],
     ['#ff9ad0', '前川 トメ（人情犯）：心壁があると人情×0.25。グルメの自首・心壁ダメージ・回復・警戒下げは×2.5（ドローとAPは通常）。グルメで攻めよう。'],
     ['#7dffa8', '柏木 みなも（元看護師）：いつも「拒絶」（人情で警戒+1）。自首50を超えると人情×2。'],
-    ['#ffd56b', '崖っぷちタイム：自首が70に届くと1回だけ発動。1.6秒以内に画面を3回タップ（PCはスペースキー）で自首 +15。失敗しても罰はない。'],
+    ['#ffd56b', '崖っぷちタイム：自首が70に届くと1回だけ発動。1.6秒以内に画面を3回タップ（PCはスペースキー）で自首 +15。失敗すると警戒 +1。'],
   ] },
   { title: '階級と功績', items: [
     ['#b0ffc8', '事件を解決すると「功績」がたまる。かんたん10・ふつう30・むずかしい80・崖っぷち200。'],
@@ -3726,7 +3754,7 @@ const OB_SLIDES = [
   { h: '③ 3つのカードを使い分ける', t: '青の【証拠】で心の壁（心壁）を崩し、緑の【人情】で自首メーターを上げます。心壁が残っていると人情は届きにくい。赤の【グルメ】は犯人を動揺させたり、APや手札を増やしたり。', pic: 'cards' },
   { h: '④ 犯人の狙いを読む', t: '画面の左上に、犯人が次にすることと、その対策が出ます。毎ターン変わる「心境」でカードの効き方も変わります。カードの数字は「今使ったらどうなるか」です。', pic: 'read' },
   { h: '⑤ 県民の勘・階級・捜査実績表', t: '迷ったら「県民の勘」で一番いい手を教えてもらえます。どの事件も、推理すれば必ず解決できることを確かめてから出しています。解決すると「功績」がたまって巡査から警視総監まで昇進し、説得スコアが捜査実績表に自動で載ります。', pic: 'win' },
-  { h: '⑥ コンボと崖っぷちタイム', t: '決まった組み合わせでカードを使うと「捜査コンボ」が成立（カードに「○○コンボ！」と出たら狙いどき）。自首が70に届くと一度だけ「崖っぷちタイム」。1.6秒以内に画面を3回タップすると自首 +15。犯人は4人から選べて、それぞれ攻め方が違います。', pic: 'combo' },
+  { h: '⑥ コンボと崖っぷちタイム', t: '決まった組み合わせでカードを使うと「捜査コンボ」が成立（カードに「○○コンボ！」と出たら狙いどき）。自首が70に届くと一度だけ「崖っぷちタイム」。1.6秒以内に画面を3回タップすると自首 +15（失敗すると警戒 +1）。犯人は6人から選べて、それぞれ攻め方が違います。', pic: 'combo' },
   { h: 'アカウントを作成またはログインしますか？', t: 'アカウントがあると、ほかの端末でも記録と県民の勘を引き継げて、捜査実績表にも同じ名前で載ります。作るのはユーザー名とパスワードだけ（メールアドレスは不要）。あとからマイページでもできます。', acc: true, pic: 'acc' },
 ];
 const OBE = {};
@@ -3862,6 +3890,11 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 12, ver: '1.12', date: '2026-10-10', title: '新カード12枚・新しい犯人2人・崖っぷちタイムの駆け引き', items: [
+    'カードが60種類に（証拠・人情・グルメ 各4枚追加）。「越前打刃物の刃こぼれ」「白山に登る約束」「小鯛のささ漬け」など',
+    '新しい犯人：大学教授「神崎 理」（割合ダメージの証拠に弱いが、警戒が下がりにくい）と、町工場主「細野 誠一」（最初は硬いが、自首50を超えると一気に崩れる）',
+    '崖っぷちタイムに失敗すると「警戒 +1」。出題される事件は、失敗しても解けることを確かめています',
+    'カードが増えたため、同じ事件番号でも中身が新しくなりました（今日の事件・共有URLも新しい事件になります）'] },
   { id: 11, ver: '1.11', date: '2026-10-10', title: '今日の事件・コンボのヒント・番号で挑戦', items: [
     'タイトルに「今日の事件」。日本時間の日付ごとに、全員が同じ事件（ふつう・犯人は日替わり）に挑みます',
     '今日の事件を毎日解くと「連続日数」が伸び、県民の勘のボーナス（1〜2日目 +1、3〜6日目 +2、7日目から +3）',
