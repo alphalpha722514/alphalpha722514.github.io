@@ -238,6 +238,22 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
     </div>
   </section>
 
+  <section id="scr-case" class="ov-scr" aria-labelledby="cs-h" hidden>
+    <div class="ov-bar"><h2 id="cs-h" class="ov-title">事件番号で挑戦</h2><button id="cs-back" class="ov-btn" type="button">もどる</button></div>
+    <section class="ov-card">
+      <form id="cs-form" class="ov-form" novalidate>
+        <label for="cs-input" class="ov-label">事件番号（結果画面や捜査実績表の「No.」の数字）</label>
+        <input id="cs-input" class="ov-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" autocomplete="off" placeholder="例：27332">
+        <p class="ov-label">難易度</p>
+        <div id="cs-diff" class="ov-tabs" role="group" aria-label="難易度"></div>
+        <p class="ov-label">犯人</p>
+        <div id="cs-cu" class="ov-tabs" role="group" aria-label="犯人"></div>
+        <div class="ov-row"><button class="ov-btn primary" type="submit">この事件に挑戦</button></div>
+      </form>
+      <p class="ov-note">同じ番号・難易度・犯人なら、だれが遊んでも同じ事件になります。今日の事件の番号は8けた以上（例：20261010）で、難易度は「ふつう」です。番号が読めないときや推理で解けない番号のときは、別の事件を出題します。</p>
+    </section>
+  </section>
+
   <section id="scr-zukan" class="ov-scr" aria-labelledby="zk-h" hidden>
     <div class="ov-bar"><h2 id="zk-h" class="ov-title">捜査図鑑</h2><button id="zk-back" class="ov-btn" type="button">もどる</button></div>
     <div id="zk-tabs" class="ov-tabs" role="group" aria-label="図鑑の種類">
@@ -759,8 +775,8 @@ function replayLog(D, seed, log) {
   }
   return null;
 }
-function randomSeed() { return (Math.floor(Math.random() * 0xFFFFFFFF) >>> 0) || 1; }
-function caseNo(seed) { return String(seed % 100000).padStart(5, '0'); }
+function randomSeed() { return Math.floor(Math.random() * 99999) + 1; }   // 1〜99999（事件番号＝シード。番号を入れて同じ事件に挑める。出題を選ぶだけで、ゲームの乱数は rngFor）
+function caseNo(seed) { return seed < 100000 ? String(seed).padStart(5, '0') : String(seed); }   // 事件番号＝シードそのもの（5けた未満は0で埋める。今日の事件は8けた）
 /*CORE-END*/
 
 // 画面の大きさ（論理座標）。スマホなど縦長は 540×960、パソコンなど横長は 1600×900 の横長レイアウト
@@ -905,7 +921,7 @@ const OB_NEW_FROM = { 2: 5 };   // 版 → その版で増えた説明（OB_SLID
 // schema 4：図鑑（zukan）を追加。中身は「種類 → { key: 解決した回数 }」
 const ZUKAN_KINDS = ['culprits', 'cards', 'combos', 'endings'];
 function blankZukan() { return { culprits: {}, cards: {}, combos: {}, endings: {} }; }
-function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan() }; }
+function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan(), daily: { last: 0, streak: 0, best: 0 } }; }
 // 図鑑に載せてよい key（知らない key は捨てる）
 function zukanKeys(kind) {
   if (kind === 'culprits') return CULPRITS.map(c => c.key);
@@ -947,6 +963,7 @@ function coerceSave(raw) {
   if (Array.isArray(raw.solved)) out.solved = raw.solved.filter(v => typeof v === 'string' && /^[a-z]+:\d{1,10}(:[a-z]+)?$/.test(v)).slice(-SOLVED_MAX);
   out.gradeSeen = raw.gradeSeen == null ? -1 : cInt(raw.gradeSeen, -1, 9);
   if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
+  if (isObj(raw.daily)) out.daily = { last: cInt(raw.daily.last, 0, 99991231), streak: cInt(raw.daily.streak, 0, COUNT_MAX), best: cInt(raw.daily.best, 0, COUNT_MAX) };   // 今日の事件（v1.11。無いセーブは blankSave の 0 のまま）
   // 図鑑（schema 4）。schema 3 以前には無いので空から。解決したことがあれば、それまでの唯一の犯人「岩城」は会ったことにする
   if (isObj(raw.zukan)) {
     for (const k of ZUKAN_KINDS) {
@@ -976,6 +993,8 @@ function mergeSaves(a, b) {
   out.gradeSeen = Math.max(L.gradeSeen, C.gradeSeen);
   if (C.profile.at > L.profile.at) out.profile = Object.assign({}, C.profile);
   for (const k of ZUKAN_KINDS) for (const key of Object.keys(C.zukan[k])) out.zukan[k][key] = Math.max(out.zukan[k][key] || 0, C.zukan[k][key]);   // 図鑑：どちらかで見つけていれば見つけた
+  { const x = L.daily, y = C.daily, w = y.last > x.last || (y.last === x.last && y.streak > x.streak) ? y : x;   // 今日の事件：新しく解いたほうの連続日数。最高記録は大きいほう
+    out.daily = { last: w.last, streak: w.streak, best: Math.max(x.best, y.best, w.streak) }; }
   return out;
 }
 function loadSave() {
@@ -1318,7 +1337,7 @@ function resetRun() {
 function newGame(diff, seed) {
   D = diff.culprit ? diff : withCulprit(diff, 'iwaki');
   CN = '犯人・' + cuNow().short;
-  G = Object.assign(coreNewGame(D, seed || 1), { busy: true, totalPlayed: 0, hint: null, kanUsed: 0, verified: false, log: [], rankMsg: '', bestUp: false });
+  G = Object.assign(coreNewGame(D, seed || 1), { busy: true, totalPlayed: 0, hint: null, kanUsed: 0, verified: false, log: [], rankMsg: '', bestUp: false, daily: 0, dailyRes: null });
   V.kneelT = 0; V.kneel = 0; V.culpritA = 1; V.dark = 0; V.sunset = 0; V.cracks = []; V.crackT = 0;
   V.flying = []; V.floats = []; V.banner = null; V.bannerQ = []; V.cx = cliffX(G.crisis);
   V.cutin = null; V.zoom = 1; V.zoomHold = 0; V.slow = 0;                 // カットイン・カメラ・スロー
@@ -1561,6 +1580,8 @@ async function winSequence() {
   // 報酬（演出の途中でやり直されても確定させる）
   lastReward = D.reward;
   earnKan(lastReward);
+  G.dailyRes = G.daily ? dailyRecordWin(G.daily) : null;                // 今日の事件：連続日数のボーナス（下の recordResult で保存）
+  if (G.dailyRes) { earnKan(G.dailyRes.bonus); lastReward += G.dailyRes.bonus; }
   const rank = G.turn <= 3 ? 3 : G.turn <= 4 ? 2 : G.turn <= 5 ? 1 : 0;
   const prev = SAVE.clear[D.key];
   newRecord = prev == null || rank > prev;
@@ -1632,6 +1653,7 @@ async function beginGame(diffIn, seed, ck, opts) {
   const diff = withCulprit(diffByKey(diffIn.key), ck || diffIn.culprit || curCulprit);
   const sameCase = seed != null && G && G.seed === seed && D.key === diff.key && D.culprit === diff.culprit;   // (同じ事件のやり直し：確認済みかどうかを引き継ぐ)
   const keepVerified = sameCase ? G.verified : true;
+  const daily = opts.daily || (sameCase ? G.daily : 0);                 // 今日の事件（日付 yyyymmdd）。やり直しでも引き継ぐ
   resetRun(); const run = RUN;
   newGame(diff, 1); phase = 'battle'; bgmStart();
   if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.55, t, 0.5); }
@@ -1642,6 +1664,13 @@ async function beginGame(diffIn, seed, ck, opts) {
     await new Promise(r => setTimeout(r, 30));
     if (run !== RUN) return;
     verified = playout(seed, diff, 20, 200000).win;
+    if (!verified && opts.fallback) { seed = null; opts.note = opts.fallback; }   // (番号で挑戦：解けない番号なら、ふつうの出題にする)
+  }
+  if (seed == null && opts.daily) {
+    say(NN, '今日の事件ファイルを取り寄せ中……', NC, 60000);
+    await new Promise(r => setTimeout(r, 30));
+    if (run !== RUN) return;
+    const ds = dailySeed(opts.daily, diff); seed = ds.seed; verified = ds.verified;
   }
   if (seed == null) {
     say(NN, '事件ファイルを照合中……（この事件が推理でクリアできるか確認しています）', NC, 60000);
@@ -1649,7 +1678,7 @@ async function beginGame(diffIn, seed, ck, opts) {
     if (run !== RUN) return;
     seed = found ? found.seed : randomSeed(); verified = !!found;
   }
-  newGame(diff, seed); G.verified = verified; G.busy = true; dlg = null; dlgResolve = null;
+  newGame(diff, seed); G.verified = verified; G.daily = daily; G.busy = true; dlg = null; dlgResolve = null;
   const cu = cuNow();
   if (opts.note) await say(NN, opts.note, NC, 1400);
   if (!verified) await say(NN, '※この事件は、推理でクリアできるかどうか確かめられていません（運が悪いと解けないことがあります）。', '#ffb0a0', 1600);
@@ -1657,6 +1686,38 @@ async function beginGame(diffIn, seed, ck, opts) {
   await say(CN, '来るな！ それ以上近づいたら……飛び降りるぞ！', CC, 800);
   await say(DN, `（証拠で心の壁を崩して、人情で心を溶かす……。崖の端まで、あと${G.crisis}歩や）`, DC, 800);
   startTurn();
+}
+
+/* ---------- 今日の事件（日本時間の日付ごとに全員同じ事件。ふつう・犯人は日替わり） ---------- */
+function dayKeyOf(ms) { const t = new Date(ms + 9 * 3600000); return t.getUTCFullYear() * 10000 + (t.getUTCMonth() + 1) * 100 + t.getUTCDate(); }
+function todayKey() { return dayKeyOf(Date.now()); }
+function dayMs(key) { return Date.UTC(Math.floor(key / 10000), Math.floor(key / 100) % 100 - 1, key % 100); }   // その日の 0:00（UTC の数字で）
+function prevDayKey(key) { const t = new Date(dayMs(key) - 86400000); return t.getUTCFullYear() * 10000 + (t.getUTCMonth() + 1) * 100 + t.getUTCDate(); }
+function dailyCulprit(key) { return CULPRITS[Math.floor(dayMs(key) / 86400000) % CULPRITS.length].key; }
+// 日付からシード。まず yyyymmdd、推理で解けなければ yyyymmdd01, 02 … と決まった順に試す（誰の端末でも同じ答え）
+function dailySeed(key, diff) {
+  for (let k = 0; k < 100; k++) {
+    const seed = k ? key * 100 + k : key;
+    if (playout(seed, diff, 20, 25000).win) return { seed, verified: true };
+  }
+  return { seed: key, verified: false };
+}
+function dailyState() {
+  const key = todayKey(), d = SAVE.daily, solved = d.last === key, alive = solved || d.last === prevDayKey(key);
+  return { key, solved, streak: alive ? d.streak : 0, culprit: dailyCulprit(key) };
+}
+function dailyBonus(streak) { return streak >= 7 ? 3 : streak >= 3 ? 2 : 1; }   // 連続1〜2日目 +1、3〜6日目 +2、7日目から +3
+// 今日の事件を解決：その日の初回だけ連続日数を進めて、勘のボーナス（解けた事件の日付で数える）
+function dailyRecordWin(key) {
+  const d = SAVE.daily;
+  if (!key || d.last >= key) return null;
+  d.streak = d.last === prevDayKey(key) ? d.streak + 1 : 1;
+  d.last = key; d.best = Math.max(d.best, d.streak);
+  return { streak: d.streak, bonus: dailyBonus(d.streak) };
+}
+function startDaily() {
+  const key = todayKey(), m = Math.floor(key / 100) % 100, dd = key % 100;
+  beginGame(diffByKey('normal'), null, dailyCulprit(key), { daily: key, note: `今日の事件（${m}月${dd}日）。全国の刑事が、同じ事件に挑んでいます。` });
 }
 
 /* ---------- 県民の勘（最善手ヒント） ---------- */
@@ -2315,6 +2376,26 @@ const TYPE = {
   gu: { label: 'グルメ', col: '#d6453a', dark: '#7a1d17' },
 };
 // 現在の状況で使ったときの実際の効果をプレビュー
+// このカードを使ったら、まだ出していない各コンボが「あと何枚」になるか（判定は combosHit と同じ。0＝この1枚で成立）
+function comboProgress(s, id) {
+  const out = [];
+  if (!CARDS[id]) return out;
+  const R = s.recent.concat([id]); if (R.length > 6) R.shift();          // (cardEffect と同じ、直近6枚)
+  const n = R.length;
+  for (const c of COMBOS) {
+    const inC = x => (c.set ? c.set.includes(x) : CARDS[x].type === c.type);
+    if (!inC(id) || s.firedCombos.includes(c.id)) continue;
+    let have = 1;
+    if (c.seq) {                                                           // 連続3枚（3枚とも別のカード）
+      if (n >= 2 && inC(R[n - 2]) && R[n - 2] !== id) {
+        have = 2;
+        if (n >= 3 && inC(R[n - 3]) && R[n - 3] !== id && R[n - 3] !== R[n - 2]) have = 3;
+      }
+    } else { const u = []; for (const x of R) if (inC(x) && !u.includes(x)) u.push(x); have = Math.min(3, u.length); }   // 直近6枚に3種
+    out.push({ combo: c, need: 3 - have });
+  }
+  return out;
+}
 function previewLines(id) {
   const s = makeSim(G); const r = cardEffect(s, id, D); const d = CARDS[id];
   const L = [];
@@ -2331,7 +2412,10 @@ function previewLines(id) {
   if (r.draw) L.push([r.draw + '枚ドロー', '#333']);
   if (r.alert) L.push(['警戒 ' + (r.alert > 0 ? '+' : '') + r.alert, r.alert > 0 ? '#b03000' : '#333']);
   if (!L.length) L.push(['効果なし…', '#a32020']);
-  return { L: L.slice(0, 4), tags: r.tags };
+  const tags = r.tags.slice();
+  const near = comboProgress(G, id).filter(p => p.need > 0).sort((a, b) => a.need - b.need)[0];   // いちばん近いコンボを1つだけ
+  if (near) tags.push(`${near.combo.name}まで あと${near.need}枚`);
+  return { L: L.slice(0, 4), tags, near: near || null };
 }
 function drawCard(c, x, y, sc, alpha, isHover, usable, glow) {
   const d = c.def, ty = TYPE[d.type];
@@ -2363,10 +2447,18 @@ function drawCard(c, x, y, sc, alpha, isHover, usable, glow) {
   const pv = previewLines(c.id);
   ctx.font = `12px ${GOTH}`;
   pv.L.forEach((l, i) => { ctx.fillStyle = l[1]; ctx.fillText(l[0], CW / 2, ly + 13 + i * 15); });
-  if (pv.tags.length) {
-    ctx.font = `10px ${GOTH}`; ctx.fillStyle = '#9a5a00';
-    const tl = wrap(pv.tags.join(' '), CW - 14).slice(0, 2);
-    tl.forEach((t, i) => ctx.fillText(t, CW / 2, CH - 22 + i * 12 - (tl.length - 1) * 12));
+  { // 下の小さな注記：倍率などのタグ（最大2行）と、コンボまでのあと枚数（「○○まで」「あと1枚」の2行）。効果の行と重なるぶんはタグから省く
+    const top = ly + 13 + (pv.L.length - 1) * 15 + 10, rows = [];
+    ctx.font = `10px ${GOTH}`;
+    const other = pv.near ? pv.tags.slice(0, -1) : pv.tags;
+    if (other.length) wrap(other.join(' '), CW - 14).slice(0, 2).forEach(t => rows.push([t, '#9a5a00', 10]));
+    if (pv.near) {
+      const nm = pv.near.combo.name + 'まで', w0 = ctx.measureText(nm).width;
+      rows.push([nm, '#7a4a00', w0 > CW - 14 ? Math.max(8, Math.floor(10 * (CW - 14) / w0)) : 10]);
+      rows.push([`あと${pv.near.need}枚`, pv.near.need === 1 ? '#c0161e' : '#7a4a00', 11]);
+    }
+    while (rows.length && CH - 22 - (rows.length - 1) * 12 < top) rows.shift();
+    rows.forEach((r, i) => { ctx.font = `${r[2]}px ${GOTH}`; ctx.fillStyle = r[1]; ctx.fillText(r[0], CW / 2, CH - 22 - (rows.length - 1 - i) * 12); });
   }
   if (glow) {
     ctx.fillStyle = '#000'; ctx.fillRect(CW - 33, -12, 42, 27); ctx.fillStyle = '#ffd84a'; ctx.fillRect(CW - 30, -9, 36, 21);
@@ -2514,14 +2606,15 @@ function drawBanner() {
   ctx.restore();
 }
 // タイトル：難易度選択
-const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 282 + i * 72, w: 460, h: 64, d }));
+const DIFF_BTNS = DIFFS.map((d, i) => ({ x: 40, y: 282 + i * 66, w: 460, h: 58, d }));
 // 犯人を選ぶ（難易度の下）。選んだ犯人はこの端末に覚える
-const CU_BTNS = CULPRITS.map((c, i) => ({ x: 40 + i * 118, y: 598, w: 106, h: 64, c }));
+const CU_BTNS = CULPRITS.map((c, i) => ({ x: 40 + i * 118, y: 574, w: 106, h: 64, c }));
 var CULPRIT_KEY = SAVE_KEY + '.culprit';
 var curCulprit = culpritByKey(lsGet(CULPRIT_KEY)) ? lsGet(CULPRIT_KEY) : 'iwaki';
 function pickCulprit(k) { curCulprit = k; lsSet(CULPRIT_KEY, k); }
 // 下の4ボタン（高さ64＝幅375pxのスマホでも44px以上）
-const T_RULE = { x: 40, y: 716, w: 107, h: 64 }, T_MY = { x: 157, y: 716, w: 107, h: 64 }, T_RANK = { x: 274, y: 716, w: 107, h: 64 }, T_ZUKAN = { x: 391, y: 716, w: 109, h: 64 };
+const T_RULE = { x: 40, y: 692, w: 107, h: 64 }, T_MY = { x: 157, y: 692, w: 107, h: 64 }, T_RANK = { x: 274, y: 692, w: 107, h: 64 }, T_ZUKAN = { x: 391, y: 692, w: 109, h: 64 };
+const T_DAILY = { x: 40, y: 818, w: 300, h: 54 }, T_CASE = { x: 352, y: 818, w: 148, h: 54 };   // 今日の事件・事件番号で挑戦
 const T_NEWS = { x: 396, y: 18, w: 126, h: 46 };
 function drawTitle() {
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(-CX, 0, W + 2 * CX, H);
@@ -2541,18 +2634,18 @@ function drawTitle() {
     ctx.fillStyle = d.col; ctx.fillRect(b.x, b.y, b.w, b.h);
     ctx.fillStyle = hov ? '#2a2018' : '#100e18'; ctx.fillRect(b.x + 6, b.y + 6, b.w - 12, b.h - 12);
     ctx.textAlign = 'left';
-    ctx.font = `24px ${MINCHO}`; outlineText(d.name, b.x + 20, b.y + 23, d.col, '#000', 4);
+    ctx.font = `24px ${MINCHO}`; outlineText(d.name, b.x + 20, b.y + 21, d.col, '#000', 4);
     // 難易度の星
-    ctx.font = `14px ${GOTH}`; ctx.fillStyle = d.col; ctx.fillText('★'.repeat(i + 1) + '☆'.repeat(3 - i), b.x + 172, b.y + 24);
-    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ccc'; ctx.fillText(d.sub, b.x + 20, b.y + 47);
+    ctx.font = `14px ${GOTH}`; ctx.fillStyle = d.col; ctx.fillText('★'.repeat(i + 1) + '☆'.repeat(3 - i), b.x + 172, b.y + 22);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ccc'; ctx.fillText(d.sub, b.x + 20, b.y + 43);
     ctx.textAlign = 'right';
     const cl = SAVE.clear[d.key];
     ctx.font = `13px ${GOTH}`;
-    if (cl != null) { ctx.fillStyle = '#ffd56b'; ctx.fillText('クリア済　ランク ' + RANKS[cl], b.x + b.w - 16, b.y + 23); }
-    else { ctx.fillStyle = '#777'; ctx.fillText('未クリア', b.x + b.w - 16, b.y + 23); }
-    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('勘 +' + d.reward, b.x + b.w - 16, b.y + 47);
+    if (cl != null) { ctx.fillStyle = '#ffd56b'; ctx.fillText('クリア済　ランク ' + RANKS[cl], b.x + b.w - 16, b.y + 21); }
+    else { ctx.fillStyle = '#777'; ctx.fillText('未クリア', b.x + b.w - 16, b.y + 21); }
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('勘 +' + d.reward, b.x + b.w - 16, b.y + 43);
   });
-  ctx.textAlign = 'center'; ctx.font = `15px ${MINCHO}`; outlineText('― 説得する犯人 ―', W / 2, 582, '#fff', '#000', 3);
+  ctx.textAlign = 'center'; ctx.font = `15px ${MINCHO}`; outlineText('― 説得する犯人 ―', W / 2, 558, '#fff', '#000', 3);
   CU_BTNS.forEach((b, i) => {                                                     // 犯人を選ぶ（選んでいる人は光る）
     const sel = b.c.key === curCulprit;
     button(b, b.c.short, b.c.sub, sel ? '#8a2a20' : '#2a2a3a', sel ? '#3a1500' : '#14141c', true, false, hoverBtn === 'cu' + i);
@@ -2560,22 +2653,28 @@ function drawTitle() {
   });
   { // 選んでいる犯人を大きく：名前と、能力のひとこと
     const c = culpritByKey(curCulprit); ctx.textAlign = 'center';
-    ctx.font = `18px ${MINCHO}`; outlineText(`${c.name}（${c.sub}）`, W / 2, 684, c.col, '#000', 4);
-    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#e8e8f0'; ctx.fillText(c.desc, W / 2, 704);
+    ctx.font = `18px ${MINCHO}`; outlineText(`${c.name}（${c.sub}）`, W / 2, 660, c.col, '#000', 4);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#e8e8f0'; ctx.fillText(c.desc, W / 2, 680);
   }
   button(T_RULE, 'ルール', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'trule');
   button(T_MY, 'マイページ', null, '#2e6a50', '#14382a', true, false, hoverBtn === 'tmy');
   button(T_RANK, '実績表', null, '#8a6a10', '#4a3500', true, false, hoverBtn === 'trank');
   button(T_ZUKAN, '図鑑', `${zukanTotal()} / ${zukanMax()}`, '#6a3a7a', '#341a3e', true, false, hoverBtn === 'tzukan');
-  rr(40, 790, 460, 44, 12); ctx.fillStyle = 'rgba(40,30,8,0.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,213,107,0.6)'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.textAlign = 'left'; ctx.font = `15px ${MINCHO}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('県民の勘', 58, 813);
-  ctx.font = `19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 813, '#fff', '#000', 4);
+  rr(40, 766, 460, 44, 12); ctx.fillStyle = 'rgba(40,30,8,0.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,213,107,0.6)'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.font = `15px ${MINCHO}`; ctx.fillStyle = '#ffd56b'; ctx.fillText('県民の勘', 58, 789);
+  ctx.font = `19px ${GOTH}`; outlineText('× ' + kanNow(), 136, 789, '#fff', '#000', 4);
   const acc = typeof SyncManager !== 'undefined' && SyncManager ? SyncManager.account() : null;
   ctx.textAlign = 'right'; ctx.font = `13px ${GOTH}`; ctx.fillStyle = acc ? '#b0ffc8' : '#aaa';
-  ctx.fillText(`${myFullName()}［${gradeName(gradeIndex())}］　` + (acc ? 'ログイン中' : 'ゲスト'), 484, 813);
+  ctx.fillText(`${myFullName()}［${gradeName(gradeIndex())}］　` + (acc ? 'ログイン中' : 'ゲスト'), 484, 789);
   ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#999';
-  ctx.fillText('県民の勘：クリアで入手。バトル中に使うと、その場の最善手を1つ教えてくれる', W / 2, 852);
-  ctx.fillText('※音が出ます', W / 2, 876);
+  { // 今日の事件（解決済みなら連続日数）と、事件番号で挑戦
+    const ds = dailyState(), cu = culpritByKey(ds.culprit), m = Math.floor(ds.key / 100) % 100, dd = ds.key % 100;
+    const sub = ds.solved ? `解決済み ✓　連続${ds.streak}日` : `${m}/${dd}・犯人 ${cu.short}` + (ds.streak ? `・連続${ds.streak}日` : '');
+    button(T_DAILY, '今日の事件', sub, ds.solved ? '#2e6a50' : '#c43a2a', ds.solved ? '#14382a' : '#6a1410', true, !ds.solved && Math.floor(T) % 4 === 0, hoverBtn === 'tdaily');
+    button(T_CASE, '事件番号', 'で挑戦', '#3a3a5a', '#1c1c30', true, false, hoverBtn === 'tcase');
+  }
+  ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#999';
+  ctx.fillText('県民の勘：クリアで入手。バトル中に使うと、その場の最善手を1つ教えてくれる', W / 2, 889);
   button(T_NEWS, 'お知らせ', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'tnews');   // アップデートのお知らせ
   if (typeof newsUnseen === 'function' && newsUnseen().length) {
     ctx.fillStyle = '#000'; ctx.fillRect(T_NEWS.x + T_NEWS.w - 21, T_NEWS.y - 12, 33, 21);
@@ -2585,6 +2684,7 @@ function drawTitle() {
   ctx.textAlign = 'left'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888';
   ctx.fillText('v' + (typeof APP_VER !== 'undefined' ? APP_VER : ''), 18, 41);
   ctx.fillText('実況・配信・収益化 すべて歓迎です', 18, 59);
+  ctx.fillText('※音が出ます', 18, 77);
   ctx.textAlign = 'center';
 }
 // ルール説明
@@ -2841,7 +2941,7 @@ function drawResult() {
     ctx.save(); ctx.translate(W / 2, 530); ctx.scale(0.6 + pop * 0.4, 0.6 + pop * 0.4);
     rr(-190, -30, 380, 60, 14); ctx.fillStyle = 'rgba(80,56,8,0.9)'; ctx.fill(); ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 3; ctx.stroke();
     ctx.font = `24px ${MINCHO}`; outlineText(`県民の勘 +${lastReward} 獲得！`, 0, -7, '#ffd56b', '#000', 5);
-    ctx.font = `13px ${GOTH}`; ctx.fillStyle = '#fff'; ctx.fillText(`所持数 ${kanNow()}`, 0, 17);
+    ctx.font = `13px ${GOTH}`; ctx.fillStyle = '#fff'; ctx.fillText((G.dailyRes ? `今日の事件 連続${G.dailyRes.streak}日（+${G.dailyRes.bonus}）　` : '') + `所持数 ${kanNow()}`, 0, 17);
     ctx.restore();
     const gi = gradeIndex(), nx = gi + 1 < GRADES.length ? gradeNeeds(gi + 1).find(o => !o.done) : null;
     ctx.font = `16px ${GOTH}`;
@@ -2979,6 +3079,7 @@ function updateHover() {
     CU_BTNS.forEach((b, i) => { if (inRect(cm, b)) hoverBtn = 'cu' + i; });
     if (inRect(cm, T_RULE)) hoverBtn = 'trule'; else if (inRect(cm, T_MY)) hoverBtn = 'tmy'; else if (inRect(cm, T_RANK)) hoverBtn = 'trank';
     else if (inRect(cm, T_NEWS)) hoverBtn = 'tnews'; else if (inRect(cm, T_ZUKAN)) hoverBtn = 'tzukan';
+    else if (inRect(cm, T_DAILY)) hoverBtn = 'tdaily'; else if (inRect(cm, T_CASE)) hoverBtn = 'tcase';
     return;
   }
   if (phase === 'win' || phase === 'lose') {
@@ -3047,6 +3148,8 @@ cv.addEventListener('pointerdown', e => {
     else if (inRect(p, T_RANK)) { sndClick(); openRanking(); }
     else if (inRect(p, T_NEWS)) { sndClick(); openNews(false); }
     else if (inRect(p, T_ZUKAN)) { sndClick(); openZukan(); }
+    else if (inRect(p, T_DAILY)) { sndClick(); startDaily(); }
+    else if (inRect(p, T_CASE)) { sndClick(); openCaseInput(); }
     return;
   }
   p = p0;
@@ -3434,6 +3537,7 @@ function showOverlay(which) {
   document.getElementById('scr-onboard').hidden = which !== 'onboard';
   document.getElementById('scr-news').hidden = which !== 'news';
   document.getElementById('scr-zukan').hidden = which !== 'zukan';
+  document.getElementById('scr-case').hidden = which !== 'case';
   if (which) { OV.ov.scrollTop = 0; mouse = { x: -1, y: -1 }; }
 }
 function closeOverlay() { showOverlay(null); sndClick(); if (typeof runPendingCase === 'function') runPendingCase(); }
@@ -3758,6 +3862,11 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 11, ver: '1.11', date: '2026-10-10', title: '今日の事件・コンボのヒント・番号で挑戦', items: [
+    'タイトルに「今日の事件」。日本時間の日付ごとに、全員が同じ事件（ふつう・犯人は日替わり）に挑みます',
+    '今日の事件を毎日解くと「連続日数」が伸び、県民の勘のボーナス（1〜2日目 +1、3〜6日目 +2、7日目から +3）',
+    'カードに「○○コンボまで あと1枚」と出るように。コンボを狙って組み立てられます',
+    '「事件番号で挑戦」：No. の数字を入れると、その事件に挑めます（新しい事件の番号は5けた）'] },
   { id: 10, ver: '1.10', date: '2026-10-10', title: '結果を画像でシェア', items: [
     '結果画面の「X で自慢する」で、結果を1枚の画像にしてシェアできるように',
     'スマホでは共有メニューが開き、LINE・Discord・Instagram などにも画像つきで送れます',
@@ -3895,6 +4004,45 @@ function renderZukan() {
 }
 function openZukan(kind) { if (kind) zkKind = kind; renderZukan(); showOverlay('zukan'); }
 document.getElementById('zk-back').onclick = closeOverlay;
+
+/* ---------- 事件番号で挑戦（URL の ?case= と同じく、番号＝シード。難易度と犯人も選ぶ） ---------- */
+var caseSel = { d: 'normal', c: 'iwaki' };
+function renderCaseTabs() {
+  const mk = (box, list, cur, key) => {
+    const el2 = document.getElementById(box); el2.textContent = '';
+    list.forEach(([k, label]) => {
+      const b = el('button', 'ov-btn small', label); b.type = 'button'; b.setAttribute('aria-pressed', String(k === cur));
+      b.onclick = () => { sndClick(); caseSel[key] = k; renderCaseTabs(); };
+      el2.append(b);
+    });
+  };
+  mk('cs-diff', DIFFS.map(d => [d.key, d.name]), caseSel.d, 'd');
+  mk('cs-cu', CULPRITS.map(c => [c.key, c.short]), caseSel.c, 'c');
+}
+function openCaseInput() {
+  caseSel = { d: caseSel.d || 'normal', c: curCulprit };
+  renderCaseTabs(); showOverlay('case');
+  const inp = document.getElementById('cs-input'); inp.value = '';
+  try { if (!matchMedia('(pointer: coarse)').matches) inp.focus(); } catch (e) { }
+}
+// 入力を事件番号として読む（全角数字も可）。読めなければ null
+function parseCaseNo(text) {
+  const t = String(text || '').replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)).replace(/[\s,.　No#＃]/gi, '');
+  if (!/^\d{1,10}$/.test(t)) return null;
+  const n = Number(t);
+  return Number.isInteger(n) && n >= 1 && n <= 0xFFFFFFFF ? n : null;
+}
+document.getElementById('cs-back').onclick = closeOverlay;
+document.getElementById('cs-form').onsubmit = e => {
+  e.preventDefault();
+  const seed = parseCaseNo(document.getElementById('cs-input').value), d = caseSel.d, c = caseSel.c;
+  try { document.getElementById('cs-input').blur(); } catch (e2) { }
+  showOverlay(null); sndClick();
+  pickCulprit(c);
+  const tag = `${DIFF_NAME[d]}・犯人 ${culpritByKey(c).short}`;
+  if (seed) beginGame(diffByKey(d), seed, c, { check: true, note: `事件番号 No.${caseNo(seed)} に挑戦！（${tag}）`, fallback: `No.${caseNo(seed)}（${tag}）は推理で解けない事件だったので、別の事件を出題します。` });
+  else beginGame(diffByKey(d), null, c, { note: '事件番号が読めなかったので、別の事件を出題します。' });
+};
 document.querySelectorAll('#zk-tabs [data-kind]').forEach(b => b.onclick = () => { zkKind = b.dataset.kind; sndClick(); renderZukan(); });
 
 // ・はじめての人／毎回表示にしている人（onboard 0）：説明を全部
