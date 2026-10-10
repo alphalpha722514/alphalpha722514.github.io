@@ -1579,7 +1579,7 @@ async function winSequence() {
   await say(DN, end.sky === 'rain' ? 'ほやの。……濡れるし、帰ろっさ。署であったかいそばでも食べよか。'
     : end.sky === 'dawn' ? 'ほやの。……夜が明けたな。署であったかいそばでも食べよか。'
     : 'ほやの。……寒いし、帰ろっさ。署であったかいそばでも食べよか。', DC, 1600);
-  phase = 'win'; resultT = 0; V.banner = null; V.bannerQ = []; V.cutin = null;   // (結果画面にバナーを残さない)
+  phase = 'win'; resultT = 0; prepShareImage(); V.banner = null; V.bannerQ = []; V.cutin = null;   // (結果画面にバナーを残さない)
   if (G.promo >= 0) later(1400, sndPromo);
 }
 async function lose(kind) {
@@ -2584,6 +2584,7 @@ function drawTitle() {
   }
   ctx.textAlign = 'left'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888';
   ctx.fillText('v' + (typeof APP_VER !== 'undefined' ? APP_VER : ''), 18, 41);
+  ctx.fillText('実況・配信・収益化 すべて歓迎です', 18, 59);
   ctx.textAlign = 'center';
 }
 // ルール説明
@@ -2709,14 +2710,10 @@ function pickTitle() {
   return { name: L[i][1], icon: L[i][2], gold: i < 4 };
 }
 function resultRank() { return RANK_LETTER[G.turn <= 3 ? 3 : G.turn <= 4 ? 2 : G.turn <= 5 ? 1 : 0]; }
-function shareText() {
-  const t = pickTitle();
-  return `東尋坊ディスウェイドで犯人を自首させた！\n` +
-    `【${D.name}】事件ファイル No.${caseNo(G.seed)}　犯人：${cuNow().name}\n` +
-    `説得ランク ${resultRank()}／スコア ${rankScore(D.key, G.turn, G.hp).toLocaleString('ja-JP')}\n` +
-    `称号：${t.icon}${t.name}\n` +
-    `${G.turn}ターン・残りメンタル ${G.hp}\n` +
-    (G.ending ? `エンディング：${G.ending.grade}・${G.ending.name}\n` : '') +
+function shareText() {               // X の 280 字（日本語は1字=2、URL は23）に収まる3行＋タグ
+  const t = pickTitle(), en = G.ending || ENDINGS[ENDINGS.length - 1];
+  return `東尋坊ディスウェイド【${en.grade}・${en.name}】\n` +
+    `${G.turn}ターン・${resultRank()}ランク／${t.name}／No.${caseNo(G.seed)}（${cuNow().name}）\n` +
     `同じ事件に挑戦→ ${challengeUrl()}\n` +
     `#東尋坊ディスウェイド #ブラウザゲーム #インディーゲーム #ゲーム実況`;
 }
@@ -2724,11 +2721,99 @@ function shareText() {
 function challengeUrl() {
   return location.href.split(/[?#]/)[0] + '?case=' + G.seed + '&d=' + D.key + '&c=' + (D.culprit || 'iwaki');
 }
+// 結果画像（1200×630）。画面の ctx とは別の Canvas に描くので、outlineText などは使わずこの中で完結させる
+function makeResultImage() {
+  const g = G, d = D, cu = cuNow(), en = g.ending || ENDINGS[ENDINGS.length - 1], tl = pickTitle();
+  const rank = resultRank(), score = rankScore(d.key, g.turn, g.hp), no = caseNo(g.seed);
+  const fontsReady = Promise.race([
+    (document.fonts ? Promise.all([document.fonts.ready, document.fonts.load('64px "DotGothic16"')]) : Promise.resolve()),
+    new Promise(r => setTimeout(r, 1500))]).catch(() => { });          // (フォントが来なくても1.5秒で端末の字で描く)
+  return fontsReady.then(() => new Promise((resolve, reject) => {
+    const IW = 1200, IH = 630, cv2 = document.createElement('canvas');
+    cv2.width = IW; cv2.height = IH;
+    const c = cv2.getContext('2d');
+    if (!c) { reject(new Error('no canvas')); return; }
+    let r = (g.seed >>> 0) || 1;                                         // 見た目だけの乱数（ゲームの乱数 rngFor には触れない）
+    const rnd = () => { r = (Math.imul(r, 1103515245) + 12345) >>> 0; return r / 4294967296; };
+    const SKY = {
+      dawn: ['#2b1f5e', '#5a3a7a', '#a8507a', '#e8806a', '#ffc890'],
+      sunset: ['#1e0f30', '#4a1a48', '#8a2e4a', '#d0503a', '#f0903a'],
+      night: ['#03050f', '#070c22', '#0d1634', '#152248', '#1f2e5c'],
+      rain: ['#14181f', '#1f2530', '#2b3340', '#384250', '#465060'] }[en.sky] || null;
+    const sky = SKY || ['#1e0f30', '#4a1a48', '#8a2e4a', '#d0503a', '#f0903a'];
+    const BAND = 64;                                                     // ドット風の段々グラデーション（境目は市松でぼかす）
+    for (let i = 0; i < sky.length; i++) { c.fillStyle = sky[i]; c.fillRect(0, i * BAND, IW, BAND); }
+    for (let i = 1; i < sky.length; i++) {
+      c.fillStyle = sky[i - 1];
+      for (let y = i * BAND; y < i * BAND + 12; y += 6) for (let x = ((y / 6) % 2) * 6; x < IW; x += 12) c.fillRect(x, y, 6, 6);
+    }
+    if (en.sky === 'night') for (let k = 0; k < 90; k++) { c.fillStyle = rnd() < 0.2 ? '#ffe8a0' : '#cfd8ff'; c.fillRect(Math.floor(rnd() * 200) * 6, Math.floor(rnd() * 45) * 6, 6, 6); }
+    if (en.sky === 'dawn' || en.sky === 'sunset') {                     // 日の出・夕日
+      c.fillStyle = en.sky === 'dawn' ? '#fff0b0' : '#ffb060';
+      for (let y = -60; y <= 60; y += 6) { const w = Math.floor(Math.sqrt(3600 - y * y) / 6) * 6; c.fillRect(300 - w, 330 + y, w * 2, 6); }
+    }
+    c.fillStyle = '#0c1a33'; c.fillRect(0, 320, IW, IH - 320);           // 日本海
+    c.fillStyle = '#1a3358';
+    for (let k = 0; k < 70; k++) c.fillRect(Math.floor(rnd() * 190) * 6, 330 + Math.floor(rnd() * 48) * 6, 18 + Math.floor(rnd() * 4) * 6, 6);
+    for (let x = 930, k = 0; x < IW; x += 18, k++) {                     // 東尋坊の柱状節理（右下の崖。海に向かって低くなる）
+      const top = 300 - Math.floor((x - 930) / 270 * 12) * 6 + [0, 6, 0, 12, 6, 0, 6][k % 7];
+      c.fillStyle = '#120c0a'; c.fillRect(x, top, 18, IH - top);
+      c.fillStyle = '#2a1c16'; c.fillRect(x, top, 6, IH - top);
+      c.fillStyle = '#3a2a20'; c.fillRect(x, top, 18, 6);
+    }
+    if (en.sky === 'rain') { c.fillStyle = 'rgba(200,215,240,0.55)'; for (let k = 0; k < 160; k++) { const x = rnd() * IW, y = rnd() * IH; c.fillRect(Math.floor(x / 3) * 3, Math.floor(y / 3) * 3, 3, 18); } }
+    c.fillStyle = 'rgba(0,0,0,0.3)'; c.fillRect(0, 0, IW, IH);           // 文字を読みやすく
+    const F = '"DotGothic16","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",sans-serif';
+    const text = (t, x, y, size, fill, stroke, lw, align) => {           // ふち付き文字（この Canvas 専用）
+      c.font = `${size}px ${F}`; c.textAlign = align || 'center'; c.textBaseline = 'middle';
+      if (stroke) { c.lineJoin = 'round'; c.lineWidth = lw; c.strokeStyle = stroke; c.strokeText(t, x, y); }
+      c.fillStyle = fill; c.fillText(t, x, y);
+    };
+    const fit = (t, size, maxW) => { c.font = `${size}px ${F}`; const w = c.measureText(t).width; return w > maxW ? Math.floor(size * maxW / w) : size; };
+    c.fillStyle = '#ff4a3a'; c.fillRect(0, 0, IW, 10); c.fillRect(0, IH - 10, IW, 10);   // 上下の帯
+    text('東尋坊ディスウェイド', 48, 58, 40, '#ff6a4a', '#2a0000', 8, 'left');
+    text(`【${d.name}】事件ファイル No.${no}　犯人：${cu.name}`, IW - 48, 58, 26, '#ffe2a0', '#000', 6, 'right');
+    text(`―― ${en.grade}エンド ――`, IW / 2, 150, 34, '#ffe2a0', '#000', 6);
+    text(en.name, IW / 2, 232, fit(en.name, 104, IW - 120), en.col, '#3a1500', 14);
+    const tsz = 46; c.font = `${tsz}px ${F}`;                            // 称号（絵文字はふちなし）
+    const nw = c.measureText(tl.name).width, iw = c.measureText(tl.icon).width + 14, tx = IW / 2 - (nw + iw) / 2;
+    c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#fff'; c.fillText(tl.icon, tx, 330);
+    text(tl.name, tx + iw, 330, tsz, tl.gold ? '#ffe86a' : '#ffffff', '#000', 8, 'left');
+    c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(250, 390, 700, 120);     // ランクとスコアの枠
+    c.strokeStyle = '#ffd56b'; c.lineWidth = 4; c.strokeRect(250, 390, 700, 120);
+    text('説得ランク', 360, 422, 26, '#ffd56b', null, 0);
+    text(rank, 360, 470, 80, rank === 'S' ? '#ffe86a' : '#ffffff', '#000', 6); text(rank, 362, 470, 80, rank === 'S' ? '#ffe86a' : '#ffffff', null, 0);
+    text(`スコア ${score.toLocaleString('ja-JP')}`, 690, 432, 40, '#ffffff', '#000', 6);
+    text(`${g.turn}ターン・残りメンタル ${g.hp}`, 690, 482, 26, '#dddddd', null, 0);
+    text('同じ事件に挑戦できる ▶ alphalpha722514.github.io/tojinbo', IW / 2, 572, 26, '#ffffff', '#000', 5);
+    try { cv2.toBlob(b => b ? resolve(b) : reject(new Error('toBlob')), 'image/png'); } catch (e) { reject(e); }
+  }));
+}
+// 共有シートは「押した直後」にしか開けない端末があるので、結果画面に入ったときに画像を先に作っておく
+let shareImg = null;                                                     // { g: その時の G, blob }
+function prepShareImage() {
+  const g = G; shareImg = { g, blob: null };
+  try { makeResultImage().then(b => { if (shareImg && shareImg.g === g) shareImg.blob = b; }).catch(() => { }); } catch (e) { }
+}
 // X の投稿画面を別タブで開く（スマホではタップの pointerdown だとポップアップが止められるので click で呼ぶ）
-function shareResult() {
-  const w = window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(shareText()), '_blank');
+function shareToX(text) {
+  const w = window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
   if (w) { try { w.opener = null; } catch (e) { } }
   else addFloat(CX + SHARE.x + SHARE.w / 2, SHARE.y - 8, 'ポップアップを許可してください', '#ffb0b0', 16);
+}
+// 対応端末は OS の共有シート（画像つき。LINE・Discord・Instagram にも）。非対応・失敗・キャンセルは X の投稿画面
+function shareResult() {
+  const text = shareText();
+  let file = null;
+  try {
+    const blob = shareImg && shareImg.g === G ? shareImg.blob : null;   // (まだできていなければ文字だけ)
+    if (blob) file = new File([blob], `tojinbo_${caseNo(G.seed)}.png`, { type: 'image/png' });
+  } catch (e) { file = null; }
+  let can = false;
+  try { can = !!(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { can = false; }
+  if (!can) { shareToX(text); return; }
+  try { navigator.share({ text, files: [file] }).catch(() => shareToX(text)); }
+  catch (e) { shareToX(text); }
 }
 function drawResult() {
   const a = clamp(resultT / 1.0, 0, 1);
@@ -3673,6 +3758,14 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 10, ver: '1.10', date: '2026-10-10', title: '結果を画像でシェア', items: [
+    '結果画面の「X で自慢する」で、結果を1枚の画像にしてシェアできるように',
+    'スマホでは共有メニューが開き、LINE・Discord・Instagram などにも画像つきで送れます',
+    'シェアの文章を3行に短くまとめました（同じ事件に挑戦できるURLつき）',
+    '実況・配信・収益化はすべて歓迎です（タイトル画面にも書きました）'] },
+  { id: 9, ver: '1.9', date: '2026-10-10', title: '名前の統一とSNSカード', items: [
+    'ゲーム名を「東尋坊ディスウェイド」に統一',
+    'URL を X などに貼ると、タイトルと説明つきのカードが出るように'] },
   { id: 8, ver: '1.8', date: '2026-10-09', title: '図鑑・7つのエンディング・事件の共有', items: [
     '「捜査図鑑」を追加。会った犯人・使ったカード・成立したコンボ・見たエンディングが登録されます（タイトルの「図鑑」）',
     'エンディングが7種類に。解決のしかたで、朝焼け・雨・カツ丼……と結末が変わります',
