@@ -3,8 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>東尋坊ディスウェイド</title>
-<meta name="description" content="証拠と人情と福井グルメで、東尋坊の犯人を自首させろ。1プレイ3分の説得カードバトル。">
+<title>東尋坊ディスウェイド｜無料ブラウザゲーム・説得カードバトル</title>
+<meta name="description" content="証拠と人情と福井グルメで、東尋坊の崖に立つ犯人を自首させろ。登録不要・無料で遊べる1プレイ3分の説得カードバトル。スマホ・PCのブラウザですぐ遊べます。">
+<!-- 検索エンジン向け（v1.15 以降）：正規のURL・クロールの許可・アイコン -->
+<link rel="canonical" href="https://alphalpha722514.github.io/tojinbo/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#a8434a">
+<meta name="apple-mobile-web-app-title" content="ディスウェイド">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"VideoGame","name":"東尋坊ディスウェイド","alternateName":["Tojinbo Dissuade","ディスウェイド"],
+"url":"https://alphalpha722514.github.io/tojinbo/","image":"https://alphalpha722514.github.io/tojinbo/ogp.png",
+"description":"証拠と人情と福井グルメで、東尋坊の崖に立つ犯人を自首させる説得カードバトル。1プレイ3分。毎日変わる「今日の事件」、6人の犯人、60種類のカード、捜査実績表つき。",
+"genre":["カードゲーム","アドベンチャー","推理"],"inLanguage":"ja","gamePlatform":["Web browser","iOS","Android","Windows","macOS"],
+"applicationCategory":"GameApplication","operatingSystem":"Any","isAccessibleForFree":true,"playMode":"SinglePlayer",
+"offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"keywords":"東尋坊, 福井, ブラウザゲーム, 無料ゲーム, カードバトル, 説得, サスペンス, ドット絵"}
+</script>
 <meta property="og:type" content="website">
 <meta property="og:title" content="東尋坊ディスウェイド">
 <meta property="og:description" content="証拠と人情と福井グルメで、東尋坊の犯人を自首させろ。1プレイ3分の説得カードバトル。">
@@ -22,6 +38,7 @@
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #c{display:block;position:absolute;left:0;top:0;touch-action:none}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* マイページ・捜査実績表（キャンバスの上に重ねる画面） */
 #ov{position:fixed;inset:0;z-index:10;background:#0e0d16 repeating-conic-gradient(#14131e 0 25%,#0e0d16 0 50%) 0 0/12px 12px;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
   color:#eee;font-family:"DotGothic16","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",sans-serif;font-size:15px;line-height:1.6}
@@ -149,7 +166,26 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<!-- ゲームの説明（画面はキャンバスに描くので、読み上げ・検索エンジン用に同じ内容を文字でも置く。見た目には出さない） -->
+<main class="sr-only">
+  <h1>東尋坊ディスウェイド</h1>
+  <p>証拠と人情と福井グルメで、東尋坊の崖に立つ犯人を自首させる説得カードバトル。登録不要・無料。スマホとPCのブラウザで、1プレイ3分で遊べます。</p>
+  <h2>遊び方</h2>
+  <ul>
+    <li>青の【証拠】で犯人の心の壁（心壁）を崩し、緑の【人情】で自首メーターを上げ、赤の【グルメ】（ソースカツ丼・越前ガニなど福井の名物）で犯人を動揺させる。</li>
+    <li>自首メーターを100にすれば事件解決。犯人は毎ターン崖の端へ近づき、0歩になると失敗。</li>
+    <li>自首が70に届くと「崖っぷちタイム」。1.6秒以内に3回タップで自首を後押し。</li>
+  </ul>
+  <h2>特徴</h2>
+  <ul>
+    <li>毎日変わる「今日の事件」と、事件番号で同じ事件に挑める共有機能。</li>
+    <li>個性の違う6人の犯人と、全60種類のカード。捜査コンボと得点ボーナス。</li>
+    <li>説得スコアの捜査実績表（ランキング）、階級と功績、図鑑。</li>
+    <li>どの事件も、推理すれば必ずクリアできることを確かめてから出題。</li>
+  </ul>
+  <p>舞台は福井県坂井市の名勝・東尋坊。ドット絵の2時間サスペンス風ゲームです。</p>
+</main>
+<canvas id="c" aria-label="東尋坊ディスウェイドのゲーム画面"></canvas>
 <div id="ov" hidden>
   <section id="scr-mypage" class="ov-scr" aria-labelledby="mp-h" hidden>
     <div class="ov-bar"><h2 id="mp-h" class="ov-title">マイページ</h2><button id="mp-back" class="ov-btn" type="button">もどる</button></div>
