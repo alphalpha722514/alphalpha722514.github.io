@@ -1711,8 +1711,8 @@ async function enemyTurn() {
 async function winSequence() {
   histPush();                                                            // 解決の瞬間の値を1件
   phase = 'winning'; G.busy = true; G.hint = null;
-  hitStop(250); V.white = 0.6;                                            // 止め 250ms → 画面全体を白へ 0.3秒 → テロップ「落ちた。」
-  later(320, () => showTelop('落ちた。', 'white', 96, 1.5));
+  hitStop(250); V.white = 0.6;                                            // 止め 250ms → 画面全体を白へ 0.3秒 → テロップ「説得成功！」（「落ちた」は崖から落ちたと読まれるので変更）
+  later(320, () => showTelop('説得成功！', 'white', 96, 1.5));
   bgmStop(0.04);
   if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.85, t, 0.8); }
   V.flash = 0.6; V.flashCol = '#fff4d6';
