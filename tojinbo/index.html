@@ -279,13 +279,17 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
   <section id="scr-rank" class="ov-scr" aria-labelledby="rk-h" hidden>
     <div class="ov-bar"><h2 id="rk-h" class="ov-title">捜査実績表</h2><button id="rk-back" class="ov-btn" type="button">もどる</button></div>
     <p class="ov-lead">難易度ごとの説得スコアの捜査実績表（上位50人）。サーバーが打ち手の記録から事件を再生し、本当に解決できた記録だけを載せます。「この事件に挑む」で、同じ事件ファイルに挑戦できます。</p>
-    <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10</p>
+    <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10＋ボーナス（一気呵成 +800／想いが届いた +500／背水 +300・+600）。v1.15 からシーズン2。v1.14 までの記録は「殿堂」で見られます（見るだけ）。</p>
     <div id="rk-login" class="ov-card">
       <p>いまはゲストとして、この端末の名前「<span id="rk-guest-name"></span>」で載ります。名前はマイページで変えられます。アカウントを作ると、ほかの端末でも同じ名前と記録で続けられます。</p>
       <button id="rk-open-mypage" class="ov-btn small primary" type="button">マイページへ</button>
     </div>
     <div id="rk-body">
       <div id="rk-diffs" class="ov-tabs" role="group" aria-label="難易度"></div>
+      <div id="rk-seasons" class="ov-tabs" role="group" aria-label="シーズン">
+        <button class="ov-btn small" type="button" data-season="s2" aria-pressed="true">今シーズン</button>
+        <button class="ov-btn small" type="button" data-season="hof" aria-pressed="false">殿堂（v1.14まで）</button>
+      </div>
       <div id="rk-periods" class="ov-tabs" role="group" aria-label="期間">
         <button class="ov-btn small" type="button" data-period="week" aria-pressed="true">今週</button>
         <button class="ov-btn small" type="button" data-period="all" aria-pressed="false">全期間</button>
@@ -510,7 +514,7 @@ const CLIFF_AT = 70, CLIFF_SUR = 15, CLIFF_MOVE = '!cliff';
 function cliffFail(s) { const before = s.alert; s.alert = Math.min(5, s.alert + 1); return s.alert - before; }
 function cliffBonus(s) {
   const r = { sur: Math.min(CLIFF_SUR, 100 - s.sur), stepBack: false };
-  s.sur += r.sur;
+  s.sur += r.sur; s.cliffWon = true;                                    // (v1.15 得点ボーナス「想いが届いた」用。ルールの進行には使わない)
   if (s.sur >= 50 && !s.stepBack) { s.stepBack = true; s.crisis += 1; r.stepBack = true; }
   return r;
 }
@@ -524,7 +528,8 @@ function makeSim(g) {
     boostHu: !!g.boostHu, boostEv: !!g.boostEv,
     hand: g.hand ? g.hand.map(c => (typeof c === 'string' ? c : c.id)) : [],
     recent: (g.recent || []).slice(), firedCombos: (g.firedCombos || []).slice(), pierceEv: !!g.pierceEv,   // 捜査コンボ
-    cliffDone: !!g.cliffDone, gamble: Object.assign({ active: false, need: 3, have: 0, t: 0 }, g.gamble)        // 崖っぷちタイム
+    cliffDone: !!g.cliffDone, gamble: Object.assign({ active: false, need: 3, have: 0, t: 0 }, g.gamble),       // 崖っぷちタイム
+    cliffTriggered: !!g.cliffTriggered, cliffWon: !!g.cliffWon                // (得点ボーナス用の旗)
   };
 }
 function cloneSim(s) {
@@ -620,7 +625,7 @@ function cardEffect(s, id, D) {
   }
   s.sur = Math.min(100, s.sur);
   if (s.sur >= 50 && !s.stepBack) { s.stepBack = true; s.crisis += 1; r.stepBack = true; }
-  if (s.sur >= CLIFF_AT && s.sur < 100 && !s.cliffDone) { s.cliffDone = true; r.cliff = true; }   // 崖っぷちタイム（1事件1回）
+  if (s.sur >= CLIFF_AT && s.sur < 100 && !s.cliffDone) { s.cliffDone = true; s.cliffTriggered = true; r.cliff = true; }   // 崖っぷちタイム（1事件1回）
   s.lastType = d.type; s.played.push(id);
   return r;
 }
@@ -710,7 +715,8 @@ function coreNewGame(D, seed) {
     deck: seededShuffle(buildDeck(rngFor(seed, 1)), rngFor(seed, 2)), hand: [], disc: [], turn: 0,
     stepBack: false, boostHu: false, boostEv: false,
     recent: [], firedCombos: [], pierceEv: false,                     // 捜査コンボ
-    cliffDone: false, gamble: { active: false, need: 3, have: 0, t: 0 }   // 崖っぷちタイム
+    cliffDone: false, gamble: { active: false, need: 3, have: 0, t: 0 },   // 崖っぷちタイム
+    cliffTriggered: false, cliffWon: false                                // 崖っぷちタイムが発動した／成功した（得点ボーナスだけに使う）
   };
 }
 function coreDraw(g, n) {
@@ -760,7 +766,18 @@ function playout(seed, D, maxTurns, maxNodes) {
 /* ---------- 捜査実績表：打ち手の記録から事件を再生して確かめる（サーバーも同じ関数を使う） ---------- */
 // log = [[1ターン目に使ったカードid…], [2ターン目…], …]。最後の1枚で自首100になった記録だけが勝ち
 const RANK_BASE = { easy: 1000, normal: 2000, hard: 3500, oni: 5000 };
-function rankScore(diffKey, turn, hp) { return RANK_BASE[diffKey] + Math.max(0, 10 - turn) * 300 + hp * 10; }
+// 説得スコア＝難易度の基本点＋早さ（(10−解決ターン)×300、0未満なし）＋残りメンタル×10＋得点ボーナス（v1.15）
+// ボーナスは解決した局面 g の旗だけで決まる。検証AI・県民の勘・正解ルートの評価には使わない（出題が変わらないように）
+const RANK_BONUS = { ikki: ['一気呵成', 800], omoi: ['想いが届いた', 500], haisui2: ['背水の説得', 300], haisui1: ['背水の説得', 600] };
+function rankBonus(g) {
+  if (!g) return [];
+  const out = [];
+  if (!g.cliffTriggered) out.push('ikki');                              // 崖っぷちタイムを一度も起こさずに解決
+  else if (g.cliffWon) out.push('omoi');                                // 崖っぷちタイムに成功して解決（一気呵成とは同時に取れない）
+  if (g.crisis === 2) out.push('haisui2'); else if (g.crisis === 1) out.push('haisui1');   // 解決した時点の危機
+  return out.map(k => ({ key: k, name: RANK_BONUS[k][0], pts: RANK_BONUS[k][1] }));
+}
+function rankScore(diffKey, turn, hp, g) { return RANK_BASE[diffKey] + Math.max(0, 10 - turn) * 300 + hp * 10 + rankBonus(g).reduce((a, b) => a + b.pts, 0); }
 function diffByKey(k) { return DIFFS.find(d => d.key === k) || null; }
 function replayLog(D, seed, log) {
   if (!D || !Number.isInteger(seed) || seed < 1 || seed > 0xFFFFFFFF || !Array.isArray(log) || !log.length || log.length > 30) return null;
@@ -786,7 +803,7 @@ function replayLog(D, seed, log) {
       }
       if (g.sur >= 100) {
         if (t !== log.length - 1 || k !== moves.length - 1) return null;
-        return { win: true, turn: g.turn, hp: g.hp, crisis: g.crisis, score: rankScore(D.key, g.turn, g.hp) };
+        return { win: true, turn: g.turn, hp: g.hp, crisis: g.crisis, score: rankScore(D.key, g.turn, g.hp, g), bonus: rankBonus(g).map(b => b.key) };
       }
     }
     if (cliffOpen) cliffFail(g);               // ターンの最後のカードで発動して '!cliff' が無い＝失敗（ターン終了より先）
@@ -2631,6 +2648,7 @@ function drawGauges() {
   ctx.textAlign = 'center'; ctx.font = `10px ${GOTH}`;
   ctx.fillStyle = G.stepBack ? '#777' : '#cfe3ff'; ctx.fillText('▲50 一歩', 66 + 135, 89);
   ctx.fillStyle = G.cliffDone ? '#777' : '#ffb0a0'; ctx.fillText('▲70 崖', 66 + 189 + 8, 89);
+  if (!G.cliffTriggered && phase === 'battle') { ctx.fillStyle = '#ffd56b'; ctx.fillText('飛び越えれば +800 ▼', 66 + 189 + 8, 51); }   // (崖っぷちタイム未発動の間だけ。一気呵成のボーナス)
   ctx.font = `13px ${GOTH}`; ctx.textAlign = 'right';
   outlineText(`${G.sur} / 100`, 330, 69, '#fff', '#000', 3);
   const danger = G.crisis <= 2 && phase === 'battle';
@@ -2818,10 +2836,17 @@ function comboProgress(s, id) {
   }
   return out;
 }
+// 得点ボーナスの表示名（カードの上は短く。「一気呵成！」「背水 +600」など）
+function bonusLabel(b, short) {
+  if (short) return b.key === 'ikki' ? '一気呵成！' : b.key === 'omoi' ? '想いが届いた！' : '背水 +' + b.pts;
+  return (b.key.startsWith('haisui') ? '背水' : b.name) + ' +' + b.pts;
+}
+function bonusText(g) { const bs = rankBonus(g); return bs.length ? bs.map(b => bonusLabel(b)).join('・') : ''; }
 function previewLines(id) {
   const s = makeSim(G); const r = cardEffect(s, id, D); const d = CARDS[id];
   const L = [];
   if (r.combo) L.push([r.combo.name + '！', '#b8761c']);
+  if (s.sur >= 100) for (const b of rankBonus(s)) L.push([bonusLabel(b, true), '#b0101a']);   // この1枚で解決するとき：得点ボーナスが決まる
   if (r.shieldDmg) L.push([(r.broke ? '心壁 −' + r.shieldDmg + ' 破壊!' : '心壁 −' + r.shieldDmg), r.broke ? '#c0161e' : '#1d3f8a']);
   if (r.sur) L.push(['自首 +' + r.sur, '#1c6b3c']);
   if (r.step) L.push(['犯人を1歩戻す', '#1c6b3c']);
@@ -3208,6 +3233,13 @@ const RULE_PAGES = [
     ['#ffd56b', '功績と解決数の条件を満たすと昇進：巡査 → 巡査長 → 巡査部長 → 警部補 → 警部 → 警視 → 警視正 → 警視長 → 警視監 → 警視総監。'],
     ['#ddd', '上の階級ほど、難しい難易度での解決や速い解決が必要。条件はマイページで確かめられる。名前には「刑事」が付き、階級と一緒に捜査実績表に載る。'],
   ] },
+  { title: '説得スコアとボーナス', items: [
+    ['#ffd56b', '説得スコア＝難易度の基本点（かんたん1000・ふつう2000・むずかしい3500・崖っぷち5000）＋早さ（(10−解決ターン)×300）＋残りメンタル×10＋ボーナス。'],
+    ['#ffe9b0', '一気呵成 +800：崖っぷちタイムを一度も起こさずに解決（自首70を一気に飛び越える）。'],
+    ['#ffb0a0', '想いが届いた +500：崖っぷちタイムに成功して解決（一気呵成とは同時に取れない）。'],
+    ['#ff9a9a', '背水の説得：解決した時点で崖の端まで2歩なら +300、1歩なら +600。'],
+    ['#ddd', 'その1枚で解決するカードには、取れるボーナスが「一気呵成！」「背水 +600」のように出る。'],
+  ] },
   { title: '県民の勘', items: [
     ['#ffd56b', '説得に成功すると「県民の勘」が手に入る（かんたん・ふつう +1、むずかしい +2、崖っぷち +3）。'],
     ['#ffd56b', 'バトル中に左下の「県民の勘」を押すと1つ消費して、その場で一番良い一手を教えてくれる。おすすめのカードが金色に光る。'],
@@ -3398,7 +3430,7 @@ const RESULT_LAST_LINE = '自首します。……おっかちゃんに、ちゃ
 // 結果画像（1200×630）。画面の ctx とは別の Canvas に描く。画面用の outlineText は使わず、telop（キャンバスを引数で受け取る）とこの中の text で描く
 function makeResultImage() {
   const g = G, d = D, cuKey = d.culprit || 'iwaki', cu = cuNow(), en = g.ending || ENDINGS[ENDINGS.length - 1], tl = pickTitle(), tz = tsukkomiTitle(g, cuKey);
-  const rank = resultRank(), score = rankScore(d.key, g.turn, g.hp), no = caseNo(g.seed);
+  const rank = resultRank(), score = rankScore(d.key, g.turn, g.hp, g), no = caseNo(g.seed), bt = bonusText(g);
   const fontsReady = Promise.race([
     (document.fonts ? Promise.all([document.fonts.ready, document.fonts.load('64px "DotGothic16"')]) : Promise.resolve()),
     new Promise(r => setTimeout(r, 1500))]).catch(() => { });          // (フォントが来なくても1.5秒で端末の字で描く)
@@ -3466,9 +3498,10 @@ function makeResultImage() {
     if (tz) telop(c, tz, RC, 242, fit(tz, 44, RW), 'red');
     // ---- 判子と説得スコア ----
     drawSeal(c, RX + 66, 326, 100, rank, g.seed);
-    text('説得スコア', RX + 150, 292, 24, '#ffd56b', null, 0, 'left');
-    text(score.toLocaleString('ja-JP'), RX + 150, 332, 52, '#ffffff', '#000', 6, 'left');
-    text(`${g.turn}ターン・残りメンタル ${g.hp}／${g.maxHp}` + (g.kanUsed ? `・勘 ${g.kanUsed}` : ''), RX + 150, 370, 20, '#d8d8e0', null, 0, 'left');
+    text('説得スコア', RX + 150, 286, 24, '#ffd56b', null, 0, 'left');
+    text(score.toLocaleString('ja-JP'), RX + 150, 322, 52, '#ffffff', '#000', 6, 'left');
+    text(`${g.turn}ターン・残りメンタル ${g.hp}／${g.maxHp}` + (g.kanUsed ? `・勘 ${g.kanUsed}` : ''), RX + 150, 358, 18, '#d8d8e0', null, 0, 'left');
+    if (bt) text(bt, RX + 150, 382, fit(bt, 18, RW - 150), '#ffd56b', null, 0, 'left');   // 得点の内訳（一気呵成 +800 など）
     // ---- 展開グラフ（680×150）と凡例 ----
     drawHistGraph(c, LW + 10, 398, 680, 150, g);
     c.font = `15px ${F}`; c.textBaseline = 'middle'; c.textAlign = 'left';
@@ -3547,8 +3580,10 @@ function drawResult() {
     const rank = resultRank();
     ctx.font = `16px ${GOTH}`; ctx.fillStyle = '#fff';
     ctx.fillText(`かかったターン：${G.turn}　残りメンタル：${G.hp}　使った勘：${G.kanUsed}`, W / 2, 398);
-    ctx.font = `18px ${GOTH}`; outlineText(`説得スコア ${rankScore(D.key, G.turn, G.hp).toLocaleString()}` + (G.bestUp ? '（自己ベスト！）' : ''), W / 2, 424, G.bestUp ? '#ffe86a' : '#fff', '#000', 4);
-    ctx.font = `34px ${MINCHO}`; outlineText(`説得ランク ${rank}` + (newRecord ? '  NEW!' : ''), W / 2, 460, rank === 'S' ? '#ffe86a' : '#fff', '#000', 6);
+    ctx.fillStyle = 'rgba(8,6,12,0.72)'; ctx.fillRect(20, 406, W - 40, 84);    // (スコア・内訳・ランクの後ろに会話の文字が透けないように)
+    ctx.font = `18px ${GOTH}`; outlineText(`説得スコア ${rankScore(D.key, G.turn, G.hp, G).toLocaleString()}` + (G.bestUp ? '（自己ベスト！）' : ''), W / 2, 420, G.bestUp ? '#ffe86a' : '#fff', '#000', 4);
+    { const bt = bonusText(G); ctx.font = `13px ${GOTH}`; outlineText(bt ? 'ボーナス　' + bt : 'ボーナスなし', W / 2, 441, bt ? '#ffd56b' : '#aaa', '#000', 3); }   // 得点の内訳（v1.15）
+    ctx.font = `34px ${MINCHO}`; outlineText(`説得ランク ${rank}` + (newRecord ? '  NEW!' : ''), W / 2, 468, rank === 'S' ? '#ffe86a' : '#fff', '#000', 6);
     const pop = clamp((resultT - 0.8) * 3, 0, 1);
     ctx.save(); ctx.translate(W / 2, 530); ctx.scale(0.6 + pop * 0.4, 0.6 + pop * 0.4);
     rr(-190, -30, 380, 60, 14); ctx.fillStyle = 'rgba(80,56,8,0.9)'; ctx.fill(); ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 3; ctx.stroke();
@@ -3864,6 +3899,9 @@ function sha256Hex(text) {
 // パスワードは入力したまま外に出さない。ユーザー名を塩にしてこの端末でハッシュにする
 function passwordHash(user, pass) { return sha256Hex('tojinbo-suspense:' + user.toLowerCase() + ':' + pass); }
 // 捜査実績表の週：日本時間の月曜（サーバーも同じ数え方）
+// 実績表の名前（サーバーと同じ）。今シーズン（v1.15〜）は <難易度>:s2:all ／ <難易度>:s2:w<週>。殿堂（v1.14まで）は前の名前 <難易度>:all ／ <難易度>:w<週>
+const RANK_SEASON = 's2';
+function rankBoard(course, season, kind) { return season === 'hof' ? course + ':' + kind : course + ':' + RANK_SEASON + ':' + kind; }
 function rankWeekKey(now) {
   const d = new Date(now + 9 * 3600 * 1000);
   d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
@@ -3937,15 +3975,15 @@ var MockCloudAdapter = {
       if (!r || !r.win) return { ok: false, error: 'rejected' };
       db.ranking = isObj(db.ranking) ? db.ranking : {};
       const e = { uid, name: cleanName(b.name) || DEFAULT_PLAYER_NAME, rk: Number.isInteger(b.rk) && b.rk >= 0 && b.rk <= 9 ? b.rk : null, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, cu, at: Date.now() };
-      [b.course + ':all', b.course + ':w' + rankWeekKey(Date.now())].forEach(k => this.putRank(db, k, Object.assign({}, e)));
+      [rankBoard(b.course, RANK_SEASON, 'all'), rankBoard(b.course, RANK_SEASON, 'w' + rankWeekKey(Date.now()))].forEach(k => this.putRank(db, k, Object.assign({}, e)));   // (今シーズンの表だけに書く)
       return this.write(db) ? { ok: true, score: r.score } : { ok: false, error: 'storage' };
     });
   },
-  rankGet(who, course, period) {
+  rankGet(who, course, period, season) {
     return this.later(() => {
-      const db = this.read(), uid = this.uidOf(db, who), week = rankWeekKey(Date.now());
-      const list = (isObj(db.ranking) && db.ranking[course + ':' + (period === 'all' ? 'all' : 'w' + week)]) || [];
-      return { ok: true, course, period, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, rk: e.rk, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, cu: e.cu || 'iwaki', me: !!uid && e.uid === uid })) };
+      const db = this.read(), uid = this.uidOf(db, who), week = rankWeekKey(Date.now()), sn = season === 'hof' ? 'hof' : RANK_SEASON;
+      const list = (isObj(db.ranking) && db.ranking[rankBoard(course, sn, period === 'all' ? 'all' : 'w' + week)]) || [];
+      return { ok: true, course, period, season: sn, week, entries: list.map((e, i) => ({ rank: i + 1, name: e.name, rk: e.rk, score: e.score, turn: e.turn, hp: e.hp, seed: e.seed, cu: e.cu || 'iwaki', me: !!uid && e.uid === uid })) };
     });
   },
   rankLeave(who) {
@@ -3971,7 +4009,7 @@ var MockCloudAdapter = {
   }
 };
 // --- サーバー（REST）: POST /register・/login {user, hash} → {ok, user, token}／GET・PUT /save／DELETE /account {hash}／
-//     POST /ranking {course, seed, log, name}／GET /ranking?course=&period=week|all／DELETE /ranking／POST /ranking/claim。
+//     POST /ranking {course, seed, log, name}／GET /ranking?course=&period=week|all&season=s2|hof／DELETE /ranking／POST /ranking/claim。
 //     トークンは Authorization: Bearer、ゲストの印は X-Guest ---
 var RestAdapter = {
   id: 'rest', label: 'クラウド',
@@ -3994,7 +4032,7 @@ var RestAdapter = {
   save(token, data) { return this.call('/save', 'PUT', { data }, token); },
   remove(token, hash) { return this.call('/account', 'DELETE', { hash }, token); },
   rankSubmit(who, payload) { return this.call('/ranking', 'POST', payload, who.token, who.guest); },
-  rankGet(who, course, period) { return this.call('/ranking?course=' + encodeURIComponent(course) + '&period=' + (period === 'all' ? 'all' : 'week'), 'GET', null, who.token, who.guest); },
+  rankGet(who, course, period, season) { return this.call('/ranking?course=' + encodeURIComponent(course) + '&period=' + (period === 'all' ? 'all' : 'week') + '&season=' + (season === 'hof' ? 'hof' : RANK_SEASON), 'GET', null, who.token, who.guest); },
   rankLeave(who) { return this.call('/ranking', 'DELETE', null, who.token, who.guest); },
   rankClaim(who) { return this.call('/ranking/claim', 'POST', {}, who.token, who.guest); }
 };
@@ -4113,7 +4151,7 @@ function recordResult(win, rankIdx) {
     else { G.merit = meritFor(rankIdx, G.kanUsed); dev.merit = Math.min(COUNT_MAX, dev.merit + G.merit); SAVE.solved = SAVE.solved.concat([ck]).slice(-SOLVED_MAX); }
     const gi = gradeIndex();
     if (gi > SAVE.gradeSeen) { G.promo = gi; SAVE.gradeSeen = gi; }
-    const sc = rankScore(D.key, G.turn, G.hp), b = SAVE.best[D.key];
+    const sc = rankScore(D.key, G.turn, G.hp, G), b = SAVE.best[D.key];   // (前の版の自己ベストもそのまま比べる)
     G.bestUp = !b || sc > b.score;
     SAVE.best[D.key] = { score: Math.max(sc, b ? b.score : 0), turn: Math.min(G.turn, b ? b.turn : 99) };
   }
@@ -4129,10 +4167,10 @@ function submitRank() {
   SyncManager.rank('rankSubmit', { course: key, culprit: D.culprit || 'iwaki', seed: g.seed, log: g.log, name: displayName(), rk: gradeIndex() }).then(res => {
     if (run !== RUN) return;
     if (!res.ok) { g.rankMsg = '捜査実績表に送れませんでした：' + syncErrorText(res.error); return; }
-    return SyncManager.rank('rankGet', key, 'week').then(q => {
+    return SyncManager.rank('rankGet', key, 'week', RANK_SEASON).then(q => {   // (結果画面の順位は今シーズン)
       if (run !== RUN) return;
       const me = q.ok && q.entries.find(e => e.me);
-      g.rankMsg = me ? `捜査実績表に載りました　今週の${DIFFS.find(d => d.key === key).name}で ${me.rank}位` : '捜査実績表に送りました（今週の上位50人の外）';
+      g.rankMsg = me ? `捜査実績表に載りました　今シーズン・今週の${DIFFS.find(d => d.key === key).name}で ${me.rank}位` : '捜査実績表に送りました（今シーズン・今週の上位50人の外）';
     });
   });
 }
@@ -4144,9 +4182,9 @@ var OV = {};
 ['ov', 'scr-mypage', 'scr-rank', 'mp-back', 'mp-name', 'mp-grade', 'mp-merit', 'mp-next', 'mp-ladder', 'mp-name-edit', 'mp-name-form', 'mp-name-input', 'mp-name-cancel', 'mp-grid', 'mp-table',
   'mp-status', 'mp-sync', 'mp-auth', 'mp-user', 'mp-pass', 'mp-register', 'mp-login', 'mp-auth-cancel', 'mp-open-auth', 'mp-sync-now', 'mp-logout',
   'mp-delete', 'mp-del-form', 'mp-del-pass', 'mp-del-no', 'mp-msg', 'mp-note',
-  'rk-back', 'rk-login', 'rk-guest-name', 'rk-open-mypage', 'rk-body', 'rk-diffs', 'rk-periods', 'rk-status', 'rk-podium', 'rk-me', 'rk-list', 'rk-join', 'rk-join-msg', 'rk-leave'
+  'rk-back', 'rk-login', 'rk-guest-name', 'rk-open-mypage', 'rk-body', 'rk-diffs', 'rk-seasons', 'rk-periods', 'rk-status', 'rk-podium', 'rk-me', 'rk-list', 'rk-join', 'rk-join-msg', 'rk-leave'
 ].forEach(id => OV[id] = document.getElementById(id));
-var ovScreen = null, rkState = { diff: 'normal', period: 'week', req: 0 }, mpTick = 0;
+var ovScreen = null, rkState = { diff: 'normal', period: 'week', season: 's2', req: 0 }, mpTick = 0;
 function showOverlay(which) {
   ovScreen = which;
   OV.ov.hidden = !which;
@@ -4284,6 +4322,11 @@ function renderRankingFrame() {
     b.onclick = () => { rkState.diff = d.key; sndClick(); renderRankingFrame(); loadRanking(); };
     return b;
   }));
+  OV['rk-seasons'].querySelectorAll('button').forEach(b => {             // 今シーズン（s2）／殿堂（v1.14まで。見るだけ・全期間だけ）
+    b.setAttribute('aria-pressed', String(b.dataset.season === rkState.season));
+    b.onclick = () => { rkState.season = b.dataset.season; sndClick(); renderRankingFrame(); loadRanking(); };
+  });
+  OV['rk-periods'].hidden = rkState.season === 'hof';
   OV['rk-periods'].querySelectorAll('button').forEach(b => {
     b.setAttribute('aria-pressed', String(b.dataset.period === rkState.period));
     b.onclick = () => { rkState.period = b.dataset.period; sndClick(); renderRankingFrame(); loadRanking(); };
@@ -4306,11 +4349,13 @@ function loadRanking() {
   const req = ++rkState.req;
   OV['rk-status'].textContent = '読み込んでいます……';
   OV['rk-podium'].replaceChildren(); OV['rk-list'].replaceChildren(); OV['rk-me'].hidden = true;
-  SyncManager.rank('rankGet', rkState.diff, rkState.period).then(r => {
+  const hof = rkState.season === 'hof', period = hof ? 'all' : rkState.period;
+  SyncManager.rank('rankGet', rkState.diff, period, rkState.season).then(r => {
     if (req !== rkState.req) return;
     if (!r.ok) { OV['rk-status'].textContent = syncErrorText(r.error); renderRankingFrame(); return; }
     const es = Array.isArray(r.entries) ? r.entries : [];
-    OV['rk-status'].textContent = es.length ? (rkState.period === 'week' ? `今週（${r.week} からの週）の上位 ${es.length} 人` : `全期間の上位 ${es.length} 人`)
+    OV['rk-status'].textContent = hof ? (es.length ? `殿堂：v1.14 までの全期間の上位 ${es.length} 人（今のスコアの式になる前の記録・見るだけ）` : '殿堂の記録はありません。')
+      : es.length ? (period === 'week' ? `今シーズン・今週（${r.week} からの週）の上位 ${es.length} 人` : `今シーズン・全期間の上位 ${es.length} 人`)
       : 'まだ記録がありません。最初の一人になろう。';
     OV['rk-podium'].replaceChildren(...es.slice(0, 3).map((e, i) => {
       const li = el('li', 'rk-pod p' + (i + 1) + (e.me ? ' me' : ''));
@@ -4329,7 +4374,8 @@ function loadRanking() {
     if (i >= 0) {
       const up = es[i - 1];
       OV['rk-me'].textContent = `あなたは ${i + 1}位（${es[i].score.toLocaleString()}）` + (up ? `。ひとつ上の ${up.name} まであと ${(up.score - es[i].score + 1).toLocaleString()} 点` : '。トップです！');
-    } else OV['rk-me'].textContent = rankJoin() ? 'あなたの記録はまだ載っていません。事件を解決すると自動で載ります。' : 'あなたは捜査実績表に載せない設定です（下の設定で変えられます）。';
+    } else if (hof) OV['rk-me'].textContent = '殿堂は v1.14 までの記録です。新しい記録は「今シーズン」に載ります。';
+    else OV['rk-me'].textContent = rankJoin() ? 'あなたの記録はまだ載っていません。事件を解決すると自動で載ります。' : 'あなたは捜査実績表に載せない設定です（下の設定で変えられます）。';
   });
 }
 wireOverlay();
@@ -4480,6 +4526,12 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 15, ver: '1.15', date: '2026-10-12', title: '得点ボーナス・捜査実績表シーズン2', items: [
+    '説得スコアにボーナス：一気呵成 +800（崖っぷちタイムを起こさずに解決）／想いが届いた +500（崖っぷちタイムに成功して解決）／背水の説得 +300・+600（崖の端まで2歩・1歩で解決）',
+    'その1枚で解決するカードに「一気呵成！」「背水 +600」などと出ます。自首ゲージの70の横には「飛び越えれば +800」',
+    '結果画面とシェア画像の説得スコアの下に、ボーナスの内訳',
+    '捜査実績表はシーズン2になりました。v1.14 までの記録は「殿堂」タブでいつでも見られます',
+    'ルールも勝ち負けも出題される事件も、今までと同じです'] },
   { id: 14, ver: '1.14', date: '2026-10-11', title: 'シェア画像を一新・展開グラフ・ツッコミ称号', items: [
     'シェア画像を作り直し。左に犯人の改心顔（ひざまずいて涙）と最後のひとこと、右にエンディング名・称号・説得ランクの判子・スコア',
     '「展開グラフ」：ターンごとの自首・心壁・崖までの歩数と、心壁崩壊・コンボ・崖っぷちタイム・県民の勘の印。結果画面の上にも出ます',
