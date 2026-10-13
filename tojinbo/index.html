@@ -216,6 +216,11 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
       <div class="mp-table-wrap"><table id="mp-table" class="mp-table"></table></div>
       <p class="ov-note">「最短」は解決までのターン数、「ランク」は難易度ごとの最高の説得ランクです。</p>
     </section>
+    <section id="mp-rec" class="ov-card" hidden>
+      <h3 class="ov-h">決着の動画（実験）</h3>
+      <label class="ov-check"><input id="mp-rec-on" type="checkbox"> 決着を録画（実験）</label>
+      <p class="ov-note">解決した最後のターンを、短い動画（mp4）にします。結果画面の「動画でシェア」で X などに載せられます。動画はこの端末のメモリにだけあり、結果画面を離れると消えます。動きが重くなったときは、その事件では録画をやめます。</p>
+    </section>
     <section class="ov-card">
       <h3 class="ov-h">アカウントと同期</h3>
       <p id="mp-status" class="mp-status"></p>
@@ -1339,7 +1344,7 @@ function audioInit() {
   SND.ctx = c;
   SND.master = c.createGain(); SND.master.gain.value = 0.8;
   const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
-  SND.master.connect(comp); comp.connect(c.destination);
+  SND.master.connect(comp); comp.connect(c.destination); SND.comp = comp;   // (v1.19：録画のときは、ここから音を分ける)
   SND.bgm = c.createGain(); SND.bgm.gain.value = 0; SND.bgm.connect(SND.master);
   SND.sfx = c.createGain(); SND.sfx.gain.value = 0.9; SND.sfx.connect(SND.master);
   SND.seaG = c.createGain(); SND.seaG.gain.value = 0.55; SND.seaG.connect(SND.master);
@@ -1648,6 +1653,114 @@ function sndMotif(cu, delay) {
   m.n.forEach((n, i) => emNote(m.type, NOTE(n), t0 + i * m.d, m.d * (i === m.n.length - 1 ? 3 : 1.1), m.vol, 0.01, f));
 }
 
+
+/* ---------- 決着の動画（v1.19・実験） ----------
+   ・録る絵：録画用の小さなキャンバス（縦長 540×960／横長 960×540。ゲームの論理座標と同じ大きさ）に、毎フレーム、ゲームの部分だけを写して captureStream(30)。帯はここにだけ描く
+   ・録る音：圧縮器の出口を MediaStreamAudioDestinationNode にも分ける（音オフなら無音で録れる）
+   ・形式は mp4（H.264/AAC）だけ。使えない端末では録らず、ボタンも設定も出さない
+   ・ターンの始め（自首30以上）か、ターンの途中で自首が50に届いた瞬間に録り始め、前の分は捨てる。カードを使う時、録り始めから13秒を超えていたら録り直す
+   ・ひざまずいて約2秒で止め（8秒に満たなければ8.5秒まで延ばす）、最後の1.5秒に帯。負けたら捨てる。結果画面を離れたら捨てる。セーブには入れない
+   ・計時・入力・G.busy・G.fxLock には触らない。フレームの間隔が33ms（30Hz）より遅い状態（36ms超）が15回続いたら、その事件では録画をやめる */
+const REC_KEY = SAVE_KEY + '.rec';
+const REC_MIMES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1.4D401E,mp4a.40.2', 'video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs="avc1,mp4a"'];
+const REC = { mr: null, chunks: [], t0: 0, rc: null, rx: null, bandFrom: 0, stopT: 0, file: null, g: null, slow: 0, off: false, pending: false };
+let recMimeCache;
+function recMime() {
+  if (window.__REC_TEST_MIME) return window.__REC_TEST_MIME;            // (テスト用。本番では使わない)
+  if (recMimeCache !== undefined) return recMimeCache;
+  recMimeCache = null;
+  try {
+    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream || typeof MediaRecorder.isTypeSupported !== 'function') return null;
+    for (const m of REC_MIMES) if (MediaRecorder.isTypeSupported(m)) { recMimeCache = m; return m; }
+    const safari = /^((?!chrome|chromium|crios|fxios|android|edg).)*safari/i.test(navigator.userAgent);   // (Safari の mp4 は H.264/AAC)
+    if (safari && MediaRecorder.isTypeSupported('video/mp4')) recMimeCache = 'video/mp4';
+  } catch (e) { recMimeCache = null; }
+  return recMimeCache;
+}
+function recEnabled() { return !!recMime() && lsGet(REC_KEY) === '1'; }      // (v1.19 は最初はオフ。マイページでオンにした人だけ)
+function recDiscard() {
+  const mr = REC.mr; REC.mr = null; REC.chunks = []; REC.bandFrom = 0; REC.stopT = 0; REC.pending = false;
+  if (mr && mr.state !== 'inactive') { mr.ondataavailable = null; mr.onstop = null; try { mr.stop(); } catch (e) { } }
+}
+function recClear() { recDiscard(); REC.file = null; REC.g = null; REC.slow = 0; REC.off = false; }   // (事件が変わるとき・結果画面を離れるとき)
+function recStart() {
+  if (!recEnabled() || REC.off || phase !== 'battle' || !G) return;
+  recDiscard();
+  try {
+    const mime = recMime(), wide = WIDE;
+    if (!REC.rc) { REC.rc = document.createElement('canvas'); REC.rx = REC.rc.getContext('2d'); }
+    REC.rc.width = wide ? 960 : 540; REC.rc.height = wide ? 540 : 960; REC.rx.imageSmoothingEnabled = false; REC.last = 0;   // (論理座標と同じ大きさ＝ドット絵がくっきり・写しが軽い)
+    recFrame(true);
+    const st = REC.rc.captureStream(30);
+    if (SND.ctx && SND.comp) {
+      if (!SND.recDest) { SND.recDest = SND.ctx.createMediaStreamDestination(); SND.comp.connect(SND.recDest); }
+      SND.recDest.stream.getAudioTracks().forEach(t => st.addTrack(t));
+    }
+    const mr = new MediaRecorder(st, { mimeType: mime, videoBitsPerSecond: 3000000, audioBitsPerSecond: 128000 });
+    const chunks = [];
+    mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    REC.mr = mr; REC.chunks = chunks; REC.t0 = performance.now(); REC.g = G;
+    mr.start(500);
+  } catch (e) { REC.mr = null; REC.off = true; }
+}
+// 毎フレーム（render のあと）：ゲームの部分を録画用キャンバスへ写す。最後の1.5秒は帯
+function recFrame(force) {
+  if (!REC.rc) return;
+  const now = performance.now(); if (!force && now - (REC.last || 0) < 30) return;   // (30コマ／秒で足りるので、写すのは1フレームおき)
+  REC.last = now;
+  const rc = REC.rc, x = REC.rx;
+  try { x.drawImage(cv, offX * dpr, offY * dpr, W * scale * dpr, H * scale * dpr, 0, 0, rc.width, rc.height); } catch (e) { return; }
+  if (REC.bandFrom && performance.now() >= REC.bandFrom) recBand(x, rc.width, rc.height);
+}
+function recBand(x, w, h) {                                                // 帯：題名／難易度・No.・犯人／URL（縦長は3行、横長は2行。幅に合わせて字を縮める）
+  const cu = cuNow(), tall = !WIDE, info = `${D.name}・No.${caseNo(G.seed)}・${cu.short}`, url = 'alphalpha722514.github.io/tojinbo';
+  const lines = tall ? [['東尋坊ディスウェイド', 0.34, MINCHO, '#ffe2a0'], [info, 0.22, GOTH, '#f4f1ea'], [url, 0.2, GOTH, '#9fd3ff']]
+    : [['東尋坊ディスウェイド', 0.34, MINCHO, '#ffe2a0'], [`${info}　／　${url}`, 0.22, GOTH, '#f4f1ea']];
+  const unit = Math.round(h * (tall ? 0.05 : 0.075)), bh = Math.round(unit * (tall ? 3.3 : 2.4)), y = Math.round(h * (tall ? 0.06 : 0.05));
+  x.save(); x.fillStyle = 'rgba(8,6,14,0.88)'; x.fillRect(0, y, w, bh); x.fillStyle = '#ffd56b'; x.fillRect(0, y, w, 3); x.fillRect(0, y + bh - 3, w, 3);
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  let cy = y + unit * 0.65;
+  for (const [t, k, font, col] of lines) {
+    let fs = Math.round(unit * k * (tall ? 3 : 2.6)); x.font = `${fs}px ${font}`;
+    const tw = x.measureText(t).width; if (tw > w * 0.94) { fs = Math.floor(fs * w * 0.94 / tw); x.font = `${fs}px ${font}`; }
+    x.fillStyle = col; x.fillText(t, w / 2, cy); cy += unit * (tall ? 1.0 : 1.05);
+  }
+  x.restore();
+}
+// ひざまずいたところで呼ぶ：約2秒後（録り始めから8秒に満たなければ8.5秒）に止め、最後の1.5秒に帯
+function recFinish() {
+  if (!REC.mr || REC.pending) return;
+  const now = performance.now(), stopT = Math.max(now + 2000, REC.t0 + 8500), g = G, no = caseNo(G.seed), mr = REC.mr, chunks = REC.chunks;
+  REC.pending = true; REC.stopT = stopT; REC.bandFrom = stopT - 1500;
+  setTimeout(() => {
+    if (REC.mr !== mr) return;
+    mr.onstop = () => {
+      if (REC.g !== g) return;
+      const type = (mr.mimeType || recMime() || 'video/mp4').split(';')[0];
+      const bad = !window.__REC_TEST_MIME && /vp8|vp9|opus/i.test(mr.mimeType || '');   // (X に載らない中身なら作らない)
+      const blob = new Blob(chunks, { type });
+      REC.mr = null; REC.pending = false; REC.bandFrom = 0;
+      if (!bad && blob.size > 0) REC.file = new File([blob], `tojinbo_No${no}.mp4`, { type: 'video/mp4' });
+    };
+    try { mr.stop(); } catch (e) { REC.mr = null; }
+  }, stopT - now);
+}
+// フレームごと：録画中に重くなったら、その事件では録画をやめる
+function recWatch(dtMs) {
+  if (!REC.mr) { REC.slow = 0; return; }
+  REC.slow = dtMs > 36 ? REC.slow + 1 : 0;                                // (33ms を少し超える＝30Hz の画面や省電力モードでは止めない。それより遅いのが15回続いたら)
+  if (REC.slow >= 15) { recDiscard(); REC.off = true; }
+  else if (performance.now() - REC.t0 > 30000 && !REC.pending) recDiscard();   // (念のため：30秒を超えた録画は捨てる)
+}
+function shareVideo() {
+  const f = REC.file; if (!f) return;
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], text: shareText() }).catch(() => { }); return; }
+  } catch (e) { }
+  try { const u = URL.createObjectURL(f), a = document.createElement('a'); a.href = u; a.download = f.name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); } catch (e) { }
+}
+const VSHARE = { x: 40, y: 826, w: 460, h: 56 };
+
 /* =========================================================
    STATE
    ========================================================= */
@@ -1664,7 +1777,7 @@ for (let i = 0; i < 46; i++) V.wind.push({ x: rand(0, W), y: rand(20, 500), len:
 for (let i = 0; i < 7; i++) V.clouds.push({ x: rand(-60, W), y: rand(150, 270), w: rand(90, 200), h: rand(18, 34), spd: rand(6, 16) });
 
 function resetRun() {
-  RUN++; waiters = []; tipReset(); dlg = null; dlgResolve = null; paused = false; pmConfirm = null;
+  RUN++; waiters = []; tipReset(); recClear(); dlg = null; dlgResolve = null; paused = false; pmConfirm = null;
   if (typeof endOpening === 'function') endOpening(); V.telop = null; V.faceUp = null; V.white = 0;
   setDuck(false);
 }
@@ -1725,6 +1838,7 @@ const INTENT_TXT = {
 };
 function startTurn() {
   coreStartTurn(G, D); G.hint = null; G._undo = null; G.log.push([]);
+  if (G.sur >= 30) recStart();                                           // 決着の動画：ターンの始めに録り直す（自首30以上）
   V.intentPulse = 1.2;
   drawCards(4);
   G.busy = false;
@@ -1735,6 +1849,7 @@ function playCard(card) {
   if (G.busy || phase !== 'battle') return;
   const d = card.def;
   if (d.cost > G.ap) { sndBuzz(); addFloat(U.hintX, U.handY - 16, 'APが足りない！', '#ff7b7b', 20); return; }
+  if (REC.mr && !REC.pending && performance.now() - REC.t0 > 13000) recStart();   // 決着の動画：長いターンはカードの区切りで録り直す
   const snap = G.undoTurn !== G.turn ? gameSnap() : null;              // 待った用（使う前の状態。このターンにまだ待ったしていなければ）
   G.hand = G.hand.filter(c => c !== card); G.disc.push(card.id); G.totalPlayed++; G.log[G.log.length - 1].push(card.id);
   G.hint = null;
@@ -1746,6 +1861,7 @@ function playCard(card) {
   histCard(card.id, d, r, surBefore);                                    // (展開グラフ・ツッコミ称号用。待ったで戻すと一緒に消える)
   say(DN, cardFlav(card.id), DC);
   if (r.broke) tip('broke');
+  if (!REC.mr && G.sur >= 50 && G.sur < 100) recStart();                    // 決着の動画：ターンの途中で自首が50に届いた瞬間から
   if (G.sur > 50 && G.sur < 70 && !G.cliffTriggered) tip('sur50');
   const fx = V.cx, fy = 200;
   if (r.shieldDmg) { addFloat(fx, fy, '心壁 −' + r.shieldDmg, '#8fc1ff', 26); V.cshake = 1; V.shake = Math.max(V.shake, 6); }
@@ -2050,7 +2166,7 @@ async function winSequence() {
   later(420, () => { if (phase === 'winning' || phase === 'win') endMusicStart(end.sky); });   // エンディングの音楽（テロップのあと、空が変わるのと一緒に）
   await sleep(900);
   await say(CN, SCRIPT.culprit.confess, CC, 1300);
-  V.kneelT = 1; sndEndTheme(end.sky);
+  V.kneelT = 1; sndEndTheme(end.sky); recFinish();                       // 決着の動画：ひざまずいて約2秒で止める
   await sleep(1200);
   await say(CN, end.line || SCRIPT.ending.default, CC, 1400);
   await say(DN, end.sky === 'rain' ? SCRIPT.detective.endRain : end.sky === 'dawn' ? SCRIPT.detective.endDawn : SCRIPT.detective.endOther, DC, 1600);
@@ -2061,7 +2177,7 @@ async function lose(kind) {
   loseKind = kind; phase = 'losing'; G.busy = true; G.hint = null; vib(80);
   recordResult(false);
   try { G.route = solveRoute(G.seed, D); } catch (e) { G.route = null; }   // (正解ルート。敗北が決まったあと1回だけ)
-  bgmStop(1.2); endMusicStop(1); sndLose();
+  bgmStop(1.2); endMusicStop(1); sndLose(); recClear();                  // (負けたら録画は捨てる)
   if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.3, t, 0.7); }   // (失敗：音を静かに絞って終える)
   if (kind === 'crisis') await say(NN, '崖の端まで追い込んでしまった……。説得は、届かなかった。', NC, 1500);
   else {
@@ -4112,6 +4228,7 @@ function drawResult() {
     button(NEWCASE, '新しい事件へ', '別の山札で挑む', '#2e8a50', '#14482a', true, false, hoverBtn === 'newcase');
     button(TOTITLE, '難易度を選ぶ', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'totitle');
     if (phase === 'win') button(SHARE, 'X で自慢する', '結果をポスト', '#1d1d24', '#000000', true, false, hoverBtn === 'share');
+    if (phase === 'win' && REC.file && REC.g === G) button(VSHARE, '動画でシェア（mp4）', '決着の瞬間・実験', '#7a1d17', '#3a0a08', true, false, hoverBtn === 'vshare');
     else drawHelpLine(HELP_R.lose);   // 失敗の結果画面の最下部に相談窓口の案内
   }
   ctx.restore();
@@ -4155,9 +4272,10 @@ function render() {
 }
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const rawMs = now - last, dt = Math.min(0.05, rawMs / 1000); last = now;
   updateHover();
   update(dt); render();
+  if (REC.mr) { recFrame(); recWatch(rawMs); }                            // 決着の動画（録画中だけ）
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -4204,6 +4322,7 @@ function updateHover() {
   if (phase === 'win' || phase === 'lose') {
     if (inBtn(cm, RETRY)) hoverBtn = 'retry'; else if (inBtn(cm, NEWCASE)) hoverBtn = 'newcase'; else if (inBtn(cm, TOTITLE)) hoverBtn = 'totitle';
     else if (phase === 'win' && inBtn(cm, SHARE)) hoverBtn = 'share';
+    else if (phase === 'win' && REC.file && inBtn(cm, VSHARE)) hoverBtn = 'vshare';
     return;
   }
   if (inRect(mouse, PAUSE)) hoverBtn = 'pause';
@@ -4223,6 +4342,7 @@ cv.addEventListener('click', e => {                                    // シェ
   { const hr = helpRectNow(); if (hr && inRect(colPt(toLogical(e)), hr)) { openHelp(); return; } }
   if (phase !== 'win' || resultT <= 1.0 || rules || paused) return;
   if (inBtn(colPt(toLogical(e)), SHARE)) shareResult();
+  else if (REC.file && REC.g === G && inBtn(colPt(toLogical(e)), VSHARE)) shareVideo();
 });
 cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') mouse = { x: -1, y: -1 }; });
 cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -4282,7 +4402,8 @@ cv.addEventListener('pointerdown', e => {
     if (resultT > 1.0 && inBtn(p, RETRY)) { sndClick(); beginGame(D, G.seed); }
     else if (resultT > 1.0 && inBtn(p, NEWCASE)) { sndClick(); beginGame(D); }
     else if (resultT > 1.0 && inBtn(p, TOTITLE)) { sndClick(); goTitle(); }
-    else if (resultT > 1.0 && phase === 'win' && inBtn(p, SHARE)) sndClick();   // (開くのは下の click で)
+    else if (resultT > 1.0 && phase === 'win' && inBtn(p, SHARE)) sndClick();
+    else if (resultT > 1.0 && phase === 'win' && REC.file && inBtn(p, VSHARE)) sndClick();   // (開くのは click で)   // (開くのは下の click で)
     return;
   }
   if (inRect(p, PAUSE) && phase === 'battle') { openPause(); return; }
@@ -4672,12 +4793,14 @@ function closeOverlay() { showOverlay(null); sndClick(); if (typeof runPendingCa
 function setMpMsg(t, bad) { OV['mp-msg'].textContent = t || ''; OV['mp-msg'].classList.toggle('bad', !!bad); }
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
+document.getElementById('mp-rec-on').onchange = e => { lsSet(REC_KEY, e.target.checked ? '1' : '0'); if (!e.target.checked) recClear(); };
 function openMypage() {
   setMpMsg(''); OV['mp-name-form'].hidden = true; OV['mp-auth'].hidden = true; OV['mp-del-form'].hidden = true;
   renderMypage(); showOverlay('mypage');
   if (!mpTick) mpTick = setInterval(() => { if (ovScreen === 'mypage') renderAccount(); }, 30000);
 }
 function renderMypage() {
+  { const ok2 = !!recMime(), box = document.getElementById('mp-rec'); box.hidden = !ok2; if (ok2) document.getElementById('mp-rec-on').checked = lsGet(REC_KEY) === '1'; }   // 決着の動画（対応端末だけ）
   OV['mp-name'].textContent = myFullName();
   const gi = gradeIndex(), chip = OV['mp-grade'];
   chip.textContent = gradeName(gi); chip.style.color = GRADE_COL[gi];
@@ -4965,6 +5088,10 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 19, ver: '1.19', date: '2026-10-13', title: '決着の動画（実験）', items: [
+    '解決した最後のターンを短い動画（mp4）にして、結果画面の「動画でシェア」から X などに載せられるようになりました（実験）',
+    '使うには、マイページの「決着を録画（実験）」をオンにしてください。mp4 を作れる端末だけに出ます',
+    '画像のシェアは今までどおりです'] },
   { id: 18, ver: '1.18', date: '2026-10-13', title: 'エンディングの音楽・称号と挑戦状', items: [
     '解決したあとの音楽が、エンディングの空（朝焼け・夕焼け・夜・雨）ごとに変わります',
     '犯人6人それぞれに短い動機の旋律。開幕の顔のアップと崖っぷちタイムで鳴ります',
