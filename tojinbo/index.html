@@ -47,7 +47,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .ov-scr{max-width:520px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) 14px 48px}
 .ov-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 12px}
 .ov-title{margin:0;font-family:inherit;font-size:32px;font-weight:400;color:#ffe2a0;letter-spacing:.08em;text-shadow:3px 3px 0 #000,-3px 0 0 #000,0 -3px 0 #000}
-.ov-card{background:#14141f;border:3px solid #000;outline:3px solid #8a6b3a;outline-offset:-6px;box-shadow:6px 6px 0 rgba(0,0,0,.6);border-radius:0;padding:12px 14px;margin:0 0 12px}
+.ov-card{background:#14141f;border:3px solid #8a6b3a;box-shadow:0 0 0 3px #000,6px 6px 0 3px rgba(0,0,0,.6);border-radius:0;padding:12px 14px;margin:3px 3px 15px}   /* (v1.17：枠は1本。黒の縁取りは影で) */
 .ov-h{margin:0 0 8px;font-family:inherit;font-size:18px;font-weight:400;color:#ffd56b;text-shadow:2px 2px 0 #000}
 .ov-lead{margin:0 0 6px}
 .ov-note{margin:6px 0 0;font-size:12.5px;color:#a9a9b8}
@@ -75,7 +75,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .mp-name-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0}
 .mp-name{font-family:inherit;font-size:22px;font-weight:400;overflow-wrap:anywhere}
 .mp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0}
-.mp-cell{background:#0d0d17;border:3px solid #000;padding:8px 10px}
+.mp-cell{background:#0b0b13;border:0;border-left:3px solid #3a3226;padding:8px 10px}
 .mp-cell dt{font-size:12px;color:#a9a9b8}
 .mp-cell dd{margin:2px 0 0;font-size:20px;color:#fff;text-shadow:2px 2px 0 #000}
 .mp-table-wrap{overflow-x:auto;margin-top:10px}
@@ -94,7 +94,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .mp-need .bar{grid-column:1/3;height:9px;background:#000;border:2px solid #000}
 .mp-need .bar i{display:block;height:100%;background:#6bd98f}
 .mp-need.done{color:#7dffa8}
-.mp-ladder summary{cursor:pointer;color:#9fd3ff;min-height:36px;display:flex;align-items:center}
+.mp-ladder summary{cursor:pointer;color:#9fd3ff;min-height:44px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}
 .mp-ladder-list{margin:6px 0 0;padding-left:1.6em;font-size:13px;line-height:1.7}
 .mp-ladder-list li.now{color:#ffd56b}
 .mp-ladder-list li.got{color:#b0ffc8}
@@ -129,30 +129,28 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .ob-h{margin:4px 0 0;font-size:21px;font-weight:400;color:#ffe2a0;text-align:center;text-shadow:2px 2px 0 #000}
 .ob-h:focus{outline:none}
 .ob-text{margin:0;font-size:15px;line-height:1.75;min-height:7.2em;align-self:stretch}
-.ob-sound,.ob-acc{align-self:stretch;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;border:3px solid #000;background:#0d0d17}
-.ob-sound[hidden],.ob-acc[hidden]{display:none!important}
-.ob-sound-state,.ob-acc-state{margin:0;font-size:13.5px;text-align:center;color:#d8d8e4}
-.ob-acc-btns{display:flex;flex-direction:column;gap:10px;align-self:stretch}
+.ob-go{align-self:stretch;min-height:52px;font-size:18px;letter-spacing:.06em}
+.ob-more{align-self:stretch;background:#2a2a3a;box-shadow:inset 0 -6px 0 #16161f,inset 0 3px 0 rgba(255,255,255,.2),4px 4px 0 rgba(0,0,0,.6)}
 .ob-dots{display:flex;gap:6px}
 .ob-dots i{width:9px;height:9px;background:#3a3a4a;border:2px solid #000}
 .ob-dots i.on{background:#ffd56b}
 .ob-nav{display:flex;justify-content:space-between;align-self:stretch;gap:8px}
-.ob-nav .ov-btn{min-width:96px}
-.ob-check{min-height:36px;font-size:14px}
+.ob-nav .ov-btn{min-width:96px;min-height:44px}
+.ob-check{min-height:44px;font-size:14px}
 .nw-card{width:100%;max-width:440px;display:flex;flex-direction:column;gap:10px;padding:16px}
 .nw-list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
-.nw-item{background:#0d0d17;border:3px solid #000;padding:10px 12px}
-.nw-item.new{border-color:#b8761c;background:#1c1608}
+.nw-item{background:#0b0b13;border:0;border-left:3px solid #3a3226;padding:10px 12px}
+.nw-item.new{border-left-color:#ffd56b;background:#1c1608}
 .nw-meta{margin:0;font-size:12.5px;color:#a9a9b8;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .nw-badge{background:#ff4a3a;color:#fff;padding:0 6px;font-size:12px;border:2px solid #000}
 .nw-ttl{margin:4px 0 6px;font-size:17px;font-weight:400;color:#ffe2a0;text-shadow:2px 2px 0 #000}
 .nw-pts{margin:0;padding-left:1.3em;font-size:14px;line-height:1.7}
-.nw-old summary{cursor:pointer;color:#9fd3ff;min-height:40px;display:flex;align-items:center}
+.nw-old summary{cursor:pointer;color:#9fd3ff;min-height:44px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}
 .nw-old .nw-list{margin-top:6px}
 .zk-sum{margin:0 0 8px;font-size:13.5px;color:#d8d8e4}
 .zk-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
-.zk-item{background:#0d0d17;border:3px solid #000;padding:8px 10px;display:flex;flex-direction:column;gap:4px;box-shadow:3px 3px 0 rgba(0,0,0,.6);min-height:64px}
-.zk-item.got{border-color:#4a4458}
+.zk-item{background:#0d0d17;border:0;border-left:3px solid #2a2a3a;padding:8px 10px;display:flex;flex-direction:column;gap:4px;min-height:64px}
+.zk-item.got{border-left-color:#8a6b3a}
 .zk-item.unknown{background:#141420;color:#6a6a7a}
 .zk-item canvas{width:80px;height:96px;image-rendering:pixelated;align-self:center}
 .zk-name{font-size:15px;color:#fff;text-shadow:2px 2px 0 #000;overflow-wrap:anywhere}
@@ -161,8 +159,9 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .zk-desc{font-size:12.5px;line-height:1.55;color:#d8d8e4}
 .zk-item.unknown .zk-desc{color:#7a7a8a}
 .zk-cnt{font-size:11.5px;color:#b0ffc8}
+.zk-flav{font-size:12.5px;line-height:1.55;color:#ffe2a0}
 .zk-h{margin:12px 0 6px;font-size:14px;color:#ffd56b;font-weight:400}
-.ob-link{background:none;border:0;padding:6px;color:#9fd3ff;font:inherit;font-size:13.5px;text-decoration:underline;cursor:pointer}
+.ob-link{background:none;border:0;padding:6px;min-height:44px;color:#9fd3ff;font:inherit;font-size:13.5px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -183,6 +182,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
     <li>説得スコアの捜査実績表（ランキング）、階級と功績、図鑑。</li>
     <li>どの事件も、推理すれば必ずクリアできることを確かめてから出題。</li>
   </ul>
+  <p>証拠と人情と、カツ丼で。東尋坊の犯人を自首させろ。1プレイ3分・登録不要・事件番号で同じ事件を遊べます。実況・配信・収益化もすべて歓迎です。</p>
   <p>舞台は福井県坂井市の名勝・東尋坊。ドット絵の2時間サスペンス風ゲームです。</p>
   <p>東尋坊は、いのちを守る活動が続く場所でもあります。つらいときは、ひとりで抱えずに相談を → <a href="https://www.mhlw.go.jp/mamorouyokokoro/" target="_blank" rel="noopener">相談窓口（厚生労働省「まもろうよ こころ」）</a></p>
 </main>
@@ -250,28 +250,18 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 
   <section id="scr-onboard" class="ov-scr ob-scr" role="dialog" aria-modal="true" aria-labelledby="ob-h" aria-describedby="ob-text" hidden>
     <div class="ov-card ob-card">
-      <p class="ob-top"><span class="ob-eyebrow">はじめての捜査</span><span id="ob-step" class="ob-step">1 / 6</span></p>
+      <p class="ob-top"><span class="ob-eyebrow">はじめての捜査</span><span id="ob-step" class="ob-step">1 / 3</span></p>
       <canvas id="ob-pic" class="ob-pic" width="120" height="64" aria-hidden="true"></canvas>
       <h2 id="ob-h" class="ob-h" tabindex="-1"></h2>
       <p id="ob-text" class="ob-text"></p>
-      <div id="ob-sound" class="ob-sound" hidden>
-        <p id="ob-sound-state" class="ob-sound-state" role="status" aria-live="polite"></p>
-        <button id="ob-sound-test" class="ov-btn small primary" type="button">音を鳴らしてみる</button>
-      </div>
-      <div id="ob-acc" class="ob-acc" hidden>
-        <p id="ob-acc-state" class="ob-acc-state"></p>
-        <div class="ob-acc-btns">
-          <button id="ob-acc-yes" class="ov-btn primary" type="button">アカウントを作成 / ログインする</button>
-          <button id="ob-acc-no" class="ov-btn" type="button">ゲストではじめる</button>
-        </div>
-      </div>
       <div id="ob-dots" class="ob-dots" aria-hidden="true"></div>
       <div class="ob-nav">
         <button id="ob-prev" class="ov-btn small" type="button">戻る</button>
-        <button id="ob-next" class="ov-btn small primary" type="button">次へ</button>
+        <button id="ob-next" class="ov-btn small" type="button">次へ</button>
       </div>
+      <button id="ob-go" class="ov-btn primary ob-go" type="button">さっそく捜査する</button>
+      <button id="ob-more" class="ov-btn ob-more" type="button">くわしいルール</button>
       <label class="ov-check ob-check"><input id="ob-hide" type="checkbox" checked> 次回から表示しない</label>
-      <button id="ob-more" class="ob-link" type="button">くわしいルールを見る</button>
     </div>
   </section>
 
@@ -1147,12 +1137,13 @@ function deviceId() {
 }
 function cleanName(v) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, PROFILE_NAME_MAX) : ''; }
 function blankDev() { const z = {}; DIFF_KEYS.forEach(k => z[k] = 0); return { earn: 0, spend: 0, merit: 0, plays: Object.assign({}, z), wins: Object.assign({}, z) }; }
+const TIP_ALL = 63;   // その場のヒント6種（1 犯人の狙い・2 心壁が割れた・4 コンボ・8 自首50・16 県民の勘・32 失敗）
 const ONBOARD_VER = 2;   // はじめての捜査（説明）の版。上げると、見た人にも「増えた分」だけもう一度出す
-const OB_NEW_FROM = { 2: 5 };   // 版 → その版で増えた説明（OB_SLIDES の番号）。v2 で「コンボと崖っぷちタイム」を追加
+// v1.17：説明を3枚にした。ONBOARD_VER は 2 のまま（見た人に出し直さない）。前の版の「増えた1枚だけ」は使わず、onboard 1 の人は 2 にする（コンボと崖っぷちタイムはその場のヒントで）
 // schema 4：図鑑（zukan）を追加。中身は「種類 → { key: 解決した回数 }」
 const ZUKAN_KINDS = ['culprits', 'cards', 'combos', 'endings'];
 function blankZukan() { return { culprits: {}, cards: {}, combos: {}, endings: {} }; }
-function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan(), daily: { last: 0, streak: 0, best: 0 } }; }
+function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, tips: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan(), daily: { last: 0, streak: 0, best: 0 } }; }
 // 図鑑に載せてよい key（知らない key は捨てる）
 function zukanKeys(kind) {
   if (kind === 'culprits') return CULPRITS.map(c => c.key);
@@ -1191,6 +1182,7 @@ function coerceSave(raw) {
   });
   out.seenRules = raw.seenRules === true;
   out.onboard = cInt(raw.onboard, 0, 1000);
+  out.tips = cInt(raw.tips, 0, TIP_ALL);   // その場のヒントの表示済み（v1.17。ビットの和）
   if (Array.isArray(raw.solved)) out.solved = raw.solved.filter(v => typeof v === 'string' && /^[a-z]+:\d{1,10}(:[a-z]+)?$/.test(v)).slice(-SOLVED_MAX);
   out.gradeSeen = raw.gradeSeen == null ? -1 : cInt(raw.gradeSeen, -1, 9);
   if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
@@ -1220,6 +1212,7 @@ function mergeSaves(a, b) {
   });
   out.seenRules = L.seenRules || C.seenRules;
   out.onboard = Math.max(L.onboard, C.onboard);
+  out.tips = (L.tips | C.tips) & TIP_ALL;   // (表示済みは2台分を合わせる)
   out.solved = L.solved.concat(C.solved.filter(v => !L.solved.includes(v))).slice(-SOLVED_MAX);
   out.gradeSeen = Math.max(L.gradeSeen, C.gradeSeen);
   if (C.profile.at > L.profile.at) out.profile = Object.assign({}, C.profile);
@@ -1561,7 +1554,7 @@ for (let i = 0; i < 46; i++) V.wind.push({ x: rand(0, W), y: rand(20, 500), len:
 for (let i = 0; i < 7; i++) V.clouds.push({ x: rand(-60, W), y: rand(150, 270), w: rand(90, 200), h: rand(18, 34), spd: rand(6, 16) });
 
 function resetRun() {
-  RUN++; waiters = []; dlg = null; dlgResolve = null; paused = false; pmConfirm = null;
+  RUN++; waiters = []; tipReset(); dlg = null; dlgResolve = null; paused = false; pmConfirm = null;
   if (typeof endOpening === 'function') endOpening(); V.telop = null; V.faceUp = null; V.white = 0;
   setDuck(false);
 }
@@ -1625,7 +1618,7 @@ function startTurn() {
   V.intentPulse = 1.2;
   drawCards(4);
   G.busy = false;
-  if (G.turn === 1) say('ヒント', '左上の「犯人の狙い」を見て対策を考えよう。まずは青の【証拠】で心壁を崩すのが定石だ。', '#9fd3ff');
+  if (G.turn === 1) { say('ヒント', '左上の「犯人の狙い」を見て対策を考えよう。まずは青の【証拠】で心壁を崩すのが定石だ。', '#9fd3ff'); tip('intent'); }
   else say(NN, `―― 第${G.turn}幕 ――　犯人の心境は「${MOODS[G.mood].name}」。崖の端まで、あと${G.crisis}歩。`, NC);
 }
 function playCard(card) {
@@ -1642,6 +1635,8 @@ function playCard(card) {
   const r = cardEffect(G, card.id, D);
   histCard(card.id, d, r, surBefore);                                    // (展開グラフ・ツッコミ称号用。待ったで戻すと一緒に消える)
   say(DN, cardFlav(card.id), DC);
+  if (r.broke) tip('broke');
+  if (G.sur > 50 && G.sur < 70 && !G.cliffTriggered) tip('sur50');
   const fx = V.cx, fy = 200;
   if (r.shieldDmg) { addFloat(fx, fy, '心壁 −' + r.shieldDmg, '#8fc1ff', 26); V.cshake = 1; V.shake = Math.max(V.shake, 6); }
   if (d.type === 'ev' && (r.shieldDmg || r.sur)) V.glassT = 1.4;            // (神崎のメガネの光が消える。見た目だけ)
@@ -1738,6 +1733,65 @@ function tsukkomiTitle(g, cu) {
 const TSUKKOMI_ALL = Object.values(SCRIPT.tsukkomi);
 // 自首99以上に届いた瞬間、1回だけスローモーション
 function slowCheck() { if (G.sur >= 99 && !G._flagSlow) { G._flagSlow = true; V.slow = 0.9; } }
+
+/* ---------- その場のヒント（v1.17。初めて起きた瞬間に1回だけ、短い帯で出す） ----------
+   ・画面を止めない（G.busy・G.fxLock・崖っぷちタイムの計時に触らない）。帯をタップするか、約5秒で消える。帯の外のタップはふだんどおり
+   ・崖っぷちタイムの最中は出さない（出ていた帯も隠し、終わってから続きを出す）
+   ・表示済みは SAVE.tips（ビットの和）。どれかの難易度で1回でも解決した人には、全部を表示済みとして扱う */
+const TIPS = {
+  intent: [1, () => `左上は犯人の次の一手。「対策」に書かれたカードを先に打てば、被害を減らせる。`],
+  broke: [2, () => '心壁を割った！ 犯人は次の行動ができずに固まる。割ったあとの証拠は、30%が自首に入る。'],
+  combo: [4, () => '「○○まで あと N 枚」＝このターンにあと N 枚、決まった組み合わせを使えば捜査コンボが成立。'],
+  sur50: [8, () => '自首70で「崖っぷちタイム」。「タップせよ！」が出たら、1.6秒以内に3回タップ！'],
+  kan: [16, () => `迷ったら${WIDE ? '右' : '左下'}の「県民の勘」。その場でいちばん良い一手が金色に光る（勘は持ち越せる）。`],
+  lose: [32, () => '「正解ルート」は検証AIの打ち筋。1手目の助言を見て、「同じ事件に再挑戦」で試してみよう。'],
+};
+const TIP_SHOW = 5;                                                       // (秒。実時間)
+function anyWin() { return Object.values(SAVE.devs).some(d => DIFF_KEYS.some(k => (d.wins[k] || 0) > 0)); }
+function tipSeen(k) { return !!(SAVE.tips & TIPS[k][0]) || anyWin(); }
+function tip(k) {                                                         // (並べるだけ。表示済みの印は、実際に出したときに付ける)
+  if (!TIPS[k] || tipSeen(k)) return;
+  if (!V.tipQ) V.tipQ = [];
+  if ((V.tip && V.tip.k === k) || V.tipQ.some(q => q.k === k)) return;
+  V.tipQ.push({ k, text: TIPS[k][1](), t: 0 });
+}
+function tipTick(realDt) {
+  if (!V.tipQ) V.tipQ = [];
+  if (G && G.gamble && G.gamble.active) return;                           // (崖っぷちタイムの最中は止めて隠す)
+  if (V.tipGap > 0) V.tipGap -= realDt;
+  if (!V.tip && V.tipQ.length && !(V.tipGap > 0)) {
+    const i = V.tipQ.findIndex(q => q.k === 'lose' ? phase === 'lose' : phase === 'battle');   // (失敗のヒントは結果画面、ほかはバトル中だけ)
+    if (i >= 0) { V.tip = V.tipQ.splice(i, 1)[0]; SAVE.tips |= TIPS[V.tip.k][0]; save(); }
+  }
+  if (V.tip) { V.tip.t += realDt; if (V.tip.t >= TIP_SHOW) tipClose(); }
+  if (phase === 'battle' && G && !G.busy && !G.fxLock && G.hand) {          // (起きているかを見て出すもの)
+    if (!tipSeen('combo') && G.hand.some(c => comboProgress(G, c.id).some(p => p.need > 0))) tip('combo');
+    if (!tipSeen('kan') && kanNow() > 0) tip('kan');
+  }
+}
+function tipClose() { V.tip = null; V.tipGap = 0.6; }
+function tipVisible() { return !!(V.tip && !(G && G.gamble && G.gamble.active) && (phase === 'battle' || phase === 'lose')); }
+function tipReset() { V.tip = null; V.tipQ = []; V.tipGap = 0; }   // (事件が変わるとき。まだ出していないものは、次に起きたときに出す)
+function tipRect() {                                                      // (全体の座標。描くのと同じ場所)
+  const lose = phase === 'lose', ox = lose ? CX : Math.round((W - 540) / 6) * 3;
+  ctx.font = `15px ${GOTH}`; const lines = wrap(V.tip.text, 468).slice(0, 3);
+  const h = 22 + lines.length * 22;
+  return { x: ox + 12, y: lose ? 150 : 396 - h, w: 516, h, lines };
+}
+function drawTip() {
+  if (!tipVisible()) return;
+  const q = V.tip, r = tipRect(), a = Math.min(1, q.t / 0.2, (TIP_SHOW - q.t) / 0.4);
+  ctx.save(); ctx.globalAlpha = Math.max(0, a);
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(r.x + 4, r.y + 4, r.w, r.h);
+  ctx.fillStyle = '#1c1608'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 2; ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
+  ctx.fillStyle = '#ffd56b'; ctx.fillRect(r.x, r.y, 52, 20); ctx.fillStyle = '#2a1a00'; ctx.font = `13px ${GOTH}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('ヒント', r.x + 26, r.y + 10);
+  ctx.textAlign = 'left'; ctx.font = `15px ${GOTH}`; ctx.fillStyle = '#fff4d8';
+  r.lines.forEach((l, i) => ctx.fillText(l, r.x + 24, r.y + 32 + i * 22));
+  ctx.fillStyle = 'rgba(255,213,107,0.6)'; ctx.fillRect(r.x, r.y + r.h - 3, r.w * Math.max(0, 1 - q.t / TIP_SHOW), 3);   // (残り時間)
+  ctx.restore();
+}
 
 /* ---------- 崖っぷちタイム（自首70で1事件1回。1.6秒以内に3回タップで自首 +15） ----------
    成功は打ち手の記録に '!cliff' として残り、サーバーでも同じように再生される。失敗すると警戒 +1（cliffFail）。
@@ -1902,6 +1956,7 @@ async function lose(kind) {
     await say(NN, `刑事の心が折れた。${cuWho()}は背を向けたまま、口を閉ざした――。`, NC, 1500);
   }
   phase = 'lose'; resultT = 0; V.banner = null; V.bannerQ = []; V.cutin = null;
+  tip('lose');
 }
 // 正解ルート：出題前の検証（playout）と同じ打ち筋で最後まで解き、各ターンに使うカードと1手目の助言を返す
 // （CORE の外に置く。サーバーには関係しない。敗北時に1回だけ呼ぶ）
@@ -2200,6 +2255,7 @@ function update(dt) {
   fxLockTick();
   if (fxStopped()) return;                                           // 止め（ヒットストップ）：画面の時間を止める
   const realDt = dt;
+  tipTick(realDt);                                                   // その場のヒント（実時間で数える）
   if (V.slow > 0) { V.slow = Math.max(0, V.slow - dt); dt *= 0.25; }   // スローモーション（実時間0.9秒）
   dt *= SPEED;                                                       // 倍速モード（台詞・待ち時間・演出がまとめて速くなる）
   T += dt; GT += dt;
@@ -2981,7 +3037,7 @@ function drawPause() {
   ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888';
   ctx.fillText('※やり直しても、使った県民の勘は戻りません', W / 2, 628);
 }
-const MUTE = { x: 488, y: 528, w: 42, h: 34 };
+const MUTE = { x: 470, y: 514, w: 64, h: 64 };   // (v1.17：朱の判子。タップ領域は高さ64＝スマホ幅でも44px以上)
 // カードの絵柄（ドット）。1文字＝3px
 const ICONS = {
   ev: { pal: { k: '#1d3f8a', g: '#a8d0ff', w: '#ffffff', h: '#6a4a2a' }, rows: [
@@ -3170,9 +3226,7 @@ function drawUI() {
     circle(ox, oy, 7, on ? '#d8483a' : '#2a1a1e');
     if (on) { ctx.fillStyle = '#ffd8c8'; ctx.fillRect(ox - 1, oy - 6, 3, 12); ctx.fillRect(ox - 6, oy - 1, 12, 3); }
   }
-  rr(MUTE.x, MUTE.y, MUTE.w, MUTE.h, 8); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
-  ctx.textAlign = 'center'; ctx.font = `16px ${GOTH}`; ctx.fillStyle = SND.muted ? '#777' : '#ddd';
-  ctx.fillText(SND.muted ? '✕' : '♪', MUTE.x + MUTE.w / 2, MUTE.y + MUTE.h / 2 + 1);
+  drawSoundSeal(MUTE.x + MUTE.w / 2, MUTE.y + MUTE.h / 2, !SND.muted, hoverBtn === 'mute');   // 音のオン／オフ（朱の判子）
   ctx.textAlign = 'left'; ctx.font = `13px ${GOTH}`;
   let sx = U.chipX, sy = U.chipY;
   const chip = (txt, col, bgc, red) => {                                       // 状態の小札：黒地に白の新聞見出し風（警戒4以上は赤）
@@ -3303,7 +3357,7 @@ function drawTitle() {
   outlineText('ディスウェイド', W / 2, 150, '#ff4a3a', '#2a0000', 8);
   ctx.save(); ctx.beginPath(); ctx.rect(0, 120, W, 24); ctx.clip();                          // 上半分を明るく（ドットのツヤ）
   ctx.fillStyle = '#ff9a6a'; ctx.fillText('ディスウェイド', W / 2, 150); ctx.restore();
-  ctx.font = `14px ${GOTH}`; ctx.fillStyle = '#ddd'; ctx.fillText('〜 証拠と人情と福井グルメで、犯人を自首させろ 〜', W / 2, 202);
+  ctx.font = `15px ${MINCHO}`; outlineText('証拠と人情と、カツ丼で。東尋坊の犯人を自首させろ。', W / 2, 200, '#f4ead8', '#000', 4);   // 決め台詞（v1.17）
   ctx.font = `18px ${MINCHO}`; outlineText('― 難易度を選んで開幕 ―', W / 2, 246, '#fff', '#000', 4);
   DIFF_BTNS.forEach((b, i) => {
     const d = b.d, hov = hoverBtn === 'd' + i;
@@ -3360,9 +3414,9 @@ function drawTitle() {
     ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#fff'; ctx.fillText('NEW', T_NEWS.x + T_NEWS.w - 5, T_NEWS.y - 2);
   }
   ctx.textAlign = 'left'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888';
-  ctx.fillText('v' + (typeof APP_VER !== 'undefined' ? APP_VER : ''), 18, 41);
-  ctx.fillText('実況・配信・収益化 すべて歓迎です', 18, 59);
-  ctx.fillText('※音が出ます', 18, 77);
+  ctx.fillText('v' + (typeof APP_VER !== 'undefined' ? APP_VER : '') + '　実況・配信・収益化 すべて歓迎です', 18, 41);
+  ctx.fillStyle = '#b8b8c4'; ctx.fillText('1プレイ3分・登録不要・事件番号で同じ事件を遊べる', 18, 59);   // 一言で伝える（v1.17）
+  ctx.fillStyle = '#888'; ctx.fillText('※音が出ます', 18, 77);
   ctx.textAlign = 'center';
   drawHelpLine(WIDE ? HELP_R.titleWide : HELP_R.title);   // 相談窓口の案内（縦長は最下部、横長は右下）
 }
@@ -3479,6 +3533,19 @@ function closeRules() { const cb = rules && rules.onClose; rules = null; SAVE.se
 
 const RETRY = { x: 40, y: 680, w: 220, h: 60 }, NEWCASE = { x: 280, y: 680, w: 220, h: 60 };
 const TOTITLE = { x: 40, y: 756, w: 220, h: 56 }, SHARE = { x: 280, y: 756, w: 220, h: 56 };
+// 音のオン／オフの判子（v1.17）：オンは朱肉の「音」、オフは薄墨の「音」に斜線
+function drawSoundSeal(cx, cy, on, hov) {
+  const s = 36, x = Math.round(cx - s / 2), y = Math.round(cy - s / 2), ink = on ? '#b02418' : '#45414b';
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x + 3, y + 3, s, s);
+  ctx.fillStyle = on ? '#f4ead8' : '#c9c4ba'; ctx.fillRect(x, y, s, s);
+  ctx.fillStyle = ink; ctx.fillRect(x + 2, y + 2, s - 4, 3); ctx.fillRect(x + 2, y + s - 5, s - 4, 3); ctx.fillRect(x + 2, y + 2, 3, s - 4); ctx.fillRect(x + s - 5, y + 2, 3, s - 4);
+  if (on) { ctx.fillStyle = '#f4ead8'; ctx.fillRect(x + 9, y + 2, 2, 3); ctx.fillRect(x + s - 5, y + 21, 3, 2); }   // (かすれ)
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `22px ${MINCHO}`; ctx.fillStyle = ink; ctx.fillText('音', cx, cy + 1);
+  if (!on) { ctx.strokeStyle = '#3a3640'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 4, y + s - 4); ctx.lineTo(x + s - 4, y + 4); ctx.stroke(); }
+  if (hov) { ctx.strokeStyle = '#ffd56b'; ctx.lineWidth = 2; ctx.strokeRect(x - 3, y - 3, s + 6, s + 6); }
+  ctx.restore();
+}
 // 相談窓口の案内（v1.16。タイトル最下部・ルール最後のページ・失敗の結果画面。開くのは click で：スマホのポップアップ制限）
 // (タップ領域は高さ64：スマホ幅375pxでは約0.7倍に縮むので、実際の高さが44px以上になる)
 const HELP_URL = 'https://www.mhlw.go.jp/mamorouyokokoro/';
@@ -3900,6 +3967,7 @@ function render() {
   if (V.opening) drawOpening();
   if (phase === 'title') inCol(drawTitle);
   if (phase === 'win' || phase === 'lose') inCol(drawResult);
+  drawTip();
   inCol(drawPause);
   inCol(drawRules);
   ctx.restore();
@@ -3958,6 +4026,7 @@ function updateHover() {
     return;
   }
   if (inRect(mouse, PAUSE)) hoverBtn = 'pause';
+  if (inRect(mouse, MUTE) && phase === 'battle') hoverBtn = 'mute';
   if (phase !== 'battle' || G.busy) return;
   hover = cardAt(mouse);
   if (inRect(mouse, BTN)) hoverBtn = 'end';
@@ -3979,7 +4048,8 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   audioInit();
-  if (G.gamble && G.gamble.active && phase === 'battle' && !paused && !rules) { cliffTap(); return; }   // 崖っぷちタイム中は、どこを押してもタップ（カードは使わない）
+  if (G.gamble && G.gamble.active && phase === 'battle' && !paused && !rules) { cliffTap(); return; }
+  if (tipVisible() && !paused && !rules) { const tp = toLogical(e), tr = tipRect(); if (inRect(tp, tr)) { tipClose(); return; } }   // (ヒントの帯をタップで閉じる)   // 崖っぷちタイム中は、どこを押してもタップ（カードは使わない）
   let p = toLogical(e);
   if (e.pointerType !== 'mouse') mouse = p;
   const p0 = p;
@@ -4606,18 +4676,13 @@ wireOverlay();
    最後のページで「アカウントを作成またはログインしますか？」と聞く
    ========================================================= */
 const OB_SLIDES = [
-  { h: '① まず音をオンに！', t: '波の音・BGM・カードの決め音が鳴るゲームです。スマホの消音モード（マナーモード）を解除して、音量を上げて遊んでください。イヤホンもおすすめです。', sound: true, pic: 'sound' },
-  { h: '② 崖っぷちの犯人を説得せよ', t: '東尋坊の崖に追い詰められた犯人を説得して、「自首」メーターを100にすれば事件解決。犯人は毎ターン崖の端へ近づきます。残り0歩になるか、刑事のメンタルが尽きると失敗です。', pic: 'cliff' },
-  { h: '③ 3つのカードを使い分ける', t: '青の【証拠】で心の壁（心壁）を崩し、緑の【人情】で自首メーターを上げます。心壁が残っていると人情は届きにくい。赤の【グルメ】は犯人を動揺させたり、APや手札を増やしたり。', pic: 'cards' },
-  { h: '④ 犯人の狙いを読む', t: '画面の左上に、犯人が次にすることと、その対策が出ます。毎ターン変わる「心境」でカードの効き方も変わります。カードの数字は「今使ったらどうなるか」です。', pic: 'read' },
-  { h: '⑤ 県民の勘・階級・捜査実績表', t: '迷ったら「県民の勘」で一番いい手を教えてもらえます。どの事件も、推理すれば必ず解決できることを確かめてから出しています。解決すると「功績」がたまって巡査から警視総監まで昇進し、説得スコアが捜査実績表に自動で載ります。', pic: 'win' },
-  { h: '⑥ コンボと崖っぷちタイム', t: '決まった組み合わせでカードを使うと「捜査コンボ」が成立（カードに「○○コンボ！」と出たら狙いどき）。自首が70に届くと一度だけ「崖っぷちタイム」。1.6秒以内に画面を3回タップすると自首 +15（失敗すると警戒 +1）。犯人は6人から選べて、それぞれ攻め方が違います。', pic: 'combo' },
-  { h: 'アカウントを作成またはログインしますか？', t: 'アカウントがあると、ほかの端末でも記録と県民の勘を引き継げて、捜査実績表にも同じ名前で載ります。作るのはユーザー名とパスワードだけ（メールアドレスは不要）。あとからマイページでもできます。', acc: true, pic: 'acc' },
+  { h: '① 崖の犯人を自首させろ', t: '東尋坊の崖に立つ犯人を説得し、「自首」を100にすれば事件解決。犯人が崖の端まで0歩になるか、刑事のメンタルが0になると失敗。', pic: 'cliff' },
+  { h: '② 3つのカード', t: '青の【証拠】で心壁を割る → 緑の【人情】で自首を上げる → 赤の【グルメ】で流れを変える（動揺・AP・ドロー）。', pic: 'cards' },
+  { h: '③ 犯人の狙いを読む', t: '画面の左上に、犯人が次にすることと、その対策が出る。対策を先に打てば被害を減らせる。', pic: 'read' },
 ];
 const OBE = {};
-['ob-step', 'ob-pic', 'ob-h', 'ob-text', 'ob-sound', 'ob-sound-state', 'ob-sound-test', 'ob-acc', 'ob-acc-state', 'ob-acc-yes', 'ob-acc-no',
-  'ob-dots', 'ob-prev', 'ob-next', 'ob-hide', 'ob-more'].forEach(id => OBE[id] = document.getElementById(id));
-let obIndex = 0, obTried = false, obAnim = 0;
+['ob-step', 'ob-pic', 'ob-h', 'ob-text', 'ob-dots', 'ob-prev', 'ob-next', 'ob-go', 'ob-hide', 'ob-more'].forEach(id => OBE[id] = document.getElementById(id));
+let obIndex = 0, obAnim = 0;
 // 絵（120×64 のドット絵。ゲームと同じ人物を使う）
 function drawObPic(kind) {
   const c = OBE['ob-pic'], g = c.getContext('2d'), t = performance.now() / 1000, fr = Math.floor(t * 3) % 2;
@@ -4675,67 +4740,39 @@ function obLoop() {
   drawObPic(OB_SLIDES[obIndex].pic);
   obAnim = requestAnimationFrame(obLoop);
 }
-function renderObSound() {
-  const st = SND.ctx ? SND.ctx.state : 'none';
-  OBE['ob-sound-state'].textContent = SND.muted ? 'いまのゲームの音：オフ（このままでは音が出ません）'
-    : obTried && st !== 'running' ? 'ブラウザが音を止めています。もう一度「音を鳴らしてみる」を押してください。'
-    : obTried ? '「ジャッジャーン！」が聞こえたら準備OK。聞こえないときは、消音モードと音量を確かめてください。'
-    : 'いまのゲームの音：オン';
-  OBE['ob-sound-test'].textContent = SND.muted ? '音をオンにして鳴らしてみる' : '音を鳴らしてみる';
-}
-function renderObAcc() {
-  const acc = SyncManager.account();
-  OBE['ob-acc-state'].textContent = acc ? `ログイン中：${acc.user}` : `いまはゲスト（捜査実績表には「${myFullName()}」で載ります）`;
-  OBE['ob-acc-yes'].hidden = !!acc;
-  OBE['ob-acc-no'].textContent = acc ? '捜査をはじめる' : 'ゲストではじめる';
-}
-// obOnly：前の版の説明を見た人には、増えた1枚だけを見せる（OB_NEW_FROM）
-let obOnly = null;
 function renderOnboarding() {
   const sl = OB_SLIDES[obIndex];
-  OBE['ob-step'].textContent = obOnly != null ? '新しいルール' : `${obIndex + 1} / ${OB_SLIDES.length}`;
+  OBE['ob-step'].textContent = `${obIndex + 1} / ${OB_SLIDES.length}`;
   OBE['ob-h'].textContent = sl.h;
   OBE['ob-text'].textContent = sl.t;
   OBE['ob-dots'].replaceChildren(...OB_SLIDES.map((_, i) => { const d = document.createElement('i'); if (i === obIndex) d.className = 'on'; return d; }));
-  OBE['ob-prev'].disabled = obOnly != null || obIndex === 0;
-  OBE['ob-next'].hidden = obOnly == null && obIndex >= OB_SLIDES.length - 1;
-  OBE['ob-next'].textContent = obOnly != null ? 'とじる' : '次へ';
-  OBE['ob-dots'].hidden = obOnly != null;
-  OBE['ob-sound'].hidden = !sl.sound; if (sl.sound) renderObSound();
-  OBE['ob-acc'].hidden = !sl.acc; if (sl.acc) renderObAcc();
+  OBE['ob-prev'].disabled = obIndex === 0;
+  OBE['ob-next'].disabled = obIndex >= OB_SLIDES.length - 1;
   drawObPic(sl.pic);
 }
-function openOnboarding(only) {
-  obOnly = only == null ? null : only; obIndex = obOnly == null ? 0 : obOnly; obTried = false;
+function openOnboarding() {
+  obIndex = 0;
   OBE['ob-hide'].checked = true;                   // 「次回から表示しない」は最初からチェック。外すと次回も出る
   showOverlay('onboard'); renderOnboarding();
   try { OBE['ob-h'].focus({ preventScroll: true }); } catch (e) { }
   if (!obAnim) obAnim = requestAnimationFrame(obLoop);
 }
+// next：'play'＝そのまま最初の事件へ（共有URLならその事件）／'rules'＝くわしいルール
 function closeOnboarding(next) {
   if (ovScreen !== 'onboard') return;
   SAVE.onboard = OBE['ob-hide'].checked ? ONBOARD_VER : 0;
   SAVE.seenRules = true;
   save();
-  showOverlay(null); sndClick(); obOnly = null;
-  if (next === 'account') { openMypage(); OV['mp-open-auth'].click(); }
-  else if (next === 'rules') openRules(false, null);
-  else if (typeof newsUnseen === 'function' && newsUnseen().length && !newsFresh) openNews(true);   // 増えた説明のあとに、アップデートのお知らせ
+  audioInit();                                     // (このタップで音を鳴らせる状態にする)
+  showOverlay(null); sndClick();
+  if (next === 'rules') openRules(false, null);
+  else if (next === 'play') { if (PENDING_CASE && phase === 'title') runPendingCase(); else if (phase === 'title') beginGame(DIFFS[0], null, curCulprit); }
+  else if (typeof newsUnseen === 'function' && newsUnseen().length && !newsFresh) openNews(true);
   else if (typeof runPendingCase === 'function') runPendingCase();
 }
 OBE['ob-prev'].onclick = () => { if (obIndex > 0) { obIndex--; sndClick(); renderOnboarding(); } };
-OBE['ob-next'].onclick = () => { if (obOnly != null) { closeOnboarding(); return; } if (obIndex < OB_SLIDES.length - 1) { obIndex++; sndClick(); renderOnboarding(); } };
-OBE['ob-sound-test'].onclick = () => {
-  audioInit();
-  if (SND.muted) toggleMute();
-  const play = () => { sndSting('ev'); obTried = true; renderObSound(); };
-  const c = SND.ctx;
-  if (!c) { obTried = true; renderObSound(); return; }
-  if (c.state === 'running') play();
-  else { const p = c.resume(); (p && p.then ? p : Promise.resolve()).then(play, play); setTimeout(() => { if (c.state !== 'running') renderObSound(); }, 600); }
-};
-OBE['ob-acc-yes'].onclick = () => closeOnboarding('account');
-OBE['ob-acc-no'].onclick = () => closeOnboarding();
+OBE['ob-next'].onclick = () => { if (obIndex < OB_SLIDES.length - 1) { obIndex++; sndClick(); renderOnboarding(); } };
+OBE['ob-go'].onclick = () => closeOnboarding('play');
 OBE['ob-more'].onclick = () => closeOnboarding('rules');
 addEventListener('keydown', e => {
   if (ovScreen !== 'onboard') return;
@@ -4747,6 +4784,11 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 17, ver: '1.17', date: '2026-10-13', title: 'すぐ遊べる・台詞の見直し', items: [
+    'はじめての説明を3枚にして、「さっそく捜査する」でそのまま最初の事件へ',
+    'くわしい説明は、初めてその場面になったときに短いヒントで出ます（一度だけ）',
+    '台詞を福井弁らしく見直しました（カード18枚・解決の場面など）。カード「三国港の灯台」は「雄島の灯台」に',
+    '図鑑で見つけたカードの台詞も読めるように。音のオン／オフは朱の判子に'] },
   { id: 16, ver: '1.16', date: '2026-10-13', title: 'ボーナスの見直し・相談窓口の案内', items: [
     '崖っぷちタイムに成功して解決する「想いが届いた」が +800 に（一気呵成と同じ点。どちらの道でも同じ点になりました）',
     'シーズン2に前の版の式で載った記録は、そのまま残ります',
@@ -4899,7 +4941,7 @@ function renderZukan() {
   } else if (zkKind === 'cards') {
     for (const [t, lab] of [['ev', '証拠'], ['hu', '人情'], ['gu', 'グルメ']]) {
       const ids = keys.filter(k => CARDS[k].type === t), ul = el('ul', 'zk-grid');
-      for (const id of ids) { const c = CARDS[id], got = !!z[id]; const li = zkItem(got, cardName(id), `【${lab}】コスト${c.cost}${c.r === 3 ? '・★レア' : ''}`, got ? cardSummary(c) : null, z[id]); li.style.borderLeftColor = TYPE[t].col; li.style.borderLeftWidth = '6px'; ul.append(li); }
+      for (const id of ids) { const c = CARDS[id], got = !!z[id]; const li = zkItem(got, cardName(id), `【${lab}】コスト${c.cost}${c.r === 3 ? '・★レア' : ''}`, got ? cardSummary(c) : null, z[id]); li.style.borderLeftColor = TYPE[t].col; li.style.borderLeftWidth = '6px'; if (got) li.insertBefore(el('span', 'zk-flav', '「' + cardFlav(id) + '」'), li.querySelector('.zk-cnt')); ul.append(li); }   // (v1.17：見つけたカードは台詞も)
       lists.push(el('h3', 'zk-h', `${lab}（${ids.filter(k => z[k]).length} / ${ids.length}）`), ul);
     }
   } else if (zkKind === 'combos') {
@@ -4961,8 +5003,11 @@ document.querySelectorAll('#zk-tabs [data-kind]').forEach(b => b.onclick = () =>
 var newsFresh = false;              // (はじめての人にはお知らせを出さない)
 if (SAVE.onboard < ONBOARD_VER) {
   if (SAVE.onboard === 0 && !SAVE.seenRules) { lsSet(NEWS_KEY, String(CHANGELOG[0].id)); newsFresh = true; }
-  if (SAVE.onboard > 0 && OB_NEW_FROM[ONBOARD_VER] != null) openOnboarding(OB_NEW_FROM[ONBOARD_VER]);
-  else openOnboarding();
+  if (SAVE.onboard > 0) {                                           // (前の版の説明を「表示しない」で閉じた人：出さずに今の版へ。v1.17)
+    SAVE.onboard = ONBOARD_VER; save();
+    if (newsSeen() < 0) lsSet(NEWS_KEY, String(CHANGELOG[0].id - 1));
+    if (newsUnseen().length) openNews(true);
+  } else openOnboarding();
 } else {
   if (newsSeen() < 0) lsSet(NEWS_KEY, String(CHANGELOG[0].id - 1));   // (お知らせができる前から遊んでいる人には、最新の1件だけ)
   if (newsUnseen().length) openNews(true);
@@ -4993,10 +5038,10 @@ function applyLayout(wide) {
   WIDE = wide;
   if (wide) { W = 1600; H = 900; UI_TOP = 520; WX = 417; CX = 530; U = U_WIDE; CS = 1.4;
     Object.assign(KAN, { x: 1242, y: 560, w: 336, h: 62 }); Object.assign(BTN, { x: 1242, y: 640, w: 336, h: 86 });
-    Object.assign(PAUSE, { x: 1418, y: 744, w: 160, h: 62 }); Object.assign(UNDO, { x: 1242, y: 744, w: 160, h: 62 }); Object.assign(MUTE, { x: 1536, y: 834, w: 42, h: 34 });
+    Object.assign(PAUSE, { x: 1418, y: 744, w: 160, h: 62 }); Object.assign(UNDO, { x: 1242, y: 744, w: 160, h: 62 }); Object.assign(MUTE, { x: 1526, y: 820, w: 64, h: 64 });
   } else { W = 540; H = 960; UI_TOP = 520; WX = 0; CX = 0; U = U_TALL; CS = 1;
     Object.assign(KAN, { x: 14, y: 872, w: 112, h: 62 }); Object.assign(BTN, { x: 134, y: 872, w: 176, h: 62 }); Object.assign(UNDO, { x: 318, y: 872, w: 74, h: 62 });
-    Object.assign(PAUSE, { x: 400, y: 872, w: 126, h: 62 }); Object.assign(MUTE, { x: 488, y: 528, w: 42, h: 34 });
+    Object.assign(PAUSE, { x: 400, y: 872, w: 126, h: 62 }); Object.assign(MUTE, { x: 470, y: 514, w: 64, h: 64 });
   }
   LW = Math.ceil(W / PX); lowCv.width = LW; lowCv.height = LH;
   fxCv.width = Math.ceil(W / PX); fxCv.height = Math.ceil(H / PX);
