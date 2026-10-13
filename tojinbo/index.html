@@ -856,6 +856,160 @@ function caseNo(seed) { return seed < 100000 ? String(seed).padStart(5, '0') : S
 // 新しい事件の番号を引く（出題を選ぶだけ。v1.16 で CORE の外へ移した：CORE の中に Math.random を置かない）
 function randomSeed() { return Math.floor(Math.random() * 99999) + 1; }   // 1〜99999（事件番号＝シード。番号を入れて同じ事件に挑める。出題を選ぶだけで、ゲームの乱数は rngFor）
 
+/* ---------- 台詞（v1.17。CORE の外に集めて、サーバーの更新なしで直せるようにした） ----------
+   ・カードの台詞は CARD_FLAV（カードid → 台詞）。表示はすべて cardFlav(id) を通す。CORE 内の CARDS[id].flav は表示に使っていない（次に CORE を変える版で消す）
+   ・カードの表示名を変えるときは CARD_NAME_OVERRIDE（CORE の CARDS[id].name は捨て札の並べ替えに使うので変えない）。表示はすべて cardName(id) を通す
+   ・話し言葉は SCRIPT。並びと名前は「福井弁の台詞一覧」の表に合わせた。差し込む所は {card}（【カード名】）・{combo}・{intent}・{n}・{who} の印
+   ・犯人の台詞の「俺」は、トメ・みなもでは say() が「あたし」「私」に置き換える */
+const CARD_FLAV = {
+  // 証拠
+  megane: '現場に残っとった鼻あての跡……鯖江の職人が作った、あんたの眼鏡のもんや！',
+  alibi: 'その時刻、えちぜん鉄道は運休しとった。あんたはどうやって帰ったんや？',
+  camera: '三国港の土産物屋のカメラに、あんたがはっきり映っとる。',
+  finger: '凶器の恐竜の置物……そこに残っとったのは、あんたの指紋や！',
+  techo: '手帳の最後のページに、あんたの名前が書いてあった。',
+  tsuikyu: 'いいかげんにしねま！ 全部わかっとるんやぞ！（ドンッ）',
+  kippu: 'この切符、日付が事件当日や。改札の記録とも一致しとる。',
+  hanken: '勝山の恐竜博物館の半券……入館時刻は犯行の直前やな。',
+  kara: '現場に落ちとったカニの殻。あの日あんたが食べた越前ガニのもんや。',
+  seni: '羽二重の繊維……勝山の織物工場、あんたの実家の仕事やろ。',
+  mokugeki: '朝市のおばちゃんが見とったんや。「あの人、えらい慌てとったわ」ってな。',
+  jihaku: 'あんたの相棒は、もう全部話したんや。',
+  rireki: '事件の夜、あんたは被害者に11回も電話しとる。',
+  kizu: '（ぐいっと腕をつかむ）この傷……被害者ともみ合った時のもんやろ！',
+  kanshiki: '鑑識の結果が出た。……もう言い逃れはできんぞ。',
+  ashiato: '大雪の朝や。現場から続く足跡、サイズはあんたの靴と同じやった。',
+  chizu: '朝倉氏の一乗谷の古地図……余白の書き込み、あんたの字やな。',
+  shinkansen: 'あの日、あんたのICカードが芦原温泉駅の改札を通っとる。',
+  kaseki: '勝山の発掘現場のメモや。几帳面な字……あんたの手帳と同じ筆跡やな。',
+  uchihamono: '武生の刃物職人が言うとった。「この刃こぼれは、あの晩に研いだ跡や」ってな。',
+  // 人情
+  hoya: 'ほやほや……おめさんの気持ちも、わからんことないんやざ。',
+  haha: '大野のおっかちゃん、毎日あんたの帰り待っとるんやで。',
+  konema: 'そこ寒いやろ。……こっち来ねま。',
+  tegami: '「また一緒に、谷口屋の油揚げ食べよっさ」……あんたの親友からや。',
+  namida: 'わしもな……若い頃、取り返しのつかんことしたんや。（ほろり）',
+  matsuri: '三国祭の山車、子どもの頃一緒に引いたやろ。あの掛け声、覚えとるか？',
+  sakura: '春になったら、足羽川の桜を見に行こっさ。何べんでも見られるんやで。',
+  sakebi: 'まだ間に合う！ 戻ってこい！ 戻ってこいや――っ！',
+  ippo: '……そこやと話も聞こえんやろ。一歩だけ、こっちで話そっさ。',
+  enikki: '「おとうさんと東尋坊の夕日を見た」……娘さんの絵日記や。',
+  nukumori: 'なんやかんや言うても……おめさん、根はええ人なんやざ。',
+  onshi: '高校の担任の先生が言うとった。「あいつは根はまっすぐな子や」ってな。',
+  yakusoku: '恐竜博物館に連れてくって、息子さんと約束しとったんやろ？',
+  shashin: '去年の同窓会の写真や。みんな、あんたのこと心配しとる。',
+  kotatsu: '冬はこたつで水ようかん。……あったかい家、まだあるんやで。',
+  izoku: '「本当のことを話してほしい。それだけでええ」……ご遺族の言葉や。',
+  yuhi: 'ほら、見てみ。日本海に沈む夕日……毎日ちゃんと、明日が来るんやざ。',
+  asaichi: '「兄ちゃん、今朝も里芋買うてってや」……朝市のおばちゃん、あんたのこと覚えとったで。',
+  toudai: '三国港の灯台は、迷った船を毎晩照らしとる。……あんたも、帰ってこられるんや。',
+  hakusan: '「いつか一緒に白山に登ろう」……あの約束、まだ終わっとらんやろ。',
+  // グルメ
+  katsudon: 'ほら、ソースカツ丼や。甘辛いソースの匂い、たまらんやろ？',
+  soba: '大根おろしの辛みが沁みるのう……ほら、あんたの分もあるで。',
+  saba: '脂ののった焼き鯖寿司や。腹が減っとったら、ろくなこと考えん。',
+  yokan: '福井じゃ水ようかんはこたつで食べるもんや。……一緒に食べよ。',
+  habutae: 'やわらか〜い羽二重餅。固まった心も、ふにゃっとなるやろ。',
+  kani: '茹でたての越前ガニや！ 殻むいたるで、ほら食べね。',
+  age: 'カリッと揚がった油揚げ、大根おろしと醤油で……ほっこりするやろ？',
+  amaebi: 'とろっと甘い甘エビや。……気ぃ緩んだな？ ほな、話を戻すで。',
+  ramen: '屋台の敦賀ラーメンや。夜通し走ってきたんやろ、温まるで。',
+  umeboshi: '福井梅の梅干しや。……すっぱいやろ？ 目ぇ覚めたか？',
+  heshiko: 'へしこ茶漬けや。しょっぱいけど、力が湧いてくるやろ。',
+  kuzu: '鯖街道の宿場町、熊川の葛まんじゅうや。ぷるんとしとるやろ。',
+  kanimeshi: '駅弁の越前かにめしや。ゆっくり食べながら、話そっさ。',
+  gomadofu: '永平寺のごま豆腐や。心を落ち着けて、深呼吸せえ。',
+  volga: '越前市名物ボルガライス！ オムライスにカツや、元気出るで。',
+  rakkyo: '三里浜の花らっきょう、ポリッとな。……さて、話の続きや。',
+  satoimo: '大野の上庄里芋や。ころっと煮えて、ほくほくやろ？',
+  karei: '炙った若狭がれい、骨までパリッといけるで。',
+  oboro: '敦賀の職人が手で削ったおぼろ昆布や。……ふわっとしとる間に、もう一つ聞くで。',
+  sasazuke: '若狭の小鯛のささ漬けや。酢の香りで、ほっと肩の力が抜けるやろ。',
+};
+const CARD_NAME_OVERRIDE = {};
+function cardFlav(id) { return CARD_FLAV[id] != null ? CARD_FLAV[id] : (CARDS[id] ? CARDS[id].flav : ''); }
+function cardName(id) { return CARD_NAME_OVERRIDE[id] || (CARDS[id] ? CARDS[id].name : id); }
+function fmt(t, v) { return t.replace(/\{(\w+)\}/g, (m, k) => v && v[k] != null ? String(v[k]) : m); }
+const SCRIPT = {
+  // 刑事（荒島）の台詞
+  detective: {
+    endRain: 'ほやの。……濡れるし、帰ろっさ。署であったかいそばでも食べよか。',            // 解決（雨のエンディング）
+    endDawn: 'ほやの。……夜が明けたな。署であったかいそばでも食べよか。',                  // 解決（朝焼けのエンディング）
+    endOther: 'ほやの。……寒いし、帰ろっさ。署であったかいそばでも食べよか。',             // 解決（夕焼け・夜のエンディング）
+    opening: '（証拠で心の壁を崩して、人情で心を溶かす……。崖の端まで、あと{n}歩や）',    // 開幕（心の中）
+    undo: '……いや、今のは無しや。言い直させてくれ。',                                    // 待った
+    mentalBreak: '……あかん……言葉が……出てこん……',                                      // メンタルが尽きて失敗
+  },
+  // 県民の勘のヒント（{card}＝【カード名】）
+  kan: {
+    noMove: '今は下手に動かんほうがええ。ここはターン終了やざ。',                          // 打つ手がない
+    finish: '{card}で決まりや！ 一気に自首させるんやざ。',                                 // その1枚で解決
+    combo: '{card}で「{combo}」が決まるざ！',                                               // コンボが決まる
+    step: '{card}で犯人を1歩引き戻すんや。崖が近いときの切り札やざ。',                     // 犯人を1歩戻す
+    boostHu: 'まず{card}で気持ちを緩ませとき。次の人情が1.5倍になるでの。',                // 次の人情×1.5
+    boostEv: 'まず{card}で気を緩ませて、次の証拠を1.5倍にするんや。',                      // 次の証拠×1.5
+    dazeAtk: '{card}で動揺させとき。次の反論が半分になるでの。',                           // 反論の前に動揺
+    dazeAlert: '{card}で動揺させれば、警戒を上げられんで済むざ。',                         // 警戒の前に動揺
+    retreat: '大きく後ずさろうとしとる。先に{card}を食べさせて足を止めねま。',             // 後ずさりを止める
+    ap: 'まず{card}でAPを増やすんや。手数が増えるでの。',                                  // AP を増やす
+    draw: '{card}で手札を増やしてから考えるんがええ。',                                    // 手札を増やす
+    alert: '{card}で警戒をほぐしとこ。人情が届きやすなるざ。',                             // 警戒を下げる
+    guOther: '{card}がええ。',                                                              // そのほか（グルメ）
+    chainEv: '証拠を続けるなら今や。{card}は「連携」で威力が上がるざ。',                   // 証拠を続ける
+    pct: '心壁が厚い今こそ{card}や。残りの割合で削るでの。',                               // 心壁が厚い
+    broke: '{card}で心壁を割れる！ 割れば犯人は固まって、次の「{intent}」も止められるんや。', // 心壁を割れる
+    noShield: '心壁はもうないけど、{card}で追い込めば自首も少し進むざ。',                  // 心壁がもうない
+    guarded: '頑なな今は小さい証拠が通らん。{card}みたいな重い一撃を選ぶんや。',           // 犯人が頑な
+    rage: '激昂しとる今は証拠がよう刺さる。{card}で心壁を削るんや。',                      // 犯人が激昂
+    evOther: '{card}で心壁を削るんや。心壁が残っとると人情が届かんでの。',                 // そのほか（証拠）
+    perHu: '人情を重ねた今や。{card}で畳みかけるんやざ。',                                 // 人情を重ねた
+    crisis: '崖っぷちの今こそ{card}や。2倍で届くざ。',                                     // 崖っぷち×2
+    pierce: '{card}は心壁を貫いて届く。心壁が残っとっても使えるざ。',                      // 心壁を貫く
+    kankyu: '証拠を見せた直後や。{card}を重ねれば「緩急」で効果アップやざ。',              // 緩急
+    shieldLeft: '{card}……心壁はまだ残っとるけど、今の手札ならこれが一番前に進むざ。',     // 心壁が残っていても進む
+    nostalgia: '今は里心がついとる。{card}がよう効くざ。',                                 // 犯人が郷愁
+    huOrder: '{card}から順に、気持ちを重ねていくんや。',                                   // 人情を順に
+    huOther: '{card}で心に訴えるんや。',                                                   // そのほか（人情）
+  },
+  // 犯人の台詞（6人共通。「俺」はトメ・みなもで置き換わる）
+  culprit: {
+    opening: '来るな！ それ以上近づくな！ 話すことなんか何もない！',                      // 開幕
+    angry: ['ウソだ！ そんなもん証拠になるか！', 'あっちへ行け！ 来るなっ！', '刑事なんかに、俺の何がわかるんや！', 'うるさい！ 黙れ黙れ！'],   // 反論（心壁あり）
+    shaken: ['ち、違う……！ 俺はやってない……！', 'うるさい！ 今さら何を言われても……！', 'やめてくれ……もう聞きたくない！'],                   // 反論（心壁が割れたあと）
+    soft: ['……でも、もう遅いんや……', '俺なんか、帰る場所なんて……', '……なんで、そこまで言うてくれるんや……'],                               // 反論（自首60以上）
+    alert: ['刑事なんか信用できるか！ 近寄るな！', 'どうせ俺を捕まえたいだけやろ！'],    // 警戒を強める
+    wall: '俺は何も知らん！ 何も喋らんぞ！',                                               // 心壁を固める
+    rebuild: 'まだや……まだ認めんぞ！ 俺は何もしとらん！',                                 // 心壁を建て直す
+    retreat: '来るなって言うとるやろ！（大きく後ずさる）',                                 // 大きく後ずさる
+    confess: '……すんません……。俺が……俺が、やりました……',                               // 自白
+    stunned: '……っ！（心壁を砕かれ、言葉が出てこない）',                                  // (しぐさ) 心壁を割られて硬直
+    sauce: '……（ソースの匂いに気を取られている）',                                        // (しぐさ) 動揺で警戒を止めた
+    eaten: '……（口をもぐもぐさせながら、足が止まる）',                                    // (しぐさ) グルメで後ずさりを止めた
+  },
+  // エンディングの最後のひとこと（犯人）
+  ending: {
+    default: '自首します。……おっかちゃんに、ちゃんと謝らな……',                           // 真・良・普（決まった台詞のないもの）
+    tome: 'あんたの持ってきたもん、どれもおいしかったわ。……ごちそうさん。',               // 人情（トメ婆ちゃん）
+    cold: '……ここまで調べ上げられたら、もう言い逃れはできん。',                           // 冷徹（証拠のみ）
+    katsudon: '……腹いっぱいや。ソースカツ丼、署でもう一杯ええか？',                       // 福井（カツ丼エンド）
+    legend: '……刑事さんの言葉、ひとつ残らず胸に届きました。',                             // 伝説（完全説得）
+  },
+  // そのほかの表示（掛け声・ツッコミ称号）
+  shout: {
+    cliffFail: '……言葉が、届かんかった',            // 崖っぷちタイム失敗
+    cliffAlert: '警戒された……！',                    // 崖っぷちタイム失敗で警戒 +1
+    alertMax: '警戒MAX！ 言葉が通じん！',            // 警戒が最大のときに人情
+    alertUp: '警戒 UP!',                              // 犯人が警戒を強めた
+    undo: '待った！',                                 // 待った
+    same: 'おい、またそれか！',                       // 同じカードを続けて
+    katsudon: '崖の上で、カツ丼！',                   // 自首90以上でグルメ
+  },
+  tsukkomi: {                                         // ツッコミ称号（勝ったときだけ）
+    shokudo: '崖の上の食堂', mondo: '問答無用', kamihitoe: '紙一重の説得', tsutta: '指がつった刑事', abura: '火に油を注ぐ人',
+    sakki: 'その話、さっきも聞いた', nashi: '今のは無しや', ibukuro: '胃袋から落とす', ronpa: '論破されたい教授', shitamachi: '下町の人情',
+  },
+};
+
 // 画面の大きさ（論理座標）。スマホなど縦長は 540×960、パソコンなど横長は 1600×900 の横長レイアウト
 let W = 540, H = 960;
 const SCENE_H = 520;                 // 景色の高さ（どちらのレイアウトでも同じ）
@@ -956,16 +1110,16 @@ function logCount(log) {
 const ENDINGS = [
   { key: 'legend', grade: '伝説', name: '完全説得', col: '#ffe86a', sky: 'dawn', hint: '無傷のまま、3ターン以内に、県民の勘を使わずに',
     test: (g, n, cu) => g.hp >= g.maxHp && g.turn <= 3 && !g.kanUsed,
-    line: '……刑事さんの言葉、ひとつ残らず胸に届きました。' },
+    line: SCRIPT.ending.legend },
   { key: 'tome', grade: '人情', name: 'トメ婆ちゃん', col: '#ff9ad0', sky: 'sunset', hint: '前川トメを、グルメだけで',
     test: (g, n, cu) => cu === 'tome' && n.gu > 0 && n.gu === n.all,
-    line: 'あんたの持ってきたもん、どれもおいしかったわ。……ごちそうさん。' },
+    line: SCRIPT.ending.tome },
   { key: 'cold', grade: '冷徹', name: '証拠のみの解決', col: '#9fc4ff', sky: 'night', hint: '人情もグルメも使わずに',
     test: (g, n, cu) => n.ev > 0 && n.ev === n.all,
-    line: '……ここまで調べ上げられたら、もう言い逃れはできん。' },
+    line: SCRIPT.ending.cold },
   { key: 'katsudon', grade: '福井', name: 'カツ丼エンド', col: '#ffb37a', sky: 'sunset', hint: 'グルメを10枚以上使って',
     test: (g, n, cu) => n.gu >= 10,
-    line: '……腹いっぱいや。ソースカツ丼、署でもう一杯ええか？' },
+    line: SCRIPT.ending.katsudon },
   { key: 'dawn', grade: '真', name: '朝焼けの自首', col: '#ffd890', sky: 'dawn', hint: 'Sランク（3ターン以内）で、県民の勘を使わずに',
     test: (g, n, cu) => g.turn <= 3 && !g.kanUsed, line: null },
   { key: 'good', grade: '良', name: '夜明け前の自首', col: '#ffcf5a', sky: 'sunset', hint: 'S・Aランク（4ターン以内）で',
@@ -1109,7 +1263,7 @@ function zukanRecordWin(end) {
   if (zukanAdd('culprits', cu.key)) out.push('犯人「' + cu.name + '」');
   const used = [];
   for (const t of G.log) for (const id of t) if (CARDS[id] && !used.includes(id)) used.push(id);
-  for (const id of used) if (zukanAdd('cards', id)) out.push('カード「' + CARDS[id].name + '」');
+  for (const id of used) if (zukanAdd('cards', id)) out.push('カード「' + cardName(id) + '」');
   for (const id of G.firedCombos) if (zukanAdd('combos', id)) out.push('コンボ「' + COMBOS.find(c => c.id === id).name + '」');
   if (zukanAdd('endings', end.key)) out.push('エンディング「' + end.grade + '・' + end.name + '」');
   return out;
@@ -1487,7 +1641,7 @@ function playCard(card) {
   G._flagPrevId = card.id;
   const r = cardEffect(G, card.id, D);
   histCard(card.id, d, r, surBefore);                                    // (展開グラフ・ツッコミ称号用。待ったで戻すと一緒に消える)
-  say(DN, d.flav, DC);
+  say(DN, cardFlav(card.id), DC);
   const fx = V.cx, fy = 200;
   if (r.shieldDmg) { addFloat(fx, fy, '心壁 −' + r.shieldDmg, '#8fc1ff', 26); V.cshake = 1; V.shake = Math.max(V.shake, 6); }
   if (d.type === 'ev' && (r.shieldDmg || r.sur)) V.glassT = 1.4;            // (神崎のメガネの光が消える。見た目だけ)
@@ -1533,8 +1687,8 @@ function doUndo() {
   for (const k of Object.keys(sn)) if (k !== '_hand') G[k] = sn[k];
   G.hand = sn._hand.map(h => old.get(h.uid) || { id: h.id, def: CARDS[h.id], x: U.hintX, y: U.handY - 80, tx: 0, ty: 0, uid: h.uid });
   G.kanUsed = keepKan; G.histKan = keepHK; G.undoTurn = turn; G._undo = null; G.hint = null;
-  V.flying = []; sndClick(); addFloat(V.cx, 200, '待った！', '#cfe3ff', 26);
-  say(DN, '……いや、今のは無しや。言い直させてくれ。', DC, 700);
+  V.flying = []; sndClick(); addFloat(V.cx, 200, SCRIPT.shout.undo, '#cfe3ff', 26);
+  say(DN, SCRIPT.detective.undo, DC, 700);
 }
 /* ---------- 展開グラフの記録 G.hist（CORE の外。画面の出来事を数えるだけで、ルール・検証・セーブ・送信には使わない） ----------
    G.hist：ターン終了（犯人の行動のあと）と解決の瞬間に1件ずつ { turn, sur, wall, wallMax, crisis, alert, ev[] }
@@ -1568,20 +1722,20 @@ function tsukkomiTitle(g, cu) {
   const cards = g.histCards || [];
   const cliffs = ev.filter(e => e === 'cliffWin' || e === 'cliffLose').length;
   const L = [
-    [n.gu >= 6, '崖の上の食堂'],
-    [cliffs === 0, '問答無用'],
-    [g.crisis === 1, '紙一重の説得'],
-    [ev.includes('cliffLose'), '指がつった刑事'],
-    [(g.histAlertMax || 0) >= 5, '火に油を注ぐ人'],
-    [plays.some((id, i) => i > 0 && plays[i - 1] === id), 'その話、さっきも聞いた'],
-    [g.undoTurn != null, '今のは無しや'],
-    [cu === 'tome' && cards.filter(c => c.type === 'gu').reduce((s, c) => s + c.sur, 0) >= 20, '胃袋から落とす'],
-    [cu === 'kanzaki' && cards.some(c => c.type === 'ev' && c.pct && c.broke), '論破されたい教授'],
-    [cu === 'hosono' && cards.some(c => c.type === 'hu' && c.before > 50 && c.sur >= 30), '下町の人情'],
+    [n.gu >= 6, SCRIPT.tsukkomi.shokudo],
+    [cliffs === 0, SCRIPT.tsukkomi.mondo],
+    [g.crisis === 1, SCRIPT.tsukkomi.kamihitoe],
+    [ev.includes('cliffLose'), SCRIPT.tsukkomi.tsutta],
+    [(g.histAlertMax || 0) >= 5, SCRIPT.tsukkomi.abura],
+    [plays.some((id, i) => i > 0 && plays[i - 1] === id), SCRIPT.tsukkomi.sakki],
+    [g.undoTurn != null, SCRIPT.tsukkomi.nashi],
+    [cu === 'tome' && cards.filter(c => c.type === 'gu').reduce((s, c) => s + c.sur, 0) >= 20, SCRIPT.tsukkomi.ibukuro],
+    [cu === 'kanzaki' && cards.some(c => c.type === 'ev' && c.pct && c.broke), SCRIPT.tsukkomi.ronpa],
+    [cu === 'hosono' && cards.some(c => c.type === 'hu' && c.before > 50 && c.sur >= 30), SCRIPT.tsukkomi.shitamachi],
   ];
   const t = L.find(x => x[0]); return t ? t[1] : null;
 }
-const TSUKKOMI_ALL = ['崖の上の食堂', '問答無用', '紙一重の説得', '指がつった刑事', '火に油を注ぐ人', 'その話、さっきも聞いた', '今のは無しや', '胃袋から落とす', '論破されたい教授', '下町の人情'];
+const TSUKKOMI_ALL = Object.values(SCRIPT.tsukkomi);
 // 自首99以上に届いた瞬間、1回だけスローモーション
 function slowCheck() { if (G.sur >= 99 && !G._flagSlow) { G._flagSlow = true; V.slow = 0.9; } }
 
@@ -1617,16 +1771,16 @@ function endCliffTime(okTap) {
   } else {
     const up = cliffFail(G);                     // 失敗：警戒 +1（記録には残さない。再生でも同じく失敗として数える）
     G.histAlertMax = Math.max(G.histAlertMax || 0, G.alert);
-    sndBuzz(); addFloat(V.cx, 230, '……言葉が、届かんかった', '#cfd8e8', 22);
-    if (up) { addFloat(V.cx, 262, '警戒 +1', '#ffb347', 24); banner('警戒された……！', '#ffb347'); }
+    sndBuzz(); addFloat(V.cx, 230, SCRIPT.shout.cliffFail, '#cfd8e8', 22);
+    if (up) { addFloat(V.cx, 262, '警戒 +1', '#ffb347', 24); banner(SCRIPT.shout.cliffAlert, '#ffb347'); }
   }
   if (phase === 'battle') G.busy = false;
 }
 // サスペンスあるある（1回のプレイで各1回だけ。G._flag… は演出専用で、ルール・検証には関わらない）
 function playCardQuirks(d, surBefore, alertBefore, prevId) {
-  if (d.type === 'gu' && surBefore >= 90 && !G._flagKatsudon) { G._flagKatsudon = true; banner('崖の上で、カツ丼！', '#ffb37a'); }
-  if (d.type === 'hu' && alertBefore >= 5 && !G._flagAlertMax) { G._flagAlertMax = true; banner('警戒MAX！ 言葉が通じん！', '#ffb347'); sndBuzz(); }
-  if (prevId === G._flagPrevId && !G._flagSame) { G._flagSame = true; addFloat(270, 200, 'おい、またそれか！', '#ff8a5a', 26); }
+  if (d.type === 'gu' && surBefore >= 90 && !G._flagKatsudon) { G._flagKatsudon = true; banner(SCRIPT.shout.katsudon, '#ffb37a'); }
+  if (d.type === 'hu' && alertBefore >= 5 && !G._flagAlertMax) { G._flagAlertMax = true; banner(SCRIPT.shout.alertMax, '#ffb347'); sndBuzz(); }
+  if (prevId === G._flagPrevId && !G._flagSame) { G._flagSame = true; addFloat(270, 200, SCRIPT.shout.same, '#ff8a5a', 26); }
 }
 function shieldBreak() {
   hitStop(140);                                                          // 止め 140ms → 白の閃光・ひび → 寄り＋テロップ → 顔のアップ（動揺）
@@ -1668,17 +1822,13 @@ async function endTurn() {
   if (phase !== 'battle') return;
   startTurn();
 }
-const LINES = {
-  angry: ['ウソだ！ そんなもん証拠になるか！', 'あっちへ行け！ 来るなっ！', '刑事なんかに、俺の何がわかるんや！', 'うるさい！ 黙れ黙れ！'],
-  shaken: ['ち、違う……！ 俺はやってない……！', 'うるさい！ 今さら何を言われても……！', 'やめてくれ……もう聞きたくない！'],
-  soft: ['……でも、もう遅いんや……', '俺なんか、帰る場所なんて……', '……なんで、そこまで言うてくれるんや……'],
-};
+const LINES = { angry: SCRIPT.culprit.angry, shaken: SCRIPT.culprit.shaken, soft: SCRIPT.culprit.soft };   // (台詞は SCRIPT.culprit)
 async function enemyTurn() {
   const stage = G.sur >= 60 ? 'soft' : (G.shield <= 0 ? 'shaken' : 'angry');
   const rec = planEnemy(G, D);
   if (rec.stun) {
     V.shakenT = 2;
-    await say(CN, '……っ！（心壁を砕かれ、言葉が出てこない）', CC);
+    await say(CN, SCRIPT.culprit.stunned, CC);
   } else if (rec.type === 'atk') {
     const p = say(CN, pick(LINES[stage]), CC);
     await sleep(380);
@@ -1688,14 +1838,14 @@ async function enemyTurn() {
     if (rec.halved) addFloat(V.cx, 170, '(動揺で半減)', '#ffd27a', 18);
     await p;
   } else if (rec.type === 'alert') {
-    if (rec.canceled) await say(CN, '……（ソースの匂いに気を取られている）', CC, 800);
-    else { addFloat(V.cx, 200, '警戒 UP!', '#ffb347', 24); sndAlert(); await say(CN, pick(['刑事なんか信用できるか！ 近寄るな！', 'どうせ俺を捕まえたいだけやろ！']), CC); }
+    if (rec.canceled) await say(CN, SCRIPT.culprit.sauce, CC, 800);
+    else { addFloat(V.cx, 200, SCRIPT.shout.alertUp, '#ffb347', 24); sndAlert(); await say(CN, pick(SCRIPT.culprit.alert), CC); }
   } else if (rec.type === 'wall') {
     addFloat(V.cx, 200, '心壁 +' + rec.shield, '#8fc1ff', 24); sndShieldUp();
-    await say(CN, rec.rebuild ? 'まだや……まだ認めんぞ！ 俺は何もしとらん！' : '俺は何も知らん！ 何も喋らんぞ！', CC);
+    await say(CN, rec.rebuild ? SCRIPT.culprit.rebuild : SCRIPT.culprit.wall, CC);
   } else if (rec.type === 'retreat') {
-    if (rec.eaten) await say(CN, '……（口をもぐもぐさせながら、足が止まる）', CC, 800);
-    else { sndAlert(); await say(CN, '来るなって言うとるやろ！（大きく後ずさる）', CC); }
+    if (rec.eaten) await say(CN, SCRIPT.culprit.eaten, CC, 800);
+    else { sndAlert(); await say(CN, SCRIPT.culprit.retreat, CC); }
   }
   const crisisBefore = G.crisis;
   applyEnemy(G, rec.hpShown ? Object.assign({}, rec, { dmg: 0 }) : rec);
@@ -1733,13 +1883,11 @@ async function winSequence() {
   submitRank();
   V.skyT = end.sky;                  // 空：朝焼け／夕焼け／夜／雨
   await sleep(900);
-  await say(CN, '……すんません……。俺が……俺が、やりました……', CC, 1300);
+  await say(CN, SCRIPT.culprit.confess, CC, 1300);
   V.kneelT = 1; sndPiano();
   await sleep(1200);
-  await say(CN, end.line || '自首します。……おっかちゃんに、ちゃんと謝らな……', CC, 1400);
-  await say(DN, end.sky === 'rain' ? 'ほやの。……濡れるし、帰ろっさ。署であったかいそばでも食べよか。'
-    : end.sky === 'dawn' ? 'ほやの。……夜が明けたな。署であったかいそばでも食べよか。'
-    : 'ほやの。……寒いし、帰ろっさ。署であったかいそばでも食べよか。', DC, 1600);
+  await say(CN, end.line || SCRIPT.ending.default, CC, 1400);
+  await say(DN, end.sky === 'rain' ? SCRIPT.detective.endRain : end.sky === 'dawn' ? SCRIPT.detective.endDawn : SCRIPT.detective.endOther, DC, 1600);
   phase = 'win'; resultT = 0; prepShareImage(); V.banner = null; V.bannerQ = []; V.cutin = null;   // (結果画面にバナーを残さない)
   if (G.promo >= 0) later(1400, sndPromo);
 }
@@ -1750,7 +1898,7 @@ async function lose(kind) {
   bgmStop(1.2); sndLose();
   if (kind === 'crisis') await say(NN, '崖の端まで追い込んでしまった……。説得は、届かなかった。', NC, 1500);
   else {
-    await say(DN, '……あかん……言葉が……出てこん……', DC, 900);
+    await say(DN, SCRIPT.detective.mentalBreak, DC, 900);
     await say(NN, `刑事の心が折れた。${cuWho()}は背を向けたまま、口を閉ざした――。`, NC, 1500);
   }
   phase = 'lose'; resultT = 0; V.banner = null; V.bannerQ = []; V.cutin = null;
@@ -1826,8 +1974,8 @@ async function beginGame(diffIn, seed, ck, opts) {
   if (opts.note) await say(NN, opts.note, NC, 1400);
   if (!verified) await say(NN, '※この事件は、推理でクリアできるかどうか確かめられていません（運が悪いと解けないことがあります）。', '#ffb0a0', 1600);
   await say(NN, `【${D.name}】事件ファイル No.${caseNo(seed)}――福井県・東尋坊。荒れる日本海を望む断崖に、${cu.name}（${cu.sub}）が追い詰められていた。`, NC, 900);
-  await say(CN, '来るな！ それ以上近づくな！ 話すことなんか何もない！', CC, 800);
-  await say(DN, `（証拠で心の壁を崩して、人情で心を溶かす……。崖の端まで、あと${G.crisis}歩や）`, DC, 800);
+  await say(CN, SCRIPT.culprit.opening, CC, 800);
+  await say(DN, fmt(SCRIPT.detective.opening, { n: G.crisis }), DC, 800);
   startTurn();
 }
 
@@ -1865,41 +2013,43 @@ function startDaily() {
 
 /* ---------- 県民の勘（最善手ヒント） ---------- */
 function hintReason(seq) {
-  if (!seq.length) return '今は下手に動かんほうがええ。ここはターン終了やざ。';
-  const id = seq[0], d = CARDS[id], name = '【' + d.name + '】';
+  const K = SCRIPT.kan;
+  if (!seq.length) return K.noMove;
+  const id = seq[0], d = CARDS[id], name = '【' + cardName(id) + '】', v = { card: name };
+  const say = t => fmt(t, v);
   const s = makeSim(G); const r = cardEffect(s, id, D);
   const it = G.intent.type;
-  if (s.sur >= 100) return name + 'で決まりや！ 一気に自首させるんやざ。';
-  if (r.combo) return name + 'で「' + r.combo.name + '」が決まるざ！';
-  if (r.step) return name + 'で犯人を1歩引き戻すんや。崖が近いときの切り札やざ。';
+  if (s.sur >= 100) return say(K.finish);
+  if (r.combo) return fmt(K.combo, { card: name, combo: r.combo.name });
+  if (r.step) return say(K.step);
   if (d.type === 'gu') {
-    if (r.boostHu) return 'まず' + name + 'で気持ちを緩ませとき。次の人情が1.5倍になるでの。';
-    if (r.boostEv) return 'まず' + name + 'で気を緩ませて、次の証拠を1.5倍にするんや。';
-    if (d.daze && it === 'atk' && !G.daze) return name + 'で動揺させとき。次の反論が半分になるでの。';
-    if (d.daze && it === 'alert' && !G.daze) return name + 'で動揺させれば、警戒を上げられんで済むざ。';
-    if (it === 'retreat' && !G.ate) return '大きく後ずさろうとしとる。先に' + name + 'を食べさせて足を止めねま。';
-    if (r.ap) return 'まず' + name + 'でAPを増やすんや。手数が増えるでの。';
-    if (r.draw) return name + 'で手札を増やしてから考えるんがええ。';
-    if (r.alert < 0) return name + 'で警戒をほぐしとこ。人情が届きやすなるざ。';
-    return name + 'がええ。';
+    if (r.boostHu) return say(K.boostHu);
+    if (r.boostEv) return say(K.boostEv);
+    if (d.daze && it === 'atk' && !G.daze) return say(K.dazeAtk);
+    if (d.daze && it === 'alert' && !G.daze) return say(K.dazeAlert);
+    if (it === 'retreat' && !G.ate) return say(K.retreat);
+    if (r.ap) return say(K.ap);
+    if (r.draw) return say(K.draw);
+    if (r.alert < 0) return say(K.alert);
+    return say(K.guOther);
   }
   if (d.type === 'ev') {
-    if (d.chainEv && G.lastType === 'ev') return '証拠を続けるなら今や。' + name + 'は「連携」で威力が上がるざ。';
-    if (d.pct && G.shield >= 60) return '心壁が厚い今こそ' + name + 'や。残りの割合で削るでの。';
-    if (r.broke) return name + 'で心壁を割れる！ 割れば犯人は固まって、次の「' + INTENT_TXT[it] + '」も止められるんや。';
-    if (G.shield <= 0) return '心壁はもうないけど、' + name + 'で追い込めば自首も少し進むざ。';
-    if (G.mood === 'guarded') return '頑なな今は小さい証拠が通らん。' + name + 'みたいな重い一撃を選ぶんや。';
-    if (G.mood === 'rage') return '激昂しとる今は証拠がよう刺さる。' + name + 'で心壁を削るんや。';
-    return name + 'で心壁を削るんや。心壁が残っとると人情が届かんでの。';
+    if (d.chainEv && G.lastType === 'ev') return say(K.chainEv);
+    if (d.pct && G.shield >= 60) return say(K.pct);
+    if (r.broke) return fmt(K.broke, { card: name, intent: INTENT_TXT[it] });
+    if (G.shield <= 0) return say(K.noShield);
+    if (G.mood === 'guarded') return say(K.guarded);
+    if (G.mood === 'rage') return say(K.rage);
+    return say(K.evOther);
   }
-  if (d.perHu && r.tags.some(t => t.startsWith('畳みかけ'))) return '人情を重ねた今や。' + name + 'で畳みかけるんやざ。';
-  if (d.crisisBonus && G.crisis <= 2) return '崖っぷちの今こそ' + name + 'や。2倍で届くざ。';
-  if (d.pierce && G.shield > 0) return name + 'は心壁を貫いて届く。心壁が残っとっても使えるざ。';
-  if (G.lastType === 'ev') return '証拠を見せた直後や。' + name + 'を重ねれば「緩急」で効果アップやざ。';
-  if (G.shield > 0) return name + '……心壁はまだ残っとるけど、今の手札ならこれが一番前に進むざ。';
-  if (G.mood === 'nostalgia') return '今は里心がついとる。' + name + 'がよう効くざ。';
-  if (seq.length > 1 && CARDS[seq[1]].type === 'hu') return name + 'から順に、気持ちを重ねていくんや。';
-  return name + 'で心に訴えるんや。';
+  if (d.perHu && r.tags.some(t => t.startsWith('畳みかけ'))) return say(K.perHu);
+  if (d.crisisBonus && G.crisis <= 2) return say(K.crisis);
+  if (d.pierce && G.shield > 0) return say(K.pierce);
+  if (G.lastType === 'ev') return say(K.kankyu);
+  if (G.shield > 0) return say(K.shieldLeft);
+  if (G.mood === 'nostalgia') return say(K.nostalgia);
+  if (seq.length > 1 && CARDS[seq[1]].type === 'hu') return say(K.huOrder);
+  return say(K.huOther);
 }
 function useKan() {
   if (G.busy || phase !== 'battle') return;
@@ -2946,7 +3096,7 @@ function drawCard(c, x, y, sc, alpha, isHover, usable, glow, hold) {
   if (d.r === 3) { ctx.font = `13px ${GOTH}`; ctx.fillStyle = '#c08a00'; ctx.fillText('★レア', CW - 26, 40); }
   else if (d.r === 2) { ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#8a7a5a'; ctx.fillText('◆', CW - 16, 40); }
   ctx.font = `13px ${MINCHO}`; ctx.fillStyle = '#1b1b1b';
-  const nl = wrap(d.name, CW - 18).slice(0, 2);
+  const nl = wrap(cardName(c.id), CW - 18).slice(0, 2);
   nl.forEach((l, i) => ctx.fillText(l, CW / 2, 78 + i * 16));
   const ly = 78 + nl.length * 16 - 4;
   ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 3;
@@ -3493,7 +3643,7 @@ function remorseCanvas(cu) {
   try { g.drawImage(culpritSprite('remorse', true, 1, 3, cu, 'kneel', culpritFlags('kneel')), ox, oy); drawFaceFx(g, ox, oy, 'kneel', 0.4, cu); } catch (e) { }
   return cv2;
 }
-const RESULT_LAST_LINE = '自首します。……おっかちゃんに、ちゃんと謝らな……';
+const RESULT_LAST_LINE = SCRIPT.ending.default;   // (台詞は SCRIPT.ending)
 // 結果画像（1200×630）。画面の ctx とは別の Canvas に描く。画面用の outlineText は使わず、telop（キャンバスを引数で受け取る）とこの中の text で描く
 function makeResultImage() {
   const g = G, d = D, cuKey = d.culprit || 'iwaki', cu = cuNow(), en = g.ending || ENDINGS[ENDINGS.length - 1], tl = pickTitle(), tz = tsukkomiTitle(g, cuKey);
@@ -3692,7 +3842,7 @@ function drawResult() {
       ctx.font = `13px ${GOTH}`; ctx.textAlign = 'left';
       const lines = [];
       rt.log.forEach((ids, t) => {
-        const body = ids.length ? ids.map(id => CARDS[id].name).join(' → ') : '（何も使わずにターン終了）';
+        const body = ids.length ? ids.map(id => cardName(id)).join(' → ') : '（何も使わずにターン終了）';
         wrap(`${t + 1}幕　${body}` + (t === rt.log.length - 1 ? '　→ 自首！' : ''), 470).forEach((l, k) => lines.push([k ? '　　' + l : l, t === rt.log.length - 1]));
       });
       let y = 402 + fl.length * 20 + 12; const maxN = Math.floor((646 - y) / 18) + 1;
@@ -4749,7 +4899,7 @@ function renderZukan() {
   } else if (zkKind === 'cards') {
     for (const [t, lab] of [['ev', '証拠'], ['hu', '人情'], ['gu', 'グルメ']]) {
       const ids = keys.filter(k => CARDS[k].type === t), ul = el('ul', 'zk-grid');
-      for (const id of ids) { const c = CARDS[id], got = !!z[id]; const li = zkItem(got, c.name, `【${lab}】コスト${c.cost}${c.r === 3 ? '・★レア' : ''}`, got ? cardSummary(c) : null, z[id]); li.style.borderLeftColor = TYPE[t].col; li.style.borderLeftWidth = '6px'; ul.append(li); }
+      for (const id of ids) { const c = CARDS[id], got = !!z[id]; const li = zkItem(got, cardName(id), `【${lab}】コスト${c.cost}${c.r === 3 ? '・★レア' : ''}`, got ? cardSummary(c) : null, z[id]); li.style.borderLeftColor = TYPE[t].col; li.style.borderLeftWidth = '6px'; ul.append(li); }
       lists.push(el('h3', 'zk-h', `${lab}（${ids.filter(k => z[k]).length} / ${ids.length}）`), ul);
     }
   } else if (zkKind === 'combos') {
