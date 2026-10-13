@@ -184,6 +184,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
     <li>どの事件も、推理すれば必ずクリアできることを確かめてから出題。</li>
   </ul>
   <p>舞台は福井県坂井市の名勝・東尋坊。ドット絵の2時間サスペンス風ゲームです。</p>
+  <p>東尋坊は、いのちを守る活動が続く場所でもあります。つらいときは、ひとりで抱えずに相談を → <a href="https://www.mhlw.go.jp/mamorouyokokoro/" target="_blank" rel="noopener">相談窓口（厚生労働省「まもろうよ こころ」）</a></p>
 </main>
 <canvas id="c" aria-label="東尋坊ディスウェイドのゲーム画面"></canvas>
 <div id="ov" hidden>
@@ -315,7 +316,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
   <section id="scr-rank" class="ov-scr" aria-labelledby="rk-h" hidden>
     <div class="ov-bar"><h2 id="rk-h" class="ov-title">捜査実績表</h2><button id="rk-back" class="ov-btn" type="button">もどる</button></div>
     <p class="ov-lead">難易度ごとの説得スコアの捜査実績表（上位50人）。サーバーが打ち手の記録から事件を再生し、本当に解決できた記録だけを載せます。「この事件に挑む」で、同じ事件ファイルに挑戦できます。</p>
-    <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10＋ボーナス（一気呵成 +800／想いが届いた +500／背水 +300・+600）。v1.15 からシーズン2。v1.14 までの記録は「殿堂」で見られます（見るだけ）。</p>
+    <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10＋ボーナス（一気呵成 +800／想いが届いた +800／背水 +300・+600）。v1.15 からシーズン2。v1.14 までの記録は「殿堂」で見られます（見るだけ）。</p>
     <div id="rk-login" class="ov-card">
       <p>いまはゲストとして、この端末の名前「<span id="rk-guest-name"></span>」で載ります。名前はマイページで変えられます。アカウントを作ると、ほかの端末でも同じ名前と記録で続けられます。</p>
       <button id="rk-open-mypage" class="ov-btn small primary" type="button">マイページへ</button>
@@ -482,7 +483,7 @@ const DIFFS = [
     shield: 110, crisis: 6, hp: 45, ap: 3, atk: 7, alertAtk: 3, regen: 6, huUnder: 0.4, wallAmt: 20,
     wallBreak: true, alertHu: true, samePenalty: true,
     moods: ['calm', 'nostalgia', 'hungry', 'doubt', 'rage', 'reject', 'guarded'], intents: { atk: 4, alert: 2, wall: 2, retreat: 2 }, reward: 2 },
-  { key: 'oni', name: '崖っぷち', sub: '一手のミスが命取り。県民の本気', col: '#ff4a4a',
+  { key: 'oni', name: '崖っぷち', sub: '一手のミスも許されない。県民の本気', col: '#ff4a4a',
     shield: 120, crisis: 6, hp: 40, ap: 3, atk: 8, alertAtk: 4, regen: 8, huUnder: 0.25, wallAmt: 25,
     wallBreak: true, alertHu: true, samePenalty: true,
     moods: ['nostalgia', 'hungry', 'doubt', 'doubt', 'rage', 'reject', 'reject', 'guarded', 'guarded'], intents: { atk: 4, alert: 2, wall: 3, retreat: 3 }, reward: 3 },
@@ -804,7 +805,7 @@ function playout(seed, D, maxTurns, maxNodes) {
 const RANK_BASE = { easy: 1000, normal: 2000, hard: 3500, oni: 5000 };
 // 説得スコア＝難易度の基本点＋早さ（(10−解決ターン)×300、0未満なし）＋残りメンタル×10＋得点ボーナス（v1.15）
 // ボーナスは解決した局面 g の旗だけで決まる。検証AI・県民の勘・正解ルートの評価には使わない（出題が変わらないように）
-const RANK_BONUS = { ikki: ['一気呵成', 800], omoi: ['想いが届いた', 500], haisui2: ['背水の説得', 300], haisui1: ['背水の説得', 600] };
+const RANK_BONUS = { ikki: ['一気呵成', 800], omoi: ['想いが届いた', 800], haisui2: ['背水の説得', 300], haisui1: ['背水の説得', 600] };
 function rankBonus(g) {
   if (!g) return [];
   const out = [];
@@ -850,9 +851,10 @@ function replayLog(D, seed, log) {
   }
   return null;
 }
-function randomSeed() { return Math.floor(Math.random() * 99999) + 1; }   // 1〜99999（事件番号＝シード。番号を入れて同じ事件に挑める。出題を選ぶだけで、ゲームの乱数は rngFor）
 function caseNo(seed) { return seed < 100000 ? String(seed).padStart(5, '0') : String(seed); }   // 事件番号＝シードそのもの（5けた未満は0で埋める。今日の事件は8けた）
 /*CORE-END*/
+// 新しい事件の番号を引く（出題を選ぶだけ。v1.16 で CORE の外へ移した：CORE の中に Math.random を置かない）
+function randomSeed() { return Math.floor(Math.random() * 99999) + 1; }   // 1〜99999（事件番号＝シード。番号を入れて同じ事件に挑める。出題を選ぶだけで、ゲームの乱数は rngFor）
 
 // 画面の大きさ（論理座標）。スマホなど縦長は 540×960、パソコンなど横長は 1600×900 の横長レイアウト
 let W = 540, H = 960;
@@ -1336,8 +1338,8 @@ function sndCrash() {
 }
 function sndLose() {
   if (!ok()) return; const t = SND.ctx.currentTime;
-  [38, 41, 44, 26].forEach(n => osc('sawtooth', NOTE(n + 12), t, 3.0, 0.035, SND.rev, { slide: NOTE(n + 10) }));
-  osc('sine', 55, t, 2.5, 0.5, SND.sfx, { slide: 30 });
+  [38, 41, 45].forEach((n, i) => osc('sine', NOTE(n + 12), t + i * 0.05, 3.2, 0.05, SND.rev, { a: 0.4 }));   // (v1.16：下へ滑る音をやめ、低く静かな和音が消えていく)
+  osc('sine', NOTE(26 + 12), t, 2.8, 0.12, SND.sfx, { a: 0.5 });
 }
 function pianoNote(n, t, dur, vol) {
   const c = SND.ctx, f = NOTE(n);
@@ -1404,7 +1406,6 @@ const V = {
 for (let i = 0; i < 46; i++) V.wind.push({ x: rand(0, W), y: rand(20, 500), len: rand(20, 70), spd: rand(260, 520), a: rand(0.08, 0.3) });
 for (let i = 0; i < 7; i++) V.clouds.push({ x: rand(-60, W), y: rand(150, 270), w: rand(90, 200), h: rand(18, 34), spd: rand(6, 16) });
 
-function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function resetRun() {
   RUN++; waiters = []; dlg = null; dlgResolve = null; paused = false; pmConfirm = null;
   if (typeof endOpening === 'function') endOpening(); V.telop = null; V.faceUp = null; V.white = 0;
@@ -1743,14 +1744,14 @@ async function winSequence() {
   if (G.promo >= 0) later(1400, sndPromo);
 }
 async function lose(kind) {
-  loseKind = kind; phase = 'losing'; G.busy = true; G.hint = null; vib([120, 80, 200]);
+  loseKind = kind; phase = 'losing'; G.busy = true; G.hint = null; vib(80);
   recordResult(false);
   try { G.route = solveRoute(G.seed, D); } catch (e) { G.route = null; }   // (正解ルート。敗北が決まったあと1回だけ)
   bgmStop(1.2); sndLose();
-  if (kind === 'crisis') await say(NN, `吹き荒れる風の中、${cuWho()}の姿は見えなくなった――。説得は、届かなかった。`, NC, 1500);
+  if (kind === 'crisis') await say(NN, '崖の端まで追い込んでしまった……。説得は、届かなかった。', NC, 1500);
   else {
     await say(DN, '……あかん……言葉が……出てこん……', DC, 900);
-    await say(NN, `刑事の心が折れた。${cuWho()}は夕闇の中へ姿を消した――。`, NC, 1500);
+    await say(NN, `刑事の心が折れた。${cuWho()}は背を向けたまま、口を閉ざした――。`, NC, 1500);
   }
   phase = 'lose'; resultT = 0; V.banner = null; V.bannerQ = []; V.cutin = null;
 }
@@ -1825,7 +1826,7 @@ async function beginGame(diffIn, seed, ck, opts) {
   if (opts.note) await say(NN, opts.note, NC, 1400);
   if (!verified) await say(NN, '※この事件は、推理でクリアできるかどうか確かめられていません（運が悪いと解けないことがあります）。', '#ffb0a0', 1600);
   await say(NN, `【${D.name}】事件ファイル No.${caseNo(seed)}――福井県・東尋坊。荒れる日本海を望む断崖に、${cu.name}（${cu.sub}）が追い詰められていた。`, NC, 900);
-  await say(CN, '来るな！ それ以上近づいたら……飛び降りるぞ！', CC, 800);
+  await say(CN, '来るな！ それ以上近づくな！ 話すことなんか何もない！', CC, 800);
   await say(DN, `（証拠で心の壁を崩して、人情で心を溶かす……。崖の端まで、あと${G.crisis}歩や）`, DC, 800);
   startTurn();
 }
@@ -1870,7 +1871,7 @@ function hintReason(seq) {
   const it = G.intent.type;
   if (s.sur >= 100) return name + 'で決まりや！ 一気に自首させるんやざ。';
   if (r.combo) return name + 'で「' + r.combo.name + '」が決まるざ！';
-  if (r.step) return name + 'で犯人を1歩引き戻すんや。崖が近いときの命綱やざ。';
+  if (r.step) return name + 'で犯人を1歩引き戻すんや。崖が近いときの切り札やざ。';
   if (d.type === 'gu') {
     if (r.boostHu) return 'まず' + name + 'で気持ちを緩ませとき。次の人情が1.5倍になるでの。';
     if (r.boostEv) return 'まず' + name + 'で気を緩ませて、次の証拠を1.5倍にするんや。';
@@ -1933,7 +1934,7 @@ function makeCracks(cx, cy, n) {
 }
 
 /* ---------- v1.13 演出の土台（CORE の外。ルール・打ち手の記録・再生には関わらない） ----------
-   ・演出の乱数は fxRand（rngFor とは無関係）。揺れの見た目だけ Math.random
+   ・演出の乱数は fxRand（rngFor とは無関係）。Math.random は見た目と音だけ（風・雲・粒子・割れ目の枝・揺れ・ノイズ・会話の言い回し）。CORE の中では使わない
    ・止め（ヒットストップ）：実時間で「ms ÷ 倍速」のあいだ画面の時間を止め、G.fxLock で入力も止める（止めの終わりで外す。1秒で必ず外す）
    ・G.busy の意味と使い方は変えない */
 function fxRand(seed) { let s = (seed >>> 0) || 1; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; }
@@ -2089,8 +2090,7 @@ function update(dt) {
   V.cx = lerp(V.cx, cliffX(Math.max(G.crisis, 0)), Math.min(1, dt * 3));
   V.kneel = lerp(V.kneel, V.kneelT, Math.min(1, dt * 1.6));
   if (phase === 'losing' || phase === 'lose') {
-    if (loseKind === 'crisis') V.culpritA = Math.max(0, V.culpritA - dt * 0.6);
-    V.dark = Math.min(0.62, V.dark + dt * 0.35);
+    V.dark = Math.min(loseKind === 'crisis' ? 0.85 : 0.62, V.dark + dt * 0.3);   // (v1.16：犯人は消さない。画面が静かに暗く溶けて終わる)
   }
   BGM.tempo = 76 + clamp(6 - G.crisis, 0, 6) * 7 + (G.turn >= 5 ? 8 : 0);
   BGM.tension = clamp(1 - G.crisis / 6, 0, 1) * (D.key === 'oni' ? 1.25 : 1);
@@ -2538,7 +2538,7 @@ function drawSky() {
     ctx.beginPath(); ctx.moveTo(lx, ly - 3); ctx.lineTo(lx + dir * len, ly - 30); ctx.lineTo(lx + dir * len, ly + 18); ctx.closePath(); ctx.fill();
   }
   if (m.r > 0.2) {                                                        // 雨：ときどき稲光（演出用の乱数）
-    if (V.boltT > 0) {
+    if (V.boltT > 0 && !REDUCED) {   // (動きを減らす設定では稲妻の線も出さない)
       ctx.strokeStyle = `rgba(240,244,255,${clamp(V.boltT / 0.18, 0, 1)})`; ctx.lineWidth = 3; ctx.beginPath();
       const r = fxRand(V.boltSeed || 1); let x = V.boltX || 200, y = 0; ctx.moveTo(x, y);
       while (y < 290) { x += (r() - 0.5) * 40; y += 20 + r() * 26; ctx.lineTo(x, Math.min(y, 296)); }
@@ -2684,7 +2684,7 @@ function drawGauges() {
   ctx.textAlign = 'center'; ctx.font = `10px ${GOTH}`;
   ctx.fillStyle = G.stepBack ? '#777' : '#cfe3ff'; ctx.fillText('▲50 一歩', 66 + 135, 89);
   ctx.fillStyle = G.cliffDone ? '#777' : '#ffb0a0'; ctx.fillText('▲70 崖', 66 + 189 + 8, 89);
-  if (!G.cliffTriggered && phase === 'battle') { ctx.fillStyle = '#ffd56b'; ctx.fillText('飛び越えれば +800 ▼', 66 + 189 + 8, 51); }   // (崖っぷちタイム未発動の間だけ。一気呵成のボーナス)
+  if (!G.cliffTriggered && phase === 'battle') { ctx.fillStyle = '#ffd56b'; ctx.fillText('成功でも 飛び越えでも +800 ▼', 66 + 189 + 8, 51); }   // (崖っぷちタイム未発動の間だけ。想いが届いた・一気呵成どちらも +800)
   ctx.font = `13px ${GOTH}`; ctx.textAlign = 'right';
   outlineText(`${G.sur} / 100`, 330, 69, '#fff', '#000', 3);
   const danger = G.crisis <= 2 && phase === 'battle';
@@ -3214,6 +3214,7 @@ function drawTitle() {
   ctx.fillText('実況・配信・収益化 すべて歓迎です', 18, 59);
   ctx.fillText('※音が出ます', 18, 77);
   ctx.textAlign = 'center';
+  drawHelpLine(WIDE ? HELP_R.titleWide : HELP_R.title);   // 相談窓口の案内（縦長は最下部、横長は右下）
 }
 // ルール説明
 const RULE_PAGES = [
@@ -3272,7 +3273,7 @@ const RULE_PAGES = [
   { title: '説得スコアとボーナス', items: [
     ['#ffd56b', '説得スコア＝難易度の基本点（かんたん1000・ふつう2000・むずかしい3500・崖っぷち5000）＋早さ（(10−解決ターン)×300）＋残りメンタル×10＋ボーナス。'],
     ['#ffe9b0', '一気呵成 +800：崖っぷちタイムを一度も起こさずに解決（自首70を一気に飛び越える）。'],
-    ['#ffb0a0', '想いが届いた +500：崖っぷちタイムに成功して解決（一気呵成とは同時に取れない）。'],
+    ['#ffb0a0', '想いが届いた +800：崖っぷちタイムに成功して解決（一気呵成とは同時に取れない）。'],
     ['#ff9a9a', '背水の説得：解決した時点で崖の端まで2歩なら +300、1歩なら +600。'],
     ['#ddd', 'その1枚で解決するカードには、取れるボーナスが「一気呵成！」「背水 +600」のように出る。'],
   ] },
@@ -3315,7 +3316,9 @@ function drawRules() {
     });
   }
   ctx.textAlign = 'center';
-  ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888'; ctx.fillText('画面外をタップしても進めます', W / 2, 790);
+  if (rules.page === RULE_PAGES.length - 1) drawHelpLine(HELP_R.rules);   // 最後のページの末尾に相談窓口の案内
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#888'; ctx.fillText('画面外をタップしても進めます', W / 2, rules.page === RULE_PAGES.length - 1 ? 798 : 790);
   button(R_PREV, '前へ', null, '#3a3a4a', '#20202a', rules.page > 0, false, hoverBtn === 'rprev');
   button(R_SKIP, rules.fromTitle ? 'とばす' : 'とじる', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'rskip');
   const last = rules.page === RULE_PAGES.length - 1;
@@ -3326,6 +3329,34 @@ function closeRules() { const cb = rules && rules.onClose; rules = null; SAVE.se
 
 const RETRY = { x: 40, y: 680, w: 220, h: 60 }, NEWCASE = { x: 280, y: 680, w: 220, h: 60 };
 const TOTITLE = { x: 40, y: 756, w: 220, h: 56 }, SHARE = { x: 280, y: 756, w: 220, h: 56 };
+// 相談窓口の案内（v1.16。タイトル最下部・ルール最後のページ・失敗の結果画面。開くのは click で：スマホのポップアップ制限）
+// (タップ領域は高さ64：スマホ幅375pxでは約0.7倍に縮むので、実際の高さが44px以上になる)
+const HELP_URL = 'https://www.mhlw.go.jp/mamorouyokokoro/';
+const HELP_L1 = '東尋坊は、いのちを守る活動が続く場所でもあります。', HELP_L2 = 'つらいときは、ひとりで抱えずに相談を → ', HELP_LINK = '相談窓口';
+const HELP_R = { title: { x: 55, y: 896, w: 430, h: 64 }, titleWide: { x: 585, y: 818, w: 430, h: 64 }, rules: { x: 55, y: 722, w: 430, h: 64 }, lose: { x: 55, y: 826, w: 430, h: 64 } };
+function helpRectNow() {                                                   // 今の画面で案内が出ている場所（中央の列の座標）。出ていなければ null
+  if (ovScreen) return null;
+  if (rules) return rules.page === RULE_PAGES.length - 1 ? HELP_R.rules : null;
+  if (paused) return null;
+  if (phase === 'title') return WIDE ? HELP_R.titleWide : HELP_R.title;
+  if (phase === 'lose' && resultT > 1.0) return HELP_R.lose;
+  return null;
+}
+function drawHelpLine(r) {
+  const cx = r.x + r.w / 2, hov = hoverBtn === 'help';
+  rr(r.x, r.y, r.w, r.h, 10); ctx.fillStyle = 'rgba(8,8,14,0.9)'; ctx.fill();
+  ctx.strokeStyle = hov ? 'rgba(159,211,255,0.7)' : 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `14px ${GOTH}`; ctx.fillStyle = '#d4d4de';
+  ctx.fillText(HELP_L1, cx, r.y + 20);
+  const w2 = ctx.measureText(HELP_L2).width, w3 = ctx.measureText(HELP_LINK).width, x0 = cx - (w2 + w3) / 2;
+  ctx.textAlign = 'left'; ctx.fillText(HELP_L2, x0, r.y + 44);
+  ctx.fillStyle = '#9fd3ff'; ctx.fillText(HELP_LINK, x0 + w2, r.y + 44); ctx.fillRect(x0 + w2, r.y + 53, w3, 1.5);
+  ctx.textAlign = 'center';
+}
+function openHelp() {
+  try { const a = document.createElement('a'); a.href = HELP_URL; a.target = '_blank'; a.rel = 'noopener'; a.click(); }
+  catch (e) { try { window.open(HELP_URL, '_blank', 'noopener'); } catch (e2) { } }
+}
 // 称号（G.log・G.hp・G.maxHp・G.turn・G.kanUsed だけで決める。上から順に最初に当てはまったもの）
 function pickTitle() {
   const n = { ev: 0, hu: 0, gu: 0 };
@@ -3650,7 +3681,7 @@ function drawResult() {
   } else {
     ctx.font = `56px ${MINCHO}`; outlineText('説得失敗', W / 2, 270, '#ff5a5a', '#200', 9);
     ctx.font = `16px ${GOTH}`; ctx.fillStyle = '#ddd';
-    ctx.fillText(loseKind === 'crisis' ? '崖の端まで、時間が足りなかった……' : '刑事のメンタルが尽きてしまった……', W / 2, 326);
+    ctx.fillText(loseKind === 'crisis' ? '崖の端まで追い込んでしまった……説得は、届かなかった。' : '刑事のメンタルが尽きてしまった……', W / 2, 326);
     const rt = G.route;
     if (rt && rt.win) {                                                    // 正解ルート（出題前の検証と同じ打ち筋）
       rr(22, 348, W - 44, 300, 12); ctx.fillStyle = 'rgba(8,8,16,0.82)'; ctx.fill();   // (後ろの会話枠が透けないように)
@@ -3683,6 +3714,7 @@ function drawResult() {
     button(NEWCASE, '新しい事件へ', '別の山札で挑む', '#2e8a50', '#14482a', true, false, hoverBtn === 'newcase');
     button(TOTITLE, '難易度を選ぶ', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'totitle');
     if (phase === 'win') button(SHARE, 'X で自慢する', '結果をポスト', '#1d1d24', '#000000', true, false, hoverBtn === 'share');
+    else drawHelpLine(HELP_R.lose);   // 失敗の結果画面の最下部に相談窓口の案内
   }
   ctx.restore();
 }
@@ -3753,6 +3785,7 @@ function cardAt(p) {
 function updateHover() {
   hoverBtn = null; hover = null;
   const cm = colPt(mouse);
+  { const hr = helpRectNow(); if (hr && inRect(cm, hr)) { hoverBtn = 'help'; return; } }
   if (rules) {
     if (inRect(cm, R_PREV)) hoverBtn = 'rprev'; else if (inRect(cm, R_NEXT)) hoverBtn = 'rnext'; else if (inRect(cm, R_SKIP)) hoverBtn = 'rskip';
     return;
@@ -3786,7 +3819,8 @@ function goTitle() {
   newGame(D); V.sunset = 0;
 }
 cv.addEventListener('pointermove', e => { mouse = toLogical(e); });
-cv.addEventListener('click', e => {                                    // シェアだけは click で（スマホのポップアップ制限）
+cv.addEventListener('click', e => {                                    // シェアと相談窓口は click で（スマホのポップアップ制限）
+  { const hr = helpRectNow(); if (hr && inRect(colPt(toLogical(e)), hr)) { openHelp(); return; } }
   if (phase !== 'win' || resultT <= 1.0 || rules || paused) return;
   if (inBtn(colPt(toLogical(e)), SHARE)) shareResult();
 });
@@ -3800,6 +3834,7 @@ cv.addEventListener('pointerdown', e => {
   if (e.pointerType !== 'mouse') mouse = p;
   const p0 = p;
   if (rules || paused || phase === 'title' || phase === 'win' || phase === 'lose') p = colPt(p);   // (中央の列の画面)
+  { const hr = helpRectNow(); if (hr && inRect(colPt(p0), hr)) { sndClick(); return; } }   // (相談窓口：開くのは click。ここではページ送りなどをしない)
   if (rules) {
     if (inRect(p, R_PREV)) { if (rules.page > 0) { rules.page--; sndClick(); } return; }
     if (inRect(p, R_SKIP)) { sndClick(); closeRules(); return; }
@@ -4562,6 +4597,10 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 16, ver: '1.16', date: '2026-10-13', title: 'ボーナスの見直し・相談窓口の案内', items: [
+    '崖っぷちタイムに成功して解決する「想いが届いた」が +800 に（一気呵成と同じ点。どちらの道でも同じ点になりました）',
+    'シーズン2に前の版の式で載った記録は、そのまま残ります',
+    'タイトル・ルール説明の最後・説得失敗の画面に、相談窓口の案内を置きました'] },
   { id: 15, ver: '1.15', date: '2026-10-12', title: '得点ボーナス・捜査実績表シーズン2', items: [
     '説得スコアにボーナス：一気呵成 +800（崖っぷちタイムを起こさずに解決）／想いが届いた +500（崖っぷちタイムに成功して解決）／背水の説得 +300・+600（崖の端まで2歩・1歩で解決）',
     'その1枚で解決するカードに「一気呵成！」「背水 +600」などと出ます。自首ゲージの70の横には「飛び越えれば +800」',
