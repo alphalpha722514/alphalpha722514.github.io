@@ -4247,7 +4247,7 @@ function drawResult() {
       ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#a9a9b8'; ctx.textAlign = 'center'; ctx.fillText(why, W / 2, VSHARE.y + 28);
     }
     if (phase === 'win' && REC.file && REC.g === G) button(VSHARE, '動画でシェア（mp4）', '決着の瞬間・実験', '#7a1d17', '#3a0a08', true, false, hoverBtn === 'vshare');
-    else drawHelpLine(HELP_R.lose);   // 失敗の結果画面の最下部に相談窓口の案内
+    if (phase === 'lose') drawHelpLine(HELP_R.lose);   // 失敗の結果画面の最下部に相談窓口の案内（v1.19.3：勝ちの画面に出ていたのを直した）
   }
   ctx.restore();
 }
@@ -5106,6 +5106,8 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 22, ver: '1.19.3', date: '2026-10-14', title: '結果画面の表示の修正', items: [
+    '解決した結果画面の下に、相談窓口の案内が重なって出ることがあり、「動画でシェア」のボタンや理由の表示が隠れていた不具合を直しました'] },
   { id: 21, ver: '1.19.2', date: '2026-10-14', title: '決着の動画の修正', items: [
     '「動画でシェア」のボタンが出ないことがある不具合を直しました（低い自首から一気に解決したとき、長く考えたとき、iPhone の Safari など）',
     '録画をオンにしているのに動画が作れなかったときは、結果画面に理由を出します',
