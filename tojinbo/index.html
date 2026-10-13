@@ -160,6 +160,10 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .zk-item.unknown .zk-desc{color:#7a7a8a}
 .zk-cnt{font-size:11.5px;color:#b0ffc8}
 .zk-flav{font-size:12.5px;line-height:1.55;color:#ffe2a0}
+.zk-seal{align-self:flex-start;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;font-size:20px;background:#f4ead8;box-shadow:inset 0 0 0 3px #b02418;color:#b02418;font-family:inherit}
+.zk-seal.none{background:#1a1a24;box-shadow:inset 0 0 0 3px #3a3a4a;color:#4a4a5a}
+.zk-item.chal.got{border-left-color:#ffd56b}
+.zk-todo{font-size:11.5px;color:#a9a9b8}
 .zk-h{margin:12px 0 6px;font-size:14px;color:#ffd56b;font-weight:400}
 .ob-link{background:none;border:0;padding:6px;min-height:44px;color:#9fd3ff;font:inherit;font-size:13.5px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 </style>
@@ -288,6 +292,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
       <button class="ov-btn small" type="button" data-kind="cards" aria-pressed="false">カード</button>
       <button class="ov-btn small" type="button" data-kind="combos" aria-pressed="false">コンボ</button>
       <button class="ov-btn small" type="button" data-kind="endings" aria-pressed="false">エンディング</button>
+      <button class="ov-btn small" type="button" data-kind="titles" aria-pressed="false">称号</button>
+      <button class="ov-btn small" type="button" data-kind="chal" aria-pressed="false">挑戦状</button>
     </div>
     <p id="zk-sum" class="zk-sum" role="status"></p>
     <div id="zk-body"></div>
@@ -1137,13 +1143,14 @@ function deviceId() {
 }
 function cleanName(v) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, PROFILE_NAME_MAX) : ''; }
 function blankDev() { const z = {}; DIFF_KEYS.forEach(k => z[k] = 0); return { earn: 0, spend: 0, merit: 0, plays: Object.assign({}, z), wins: Object.assign({}, z) }; }
-const TIP_ALL = 63;   // その場のヒント6種（1 犯人の狙い・2 心壁が割れた・4 コンボ・8 自首50・16 県民の勘・32 失敗）
+const TIP_ALL = 63;
+const TITLE_ALL = (1 << 18) - 1, CHAL_ALL = 255;   // 称号18種（公式8・ツッコミ10）・挑戦状8つ（v1.18）   // その場のヒント6種（1 犯人の狙い・2 心壁が割れた・4 コンボ・8 自首50・16 県民の勘・32 失敗）
 const ONBOARD_VER = 2;   // はじめての捜査（説明）の版。上げると、見た人にも「増えた分」だけもう一度出す
 // v1.17：説明を3枚にした。ONBOARD_VER は 2 のまま（見た人に出し直さない）。前の版の「増えた1枚だけ」は使わず、onboard 1 の人は 2 にする（コンボと崖っぷちタイムはその場のヒントで）
 // schema 4：図鑑（zukan）を追加。中身は「種類 → { key: 解決した回数 }」
 const ZUKAN_KINDS = ['culprits', 'cards', 'combos', 'endings'];
 function blankZukan() { return { culprits: {}, cards: {}, combos: {}, endings: {} }; }
-function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, tips: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan(), daily: { last: 0, streak: 0, best: 0 } }; }
+function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, tips: 0, titles: 0, chal: 0, hardCu: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan(), daily: { last: 0, streak: 0, best: 0 } }; }
 // 図鑑に載せてよい key（知らない key は捨てる）
 function zukanKeys(kind) {
   if (kind === 'culprits') return CULPRITS.map(c => c.key);
@@ -1183,6 +1190,7 @@ function coerceSave(raw) {
   out.seenRules = raw.seenRules === true;
   out.onboard = cInt(raw.onboard, 0, 1000);
   out.tips = cInt(raw.tips, 0, TIP_ALL);   // その場のヒントの表示済み（v1.17。ビットの和）
+  out.titles = cInt(raw.titles, 0, TITLE_ALL); out.chal = cInt(raw.chal, 0, CHAL_ALL); out.hardCu = cInt(raw.hardCu, 0, 63);   // 称号・挑戦状・むずかしい以上で解決した犯人（v1.18。ビットの和）
   if (Array.isArray(raw.solved)) out.solved = raw.solved.filter(v => typeof v === 'string' && /^[a-z]+:\d{1,10}(:[a-z]+)?$/.test(v)).slice(-SOLVED_MAX);
   out.gradeSeen = raw.gradeSeen == null ? -1 : cInt(raw.gradeSeen, -1, 9);
   if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
@@ -1194,6 +1202,7 @@ function coerceSave(raw) {
       for (const key of Object.keys(src)) if (ok.includes(key)) { const n = cInt(src[key], 0, COUNT_MAX); if (n > 0) out.zukan[k][key] = n; }
     }
   } else if (Object.values(out.devs).some(d => DIFF_KEYS.some(k => d.wins[k] > 0))) out.zukan.culprits.iwaki = 1;
+  out.chal |= chalFromZukan(out.zukan);   // (挑戦状1〜3は、エンディングの図鑑から達成済みにする。v1.18)
   return out;
 }
 // この端末とクラウドの、よいほうを合わせる（帳簿と回数は端末ごとに多いほう、ベストはよいほう、名前は新しいほう）
@@ -1213,6 +1222,7 @@ function mergeSaves(a, b) {
   out.seenRules = L.seenRules || C.seenRules;
   out.onboard = Math.max(L.onboard, C.onboard);
   out.tips = (L.tips | C.tips) & TIP_ALL;   // (表示済みは2台分を合わせる)
+  out.titles = (L.titles | C.titles) & TITLE_ALL; out.chal = (L.chal | C.chal) & CHAL_ALL; out.hardCu = (L.hardCu | C.hardCu) & 63;   // (v1.18：2台分を合わせる)
   out.solved = L.solved.concat(C.solved.filter(v => !L.solved.includes(v))).slice(-SOLVED_MAX);
   out.gradeSeen = Math.max(L.gradeSeen, C.gradeSeen);
   if (C.profile.at > L.profile.at) out.profile = Object.assign({}, C.profile);
@@ -1509,6 +1519,7 @@ const BGM = { on: false, next: 0, step: 0, tempo: 78, tension: 0 };
 const PROG = [[38, 41, 45], [34, 38, 41], [31, 34, 38], [33, 37, 40]];
 function bgmStart() {
   if (!ok()) return;
+  if (EM.on) endMusicStop(0.5);                                         // (エンディングの音楽から戻る)
   if (!BGM.on) { BGM.on = true; BGM.next = SND.ctx.currentTime + 0.1; BGM.step = 0; }
   const g = SND.bgm.gain, t = SND.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(phase === 'title' ? 0.35 : 0.55, t, 0.6);   // (タイトルでは少し小さく)
 }
@@ -1537,6 +1548,105 @@ setInterval(() => {
   if (BGM.next < SND.ctx.currentTime - 0.2) BGM.next = SND.ctx.currentTime + 0.05;   // (止まっていたあとに、たまった分を一度に鳴らさない)
   while (BGM.next < SND.ctx.currentTime + 0.12) { bgmStep(BGM.step, BGM.next); BGM.next += spb; BGM.step++; }
 }, 25);
+
+
+/* ---------- エンディング別の音楽（v1.18。Web Audio、音源ファイルなし） ----------
+   ・解決したら、エンディングの空に合わせた主題を1回（ひざまずく所）と、静かなループ（結果画面のあいだ）
+   ・バトルの BGM（PROG・BGM.tempo・BGM.tension）はそのまま。切り替えは、バトルを0.6秒で絞り、エンディングを0.8秒で上げる
+   ・音は SND.em → SND.master（音のオン／オフ・ポーズの音量下げに従う）。テンポは倍速に関係なく固定、音程も変えない */
+const EM_SONGS = {
+  dawn: { tempo: 72, chords: [[50, 54, 57], [49, 52, 57], [47, 50, 54], [43, 47, 50]], mel: [[74, 76], [78, 81], [83, 81], [78, 76]], pad: 'triangle', cut: 1500, vol: 1 },
+  sunset: { tempo: 66, chords: [[41, 45, 48, 55], [45, 48, 52, 55], [46, 50, 53, 55], [48, 53, 55]], mel: [[72, 69], [69, 67], [65, 67], [69, 72]], pad: 'sine', cut: 1100, vol: 1 },
+  night: { tempo: 54, chords: [[45, 48, 52], [41, 45, 48], [38, 41, 45], [40, 45, 47]], mel: null, pad: 'sine', cut: 700, vol: 0.9, drone: 33 },
+  rain: { tempo: 60, chords: [[38, 41, 45], [34, 38, 41], [31, 34, 38], [33, 37, 40]], mel: [[74, null], [70, null], [67, null], [69, null]], pad: 'sine', cut: 650, vol: 0.8 },
+};
+const EM = { on: false, sky: null, next: 0, step: 0, beam: -1 };
+function emNote(type, freq, t, dur, vol, a, dest) {                       // (倍速でも長さを変えない音)
+  const c = SND.ctx, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (a || 0.01)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(dest || SND.em); o.start(t); o.stop(t + dur + 0.05);
+}
+function emNodes() {                                                      // (最初に使うときに1回だけ作る)
+  if (SND.em) return;
+  const c = SND.ctx;
+  SND.em = c.createGain(); SND.em.gain.value = 0; SND.em.connect(SND.master); if (SND.rev) { const s = c.createGain(); s.gain.value = 0.5; SND.em.connect(s); s.connect(SND.rev); }
+  const loopNoise = (type, freq, q) => { const n = c.createBufferSource(); n.buffer = SND.noise; n.loop = true; const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = c.createGain(); g.gain.value = 0; n.connect(f); f.connect(g); g.connect(SND.master); n.start(); return g; };
+  SND.rainG = loopNoise('highpass', 2600, 0.5);                          // 雨音
+  SND.seaBright = loopNoise('bandpass', 3200, 1.2);                      // 朝焼けの波の明るさ
+}
+function emFade(node, v, tc) { if (!node) return; const t = SND.ctx.currentTime; node.gain.cancelScheduledValues(t); node.gain.setValueAtTime(node.gain.value, t); node.gain.setTargetAtTime(v, t, tc); }
+function endMusicStart(sky) {
+  if (!ok() || !EM_SONGS[sky]) return;
+  emNodes();
+  EM.on = true; EM.sky = sky; EM.step = 0; EM.next = SND.ctx.currentTime + 0.1; EM.beam = -1;
+  emFade(SND.em, 0.32 * EM_SONGS[sky].vol, 0.8 / 3);                       // (0.8秒でほぼ上がりきる)
+  emFade(SND.rainG, sky === 'rain' ? 0.05 : 0, 0.5);
+  emFade(SND.seaBright, sky === 'dawn' ? 0.035 : 0, 0.8);
+}
+function endMusicStop(fade) {
+  EM.on = false; if (!ok() || !SND.em) return;
+  emFade(SND.em, 0, (fade || 0.5) / 3); emFade(SND.rainG, 0, (fade || 0.5) / 3); emFade(SND.seaBright, 0, (fade || 0.5) / 3);
+}
+function emStep(i, t) {
+  const S = EM_SONGS[EM.sky], spb = 60 / S.tempo / 2, k = Math.floor(i / 16) % 4, j = i % 16, ch = S.chords[k];
+  if (j === 0) {                                                            // 和音（2小節ずつ）。柔らかい持続音
+    const c = SND.ctx, f = c.createBiquadFilter(), g = c.createGain(), L = spb * 16;
+    f.type = 'lowpass'; f.frequency.value = S.cut;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + L * 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + L + 0.4);
+    f.connect(g); g.connect(SND.em);
+    ch.forEach(n => { const o = c.createOscillator(); o.type = S.pad; o.frequency.value = NOTE(n + 12); o.connect(f); o.start(t); o.stop(t + L + 0.5); });
+  }
+  if (S.drone && j === 0 && k % 2 === 0) emNote('sine', NOTE(S.drone), t, spb * 32, 0.12, 0.8);   // 夜：低い持続音（間を生かす）
+  if (EM.sky === 'dawn' && j % 2 === 0) emNote('triangle', NOTE(ch[(j / 2) % ch.length] + 24), t, spb * 2.5, 0.03);   // 朝焼け：アルペジオ
+  if (EM.sky === 'sunset' && (j === 4 || j === 12)) emNote('triangle', NOTE(ch[ch.length - 1] + 12), t, spb * 4, 0.025);   // 夕焼け：6度・9度を重ねる
+  if (S.mel) {                                                               // 旋律（2小節に1〜2音）
+    const m = S.mel[k];
+    if (j === 0 && m[0]) emNote('sine', NOTE(m[0]), t, spb * 7, 0.06, 0.02);
+    if (j === 8 && m[1]) emNote('sine', NOTE(m[1]), t, spb * 7, 0.05, 0.02);
+  }
+}
+// 夜：灯台の光（|cos(T×1.3)| の山）に合わせて、ひとつおきに高い単音
+function emTick() {
+  if (!EM.on || EM.sky !== 'night' || !ok() || SND.ctx.state !== 'running') return;
+  const n = Math.floor(T * 1.3 / Math.PI);
+  if (n !== EM.beam) { const first = EM.beam < 0; EM.beam = n; if (!first && n % 2 === 0) emNote('sine', NOTE(76), SND.ctx.currentTime + 0.02, 3.2, 0.05, 0.01); }
+}
+setInterval(() => {
+  if (!SND.ctx || !EM.on || SND.ctx.state !== 'running') return;
+  const spb = 60 / EM_SONGS[EM.sky].tempo / 2;
+  if (EM.next < SND.ctx.currentTime - 0.2) EM.next = SND.ctx.currentTime + 0.05;
+  while (EM.next < SND.ctx.currentTime + 0.15) { emStep(EM.step, EM.next); EM.next += spb; EM.step++; }
+}, 25);
+// 解決の主題（ひざまずく所で1回）。夕焼けは今までのピアノの小品（ヘ長調）
+const END_THEMES = {
+  dawn: { mel: [[74, 0, 1], [76, 1, 1], [78, 2, 2], [81, 4, 1], [83, 5, 1], [86, 6, 4]], chs: [[0, [50, 57, 62]], [4, [43, 50, 59]], [6, [45, 52, 61]], [8, [38, 50, 57, 62, 66]]] },
+  night: { mel: [[69, 0, 2], [72, 2, 2], [76, 4, 3], [74, 7, 1], [69, 8, 4]], chs: [[0, [33, 45, 52]], [4, [29, 41, 48]], [8, [33, 40, 45, 52]]] },
+  rain: { mel: [[74, 0, 1.5], [72, 1.5, 0.5], [69, 2, 2], [65, 4, 1], [67, 5, 1], [69, 6, 3]], chs: [[0, [38, 45, 50]], [2, [34, 41, 50]], [4, [31, 38, 46]], [6, [33, 40, 49]]] },
+};
+function sndEndTheme(sky) {
+  if (!ok()) return;
+  const th = END_THEMES[sky]; if (!th) { sndPiano(); return; }
+  const t0 = SND.ctx.currentTime + 0.3, b = 0.5;
+  th.mel.forEach(([n, st, d]) => pianoNote(n, t0 + st * b, d * b + 1.4, 0.18));
+  th.chs.forEach(([st, ns]) => ns.forEach((n, k) => pianoNote(n, t0 + st * b + k * 0.07, b * 4 + 1, 0.07)));
+}
+
+/* ---------- 犯人の動機（v1.18。3〜4音。開幕の顔のアップと、崖っぷちタイムのカットインで） ----------
+   効果音（崖っぷちの一撃 46〜62Hz・1187Hz以上、心臓 70Hz、開幕 110〜208Hz）とぶつからないよう、110〜880Hz に収める */
+const CU_MOTIF = {
+  iwaki: { n: [76, 74, 72, 69], d: 0.2, type: 'square', vol: 0.035, cut: 2200 },     // きっちりした下降
+  washio: { n: [50, 46, 45], d: 0.34, type: 'sawtooth', vol: 0.06, cut: 600 },      // 重い低音
+  tome: { n: [74, 76, 79, 76], d: 0.24, type: 'sine', vol: 0.08, cut: 4000 },       // 素朴な五音音階
+  minamo: { n: [81, 76, 79], d: 0.26, type: 'sine', vol: 0.05, cut: 4000 },         // 高く細い音
+  kanzaki: { n: [60, 66, 72], d: 0.22, type: 'square', vol: 0.03, cut: 1600 },      // 冷たい跳躍（増4度とオクターブ）
+  hosono: { n: [65, 69, 72, 69], d: 0.26, type: 'triangle', vol: 0.08, cut: 3000 },  // あたたかい中音
+};
+function sndMotif(cu, delay) {
+  if (!ok()) return; const m = CU_MOTIF[cu]; if (!m) return;
+  const c = SND.ctx, t0 = c.currentTime + (delay || 0), f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = m.cut; f.connect(SND.sfx); if (SND.rev) f.connect(SND.rev);
+  m.n.forEach((n, i) => emNote(m.type, NOTE(n), t0 + i * m.d, m.d * (i === m.n.length - 1 ? 3 : 1.1), m.vol, 0.01, f));
+}
 
 /* =========================================================
    STATE
@@ -1803,7 +1913,7 @@ function startCliffTime() {
   hitStop(200, true);                                                    // 止め 200ms・画面を白黒に
   V.flash = 0.7; V.flashCol = '#ffd56b'; V.shake = Math.max(V.shake, 14);
   showTelop('崖っぷち', 'white', 88, 1.0); cutin('崖っぷち', '最後の分かれ道', '#ff8a5a'); V.cutin.face = 'edge';
-  sndCliffHit(); sndHeart();
+  sndCliffHit(); sndHeart(); sndMotif(D.culprit || 'iwaki', 0.12);   // (犯人の動機。計時や判定には関わらない)
 }
 function cliffTap() {
   const q = G.gamble; if (!q || !q.active || !q.armed) return;
@@ -1918,7 +2028,7 @@ async function winSequence() {
   phase = 'winning'; G.busy = true; G.hint = null;
   hitStop(250); V.white = 0.6;                                            // 止め 250ms → 画面全体を白へ 0.3秒 → テロップ「説得成功！」（「落ちた」は崖から落ちたと読まれるので変更）
   later(320, () => showTelop('説得成功！', 'white', 96, 1.5));
-  bgmStop(0.04);
+  bgmStop(0.2);                                                          // (バトルの BGM を0.6秒ほどで絞る)
   if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.85, t, 0.8); }
   V.flash = 0.6; V.flashCol = '#fff4d6';
   // 報酬（演出の途中でやり直されても確定させる）
@@ -1933,12 +2043,14 @@ async function winSequence() {
   // エンディングと図鑑（演出の途中でやり直されても残るよう、報酬と一緒にここで確定させる）
   const end = pickEnding(G, D.culprit || 'iwaki'); G.ending = end;
   G.zukanNew = zukanRecordWin(end);
+  G.newTC = recordTitlesAndChal(end);                                    // 称号と挑戦状（下の recordResult で保存）
   recordResult(true, rank);          // (戦績・自己ベスト・図鑑。中で save する)
   submitRank();
   V.skyT = end.sky;                  // 空：朝焼け／夕焼け／夜／雨
+  later(420, () => { if (phase === 'winning' || phase === 'win') endMusicStart(end.sky); });   // エンディングの音楽（テロップのあと、空が変わるのと一緒に）
   await sleep(900);
   await say(CN, SCRIPT.culprit.confess, CC, 1300);
-  V.kneelT = 1; sndPiano();
+  V.kneelT = 1; sndEndTheme(end.sky);
   await sleep(1200);
   await say(CN, end.line || SCRIPT.ending.default, CC, 1400);
   await say(DN, end.sky === 'rain' ? SCRIPT.detective.endRain : end.sky === 'dawn' ? SCRIPT.detective.endDawn : SCRIPT.detective.endOther, DC, 1600);
@@ -1949,7 +2061,8 @@ async function lose(kind) {
   loseKind = kind; phase = 'losing'; G.busy = true; G.hint = null; vib(80);
   recordResult(false);
   try { G.route = solveRoute(G.seed, D); } catch (e) { G.route = null; }   // (正解ルート。敗北が決まったあと1回だけ)
-  bgmStop(1.2); sndLose();
+  bgmStop(1.2); endMusicStop(1); sndLose();
+  if (ok()) { const g = SND.seaG.gain, t = SND.ctx.currentTime; g.setTargetAtTime(0.3, t, 0.7); }   // (失敗：音を静かに絞って終える)
   if (kind === 'crisis') await say(NN, '崖の端まで追い込んでしまった……。説得は、届かなかった。', NC, 1500);
   else {
     await say(DN, SCRIPT.detective.mentalBreak, DC, 900);
@@ -2255,7 +2368,8 @@ function update(dt) {
   fxLockTick();
   if (fxStopped()) return;                                           // 止め（ヒットストップ）：画面の時間を止める
   const realDt = dt;
-  tipTick(realDt);                                                   // その場のヒント（実時間で数える）
+  tipTick(realDt);
+  emTick();                                                   // その場のヒント（実時間で数える）
   if (V.slow > 0) { V.slow = Math.max(0, V.slow - dt); dt *= 0.25; }   // スローモーション（実時間0.9秒）
   dt *= SPEED;                                                       // 倍速モード（台詞・待ち時間・演出がまとめて速くなる）
   T += dt; GT += dt;
@@ -2264,7 +2378,7 @@ function update(dt) {
     if (!q.armed) { q.intro = (q.intro == null ? 0 : q.intro) - dt; if (q.intro <= 0) { q.armed = true; q.t = 0; heartRush(CLIFF_TIME); } }
     else { q.t += realDt; if (q.t >= CLIFF_TIME) endCliffTime(false); }
   }
-  if (V.opening) { const o = V.opening; o.t += dt; if (!o.sound && o.t >= 0.6) { o.sound = true; sndOpening(); } if (o.t >= OPENING_LEN || o.run !== RUN) endOpening(); }
+  if (V.opening) { const o = V.opening; o.t += dt; if (!o.sound && o.t >= 0.6) { o.sound = true; sndOpening(); } if (!o.motif && o.t >= 2.4) { o.motif = true; sndMotif(o.cu.key, 0.05); } if (o.t >= OPENING_LEN || o.run !== RUN) endOpening(); }
   if (V.telop) { V.telop.t += dt; if (V.telop.t > V.telop.dur) V.telop = null; }
   if (V.faceUp) { V.faceUp.t += dt; if (V.faceUp.t > V.faceUp.dur) V.faceUp = null; }
   if (V.cutin) { V.cutin.t += dt; if (V.cutin.t > 1.6) V.cutin = null; }
@@ -3574,6 +3688,55 @@ function openHelp() {
   try { const a = document.createElement('a'); a.href = HELP_URL; a.target = '_blank'; a.rel = 'noopener'; a.click(); }
   catch (e) { try { window.open(HELP_URL, '_blank', 'noopener'); } catch (e2) { } }
 }
+
+/* ---------- 称号と挑戦状（v1.18） ----------
+   ・判定は解決したときに、ゲームの状態を読むだけ（書き換えない）。記録は SAVE.titles・SAVE.chal・SAVE.hardCu（ビットの和）
+   ・称号は v1.18 から記録（前に取ったものはさかのぼれない）。挑戦状1〜3だけは、エンディングの図鑑から達成済みにする */
+const TITLE_DEFS = [
+  { name: '東尋坊の神', icon: '⛩️', cond: '3ターン以内・勘なし・無傷で解決', hint: 'はやく、勘に頼らず、無傷で' },
+  { name: '伝説の刑事', icon: '🏅', cond: '3ターン以内・勘なしで解決', hint: 'はやく、勘に頼らずに' },
+  { name: 'カツ丼の申し子', icon: '🍜', cond: 'グルメを8枚以上使って解決', hint: 'とにかく食べさせる' },
+  { name: '人情の鬼', icon: '💧', cond: '人情を8枚以上使って解決', hint: '情に訴え続ける' },
+  { name: '証拠至上主義', icon: '🔍', cond: '証拠を8枚以上使って解決', hint: '証拠を積み上げる' },
+  { name: '崖っぷちの男', icon: '🪨', cond: 'メンタル5以下で解決', hint: '心が折れる寸前で' },
+  { name: 'ギリギリの説得屋', icon: '⏰', cond: '6ターン以上かかって解決', hint: '時間をかけて' },
+  { name: '福井県警の星', icon: '⭐', cond: 'ほかの称号に当てはまらずに解決', hint: 'ふつうに解決する' },
+  { name: SCRIPT.tsukkomi.shokudo, icon: '🍱', tz: true, cond: 'グルメを6枚以上使って解決', hint: '崖の上で、よく食べる' },
+  { name: SCRIPT.tsukkomi.mondo, icon: '💢', tz: true, cond: '崖っぷちタイムを一度も起こさずに解決', hint: '有無を言わせず' },
+  { name: SCRIPT.tsukkomi.kamihitoe, icon: '🧵', tz: true, cond: '崖の端まで1歩で解決', hint: 'あと1歩のところで' },
+  { name: SCRIPT.tsukkomi.tsutta, icon: '☝️', tz: true, cond: '崖っぷちタイムに失敗して解決', hint: 'タップが間に合わなくても' },
+  { name: SCRIPT.tsukkomi.abura, icon: '🔥', tz: true, cond: '警戒を最大まで上げて解決', hint: '犯人をあおってしまう' },
+  { name: SCRIPT.tsukkomi.sakki, icon: '🔁', tz: true, cond: '同じカードを続けて使って解決', hint: '同じ話をくり返す' },
+  { name: SCRIPT.tsukkomi.nashi, icon: '✋', tz: true, cond: '「待った」を使って解決', hint: '一度だけ、やり直す' },
+  { name: SCRIPT.tsukkomi.ibukuro, icon: '🍙', tz: true, cond: 'トメにグルメで自首を合計20以上上げて解決', hint: 'トメの胃袋をつかむ' },
+  { name: SCRIPT.tsukkomi.ronpa, icon: '🎓', tz: true, cond: '神崎の心壁を、割合の証拠で割って解決', hint: '教授を理詰めで' },
+  { name: SCRIPT.tsukkomi.shitamachi, icon: '🏭', tz: true, cond: '細野に、自首50を超えてから人情で30以上上げて解決', hint: '町工場の親方に、最後は人情で' },
+];
+const CHAL_DEFS = [
+  { name: '証拠だけで解決する', note: '冷徹エンド' },
+  { name: 'トメをグルメだけで解決する', note: '人情エンド' },
+  { name: 'グルメを10枚以上使って解決する', note: 'カツ丼エンド' },
+  { name: '3ターン以内・勘なし・無傷で解決する', note: '東尋坊の神' },
+  { name: '崖っぷち難易度で「一気呵成」', note: '崖っぷちタイムを起こさずに解決' },
+  { name: '崖っぷち難易度で「想いが届いた」', note: '崖っぷちタイムに成功して解決' },
+  { name: '崖の端まで1歩で解決する', note: '紙一重の説得' },
+  { name: '6人全員を、むずかしい以上で解決する', note: 'むずかしい・崖っぷち' },
+];
+function chalFromZukan(z) { const e = (z && z.endings) || {}; return (e.cold ? 1 : 0) | (e.tome ? 2 : 0) | (e.katsudon ? 4 : 0); }
+function bitCount(n) { let c = 0; while (n) { c += n & 1; n >>>= 1; } return c; }
+// 解決したときに呼ぶ。新しく取った称号と、新しく達成した挑戦状の名前を返す（G は読むだけ）
+function recordTitlesAndChal(end) {
+  const cu = D.culprit || 'iwaki', out = { titles: [], chal: [] };
+  const names = [pickTitle().name, tsukkomiTitle(G, cu)].filter(Boolean);
+  for (const nm of names) { const i = TITLE_DEFS.findIndex(t => t.name === nm); if (i >= 0 && !(SAVE.titles & (1 << i))) { SAVE.titles |= 1 << i; out.titles.push(nm); } }
+  const ci = CULPRITS.findIndex(c => c.key === cu);
+  if ((D.key === 'hard' || D.key === 'oni') && ci >= 0) SAVE.hardCu |= 1 << ci;
+  const bonus = rankBonus(G).map(b => b.key);
+  const hit = [end.key === 'cold', end.key === 'tome', end.key === 'katsudon', pickTitle().name === '東尋坊の神',
+    D.key === 'oni' && bonus.includes('ikki'), D.key === 'oni' && bonus.includes('omoi'), G.crisis === 1, SAVE.hardCu === 63];
+  hit.forEach((h, i) => { if (h && !(SAVE.chal & (1 << i))) { SAVE.chal |= 1 << i; out.chal.push(CHAL_DEFS[i].name); } });
+  return out;
+}
 // 称号（G.log・G.hp・G.maxHp・G.turn・G.kanUsed だけで決める。上から順に最初に当てはまったもの）
 function pickTitle() {
   const n = { ev: 0, hu: 0, gu: 0 };
@@ -3889,9 +4052,27 @@ function drawResult() {
       ctx.font = `32px ${MINCHO}`; outlineText(`${gradeName(G.promo)}に任命`, 0, 18, col, '#000', 6);
       ctx.restore();
     }
-    if (G.zukanNew && G.zukanNew.length) {
-      ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#ffd56b';
-      const zt = `図鑑に新発見 ${G.zukanNew.length}件：` + G.zukanNew.join('・');
+    const nc = (G.newTC && G.newTC.chal) || [];
+    if (nc.length) {                                                       // 挑戦状 達成！（v1.18。昇進が出るときは、そのあとに4秒）
+      const t0 = G.promo >= 0 ? 5.6 : 1.4;
+      if (resultT > t0 && resultT < t0 + 4) {
+        const q = clamp((resultT - t0) * 4, 0, 1);
+        ctx.save(); ctx.globalAlpha *= clamp((t0 + 4 - resultT) / 0.4, 0, 1); ctx.translate(W / 2, 168); ctx.scale(0.5 + q * 0.5, 0.5 + q * 0.5);
+        ctx.fillStyle = '#000'; ctx.fillRect(-232, -51, 464, 102);
+        ctx.fillStyle = Math.floor(T * 4) % 2 ? '#c8322a' : '#f4ead8'; ctx.fillRect(-229, -48, 458, 96);
+        ctx.fillStyle = '#1a0c0a'; ctx.fillRect(-223, -42, 446, 84);
+        ctx.font = `20px ${GOTH}`; outlineText('挑 戦 状　達 成 ！', 0, -18, '#ffd8c8', '#000', 4);
+        const nm = nc[0] + (nc.length > 1 ? `　ほか${nc.length - 1}件` : '');
+        ctx.font = `22px ${MINCHO}`; const w = ctx.measureText(nm).width; if (w > 420) ctx.font = `${Math.floor(22 * 420 / w)}px ${MINCHO}`;
+        outlineText(nm, 0, 18, '#ffe86a', '#000', 5);
+        ctx.restore();
+      }
+    }
+    const zn = (G.zukanNew && G.zukanNew.length) ? G.zukanNew : null;
+    if (zn || nc.length) {
+      const showChal = nc.length && (!zn || Math.floor(resultT / 3) % 2 === 1);   // (両方あるときは3秒ごとに交互)
+      ctx.font = `12px ${GOTH}`; ctx.fillStyle = showChal ? '#ffb0a0' : '#ffd56b';
+      const zt = showChal ? `挑戦状 達成 ${nc.length}件：` + nc.join('・') : `図鑑に新発見 ${zn.length}件：` + zn.join('・');
       ctx.fillText(wrap(zt, W - 60)[0] + (wrap(zt, W - 60).length > 1 ? '…' : ''), W / 2, 658);
     }
     if (G.rankMsg) { ctx.font = `13px ${GOTH}`; ctx.fillStyle = /載りました|送りました/.test(G.rankMsg) ? '#b0ffc8' : '#ccc'; ctx.fillText(G.rankMsg, W / 2, 636); }
@@ -4784,6 +4965,11 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 18, ver: '1.18', date: '2026-10-13', title: 'エンディングの音楽・称号と挑戦状', items: [
+    '解決したあとの音楽が、エンディングの空（朝焼け・夕焼け・夜・雨）ごとに変わります',
+    '犯人6人それぞれに短い動機の旋律。開幕の顔のアップと崖っぷちタイムで鳴ります',
+    '図鑑に「称号」タブ（全18種）と「挑戦状」タブ（縛りの課題8つ）。称号はこの版から記録します',
+    '挑戦状を達成すると、結果画面に「挑戦状 達成！」。報酬はありません（腕だめしです）'] },
   { id: 17, ver: '1.17', date: '2026-10-13', title: 'すぐ遊べる・台詞の見直し', items: [
     'はじめての説明を3枚にして、「さっそく捜査する」でそのまま最初の事件へ',
     'くわしい説明は、初めてその場面になったときに短いヒントで出ます（一度だけ）',
@@ -4922,7 +5108,32 @@ function zkItem(got, name, tag, desc, n) {
   if (got && n) li.append(el('span', 'zk-cnt', `解決 ${n}回`));
   return li;
 }
+function renderZukanTC() {                                                 // 称号・挑戦状（v1.18。全78項目とは別に数える）
+  const body = document.getElementById('zk-body'), ul = el('ul', 'zk-grid');
+  document.querySelectorAll('#zk-tabs [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === zkKind)));
+  if (zkKind === 'titles') {
+    document.getElementById('zk-sum').textContent = `称号 ${bitCount(SAVE.titles)} / ${TITLE_DEFS.length}　（v1.18 から記録。解決したときの称号とツッコミ称号）`;
+    TITLE_DEFS.forEach((t, i) => {
+      const got = !!(SAVE.titles & (1 << i));
+      const li = zkItem(got, t.name, t.tz ? 'ツッコミ称号' : '称号', got ? t.cond : 'ヒント：' + t.hint, 0);
+      const ic = el('span', 'zk-seal' + (got ? '' : ' none'), got ? t.icon : '印'); li.prepend(ic);
+      if (got && !t.tz) li.querySelector('.zk-name').style.color = '#ffe86a';
+      ul.append(li);
+    });
+  } else {
+    document.getElementById('zk-sum').textContent = `挑戦状 ${bitCount(SAVE.chal)} / ${CHAL_DEFS.length}　（縛りの課題。達成しても報酬はありません）`;
+    CHAL_DEFS.forEach((c, i) => {
+      const got = !!(SAVE.chal & (1 << i));
+      const li = el('li', 'zk-item chal ' + (got ? 'got' : 'todo'));
+      li.append(el('span', 'zk-tag', `挑戦状 その${i + 1}`), el('span', 'zk-name', c.name), el('span', 'zk-desc', c.note));
+      li.append(el('span', got ? 'zk-cnt' : 'zk-todo', got ? '達成 ✓' : '未達成'));
+      ul.append(li);
+    });
+  }
+  body.replaceChildren(ul);
+}
 function renderZukan() {
+  if (zkKind === 'titles' || zkKind === 'chal') { renderZukanTC(); return; }
   const z = SAVE.zukan[zkKind], body = document.getElementById('zk-body');
   document.querySelectorAll('#zk-tabs [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === zkKind)));
   const keys = zukanKeys(zkKind);
