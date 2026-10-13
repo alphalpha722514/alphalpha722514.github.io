@@ -1677,7 +1677,10 @@ function recMime() {
   } catch (e) { recMimeCache = null; }
   return recMimeCache;
 }
-function recEnabled() { return !!recMime() && lsGet(REC_KEY) === '1'; }      // (v1.19 は最初はオフ。マイページでオンにした人だけ)
+// 最初のオン／オフ：実機で確かめた iPhone・iPad（iOS のブラウザはすべて WebKit）は最初からオン、ほかは最初はオフ（v1.19.1）。自分で切り替えた人はその設定のまま
+function recIOS() { try { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); } catch (e) { return false; } }
+function recPref() { const v = lsGet(REC_KEY); return v === '1' ? true : v === '0' ? false : recIOS(); }
+function recEnabled() { return !!recMime() && recPref(); }
 function recDiscard() {
   const mr = REC.mr; REC.mr = null; REC.chunks = []; REC.bandFrom = 0; REC.stopT = 0; REC.pending = false;
   if (mr && mr.state !== 'inactive') { mr.ondataavailable = null; mr.onstop = null; try { mr.stop(); } catch (e) { } }
@@ -4800,7 +4803,7 @@ function openMypage() {
   if (!mpTick) mpTick = setInterval(() => { if (ovScreen === 'mypage') renderAccount(); }, 30000);
 }
 function renderMypage() {
-  { const ok2 = !!recMime(), box = document.getElementById('mp-rec'); box.hidden = !ok2; if (ok2) document.getElementById('mp-rec-on').checked = lsGet(REC_KEY) === '1'; }   // 決着の動画（対応端末だけ）
+  { const ok2 = !!recMime(), box = document.getElementById('mp-rec'); box.hidden = !ok2; if (ok2) document.getElementById('mp-rec-on').checked = recPref(); }   // 決着の動画（対応端末だけ）
   OV['mp-name'].textContent = myFullName();
   const gi = gradeIndex(), chip = OV['mp-grade'];
   chip.textContent = gradeName(gi); chip.style.color = GRADE_COL[gi];
@@ -5088,6 +5091,9 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 20, ver: '1.19.1', date: '2026-10-14', title: '決着の動画：iPhone で最初からオン', items: [
+    'iPhone・iPad では「決着を録画（実験）」が最初からオンになりました（実機で動画が送れることを確かめました）',
+    'ほかの端末は、これまでどおりマイページでオンにすると使えます。自分でオン／オフを切り替えた人は、その設定のままです'] },
   { id: 19, ver: '1.19', date: '2026-10-13', title: '決着の動画（実験）', items: [
     '解決した最後のターンを短い動画（mp4）にして、結果画面の「動画でシェア」から X などに載せられるようになりました（実験）',
     '使うには、マイページの「決着を録画（実験）」をオンにしてください。mp4 を作れる端末だけに出ます',
