@@ -1660,7 +1660,7 @@ function sndMotif(cu, delay) {
    ・形式は mp4（H.264/AAC）だけ。使えない端末では録らず、ボタンも設定も出さない
    ・ターンの始め（自首30以上）か、ターンの途中で自首が50に届いた瞬間に録り始め、前の分は捨てる。カードを使う時、録り始めから13秒を超えていたら録り直す
    ・ひざまずいて約2秒で止め（8秒に満たなければ8.5秒まで延ばす）、最後の1.5秒に帯。負けたら捨てる。結果画面を離れたら捨てる。セーブには入れない
-   ・計時・入力・G.busy・G.fxLock には触らない。フレームの間隔が33ms（30Hz）より遅い状態（36ms超）が15回続いたら、その事件では録画をやめる */
+   ・計時・入力・G.busy・G.fxLock には触らない。フレームの間隔が33ms（30Hz）より遅い状態（36ms超）が30回（約1秒）続いたら、その事件では録画をやめる */
 const REC_KEY = SAVE_KEY + '.rec';
 const REC_MIMES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1.4D401E,mp4a.40.2', 'video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs="avc1,mp4a"'];
 const REC = { mr: null, chunks: [], t0: 0, rc: null, rx: null, bandFrom: 0, stopT: 0, file: null, g: null, slow: 0, off: false, pending: false };
@@ -1677,21 +1677,23 @@ function recMime() {
   } catch (e) { recMimeCache = null; }
   return recMimeCache;
 }
-// 最初のオン／オフ：実機で確かめた iPhone・iPad（iOS のブラウザはすべて WebKit）は最初からオン、ほかは最初はオフ（v1.19.1）。自分で切り替えた人はその設定のまま
-function recIOS() { try { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); } catch (e) { return false; } }
-function recPref() { const v = lsGet(REC_KEY); return v === '1' ? true : v === '0' ? false : recIOS(); }
+function recPref() { return lsGet(REC_KEY) === '1'; }   // (v1.19.2：iPhone でもボタンが出ない報告があったので、全端末で最初はオフに戻した)
 function recEnabled() { return !!recMime() && recPref(); }
 function recDiscard() {
   const mr = REC.mr; REC.mr = null; REC.chunks = []; REC.bandFrom = 0; REC.stopT = 0; REC.pending = false;
   if (mr && mr.state !== 'inactive') { mr.ondataavailable = null; mr.onstop = null; try { mr.stop(); } catch (e) { } }
 }
-function recClear() { recDiscard(); REC.file = null; REC.g = null; REC.slow = 0; REC.off = false; }   // (事件が変わるとき・結果画面を離れるとき)
+function recClear() { recDiscard(); REC.file = null; REC.g = null; REC.slow = 0; REC.off = false; REC.why = ''; }   // (事件が変わるとき・結果画面を離れるとき)
 function recStart() {
   if (!recEnabled() || REC.off || phase !== 'battle' || !G) return;
   recDiscard();
   try {
     const mime = recMime(), wide = WIDE;
-    if (!REC.rc) { REC.rc = document.createElement('canvas'); REC.rx = REC.rc.getContext('2d'); }
+    if (!REC.rc) {
+      REC.rc = document.createElement('canvas'); REC.rx = REC.rc.getContext('2d');
+      REC.rc.setAttribute('aria-hidden', 'true'); REC.rc.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:-1';   // (Safari は文書に無いキャンバスからコマを出さないことがある)
+      try { document.body.append(REC.rc); } catch (e) { }
+    }
     REC.rc.width = wide ? 960 : 540; REC.rc.height = wide ? 540 : 960; REC.rx.imageSmoothingEnabled = false; REC.last = 0;   // (論理座標と同じ大きさ＝ドット絵がくっきり・写しが軽い)
     recFrame(true);
     const st = REC.rc.captureStream(30);
@@ -1699,12 +1701,17 @@ function recStart() {
       if (!SND.recDest) { SND.recDest = SND.ctx.createMediaStreamDestination(); SND.comp.connect(SND.recDest); }
       SND.recDest.stream.getAudioTracks().forEach(t => st.addTrack(t));
     }
-    const mr = new MediaRecorder(st, { mimeType: mime, videoBitsPerSecond: 3000000, audioBitsPerSecond: 128000 });
+    let mr = null, err = null;
+    for (const opt of [{ mimeType: mime, videoBitsPerSecond: 3000000, audioBitsPerSecond: 128000 }, { mimeType: mime }, { mimeType: 'video/mp4' }]) {   // (Safari は細かい指定で作れないことがあるので、順にゆるめる)
+      try { mr = new MediaRecorder(st, opt); break; } catch (e) { err = e; }
+    }
+    if (!mr) throw err || new Error('MediaRecorder');
     const chunks = [];
     mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     REC.mr = mr; REC.chunks = chunks; REC.t0 = performance.now(); REC.g = G;
-    mr.start(500);
-  } catch (e) { REC.mr = null; REC.off = true; }
+    mr.onerror = ev => { REC.why = 'error:' + ((ev && ev.error && ev.error.name) || 'recorder'); recDiscard(); REC.off = true; };
+    mr.start(500); REC.why = '';
+  } catch (e) { REC.mr = null; REC.off = true; REC.why = 'error:' + ((e && e.name) || 'start'); }
 }
 // 毎フレーム（render のあと）：ゲームの部分を録画用キャンバスへ写す。最後の1.5秒は帯
 function recFrame(force) {
@@ -1744,6 +1751,7 @@ function recFinish() {
       const blob = new Blob(chunks, { type });
       REC.mr = null; REC.pending = false; REC.bandFrom = 0;
       if (!bad && blob.size > 0) REC.file = new File([blob], `tojinbo_No${no}.mp4`, { type: 'video/mp4' });
+      else REC.why = bad ? 'codec:' + mr.mimeType : 'empty';
     };
     try { mr.stop(); } catch (e) { REC.mr = null; }
   }, stopT - now);
@@ -1752,8 +1760,8 @@ function recFinish() {
 function recWatch(dtMs) {
   if (!REC.mr) { REC.slow = 0; return; }
   REC.slow = dtMs > 36 ? REC.slow + 1 : 0;                                // (33ms を少し超える＝30Hz の画面や省電力モードでは止めない。それより遅いのが15回続いたら)
-  if (REC.slow >= 15) { recDiscard(); REC.off = true; }
-  else if (performance.now() - REC.t0 > 30000 && !REC.pending) recDiscard();   // (念のため：30秒を超えた録画は捨てる)
+  if (REC.slow >= 30) { recDiscard(); REC.off = true; REC.why = 'slow'; }   // (約1秒、30コマ／秒を保てない状態が続いたら)
+  else if (performance.now() - REC.t0 > 25000 && !REC.pending) recStart();   // (長く考えているときは録り直して、長さとメモリを抑える)
 }
 function shareVideo() {
   const f = REC.file; if (!f) return;
@@ -1841,7 +1849,7 @@ const INTENT_TXT = {
 };
 function startTurn() {
   coreStartTurn(G, D); G.hint = null; G._undo = null; G.log.push([]);
-  if (G.sur >= 30) recStart();                                           // 決着の動画：ターンの始めに録り直す（自首30以上）
+  recStart();                                                             // 決着の動画：ターンの始めに毎回録り直す（v1.19.2。低い自首から一気に解決しても残るように）
   V.intentPulse = 1.2;
   drawCards(4);
   G.busy = false;
@@ -4231,6 +4239,13 @@ function drawResult() {
     button(NEWCASE, '新しい事件へ', '別の山札で挑む', '#2e8a50', '#14482a', true, false, hoverBtn === 'newcase');
     button(TOTITLE, '難易度を選ぶ', null, '#2a4a7a', '#152540', true, false, hoverBtn === 'totitle');
     if (phase === 'win') button(SHARE, 'X で自慢する', '結果をポスト', '#1d1d24', '#000000', true, false, hoverBtn === 'share');
+    if (phase === 'win' && recEnabled() && !(REC.file && REC.g === G)) {      // 録画オンなのに動画が無いとき：理由を小さく出す（v1.19.2）
+      const why = REC.pending ? '動画を用意しています…' : REC.why === 'slow' ? '動画：動きが重くなったので、この事件では録画をやめました'
+        : /^codec/.test(REC.why || '') ? '動画：この端末では X に載せられる形式（H.264/AAC）で録れませんでした'
+        : /^error/.test(REC.why || '') ? `動画：録画を始められませんでした（${REC.why.slice(6)}）` : REC.why === 'empty' ? '動画：録画の中身が空でした'
+        : '動画：この事件は録画できませんでした';
+      ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#a9a9b8'; ctx.textAlign = 'center'; ctx.fillText(why, W / 2, VSHARE.y + 28);
+    }
     if (phase === 'win' && REC.file && REC.g === G) button(VSHARE, '動画でシェア（mp4）', '決着の瞬間・実験', '#7a1d17', '#3a0a08', true, false, hoverBtn === 'vshare');
     else drawHelpLine(HELP_R.lose);   // 失敗の結果画面の最下部に相談窓口の案内
   }
@@ -5091,6 +5106,10 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 21, ver: '1.19.2', date: '2026-10-14', title: '決着の動画の修正', items: [
+    '「動画でシェア」のボタンが出ないことがある不具合を直しました（低い自首から一気に解決したとき、長く考えたとき、iPhone の Safari など）',
+    '録画をオンにしているのに動画が作れなかったときは、結果画面に理由を出します',
+    '「決着を録画（実験）」は、すべての端末で最初はオフに戻しました'] },
   { id: 20, ver: '1.19.1', date: '2026-10-14', title: '決着の動画：iPhone で最初からオン', items: [
     'iPhone・iPad では「決着を録画（実験）」が最初からオンになりました（実機で動画が送れることを確かめました）',
     'ほかの端末は、これまでどおりマイページでオンにすると使えます。自分でオン／オフを切り替えた人は、その設定のままです'] },
