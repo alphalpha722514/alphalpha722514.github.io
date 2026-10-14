@@ -177,7 +177,10 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
   <ul>
     <li>青の【証拠】で犯人の心の壁（心壁）を崩し、緑の【人情】で自首メーターを上げ、赤の【グルメ】（ソースカツ丼・越前ガニなど福井の名物）で犯人を動揺させる。</li>
     <li>自首メーターを100にすれば事件解決。犯人は毎ターン崖の端へ近づき、0歩になると失敗。</li>
-    <li>自首が70に届くと「崖っぷちタイム」。1.6秒以内に3回タップで自首を後押し。</li>
+    <li>自首が70に届くと「崖っぷちタイム」。1.6秒以内に3回タップで自首を後押し。残り時間は輪で、タップの回数は3つの印で表示。</li>
+    <li>「犯人の狙い」の下に、次の幕で犯人がしうる行動（反論・警戒・固める・後退）の割合を、いまの状態から計算して表示。</li>
+    <li>バトル中、この事件でまだ取れる挑戦状を2つまで表示。取れなくなると消える。</li>
+    <li>その事件の1回目の挑戦で解決すると、得点ボーナス「一発解決」。</li>
   </ul>
   <h2>特徴</h2>
   <ul>
@@ -317,7 +320,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
   <section id="scr-rank" class="ov-scr" aria-labelledby="rk-h" hidden>
     <div class="ov-bar"><h2 id="rk-h" class="ov-title">捜査実績表</h2><button id="rk-back" class="ov-btn" type="button">もどる</button></div>
     <p class="ov-lead">難易度ごとの説得スコアの捜査実績表（上位50人）。サーバーが打ち手の記録から事件を再生し、本当に解決できた記録だけを載せます。「この事件に挑む」で、同じ事件ファイルに挑戦できます。</p>
-    <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10＋ボーナス（一気呵成 +800／想いが届いた +800／背水 +300・+600）。v1.15 からシーズン2。v1.14 までの記録は「殿堂」で見られます（見るだけ）。</p>
+    <p class="ov-note">説得スコア＝難易度の基本点（1000／2000／3500／5000）＋早さ（10ターンより何ターン早いか×300）＋残りメンタル×10＋ボーナス（一気呵成 +800／想いが届いた +800／背水 +300・+600／一発解決 +500）。v1.15 からシーズン2。v1.14 までの記録は「殿堂」で見られます（見るだけ）。</p>
     <div id="rk-login" class="ov-card">
       <p>いまはゲストとして、この端末の名前「<span id="rk-guest-name"></span>」で載ります。名前はマイページで変えられます。アカウントを作ると、ほかの端末でも同じ名前と記録で続けられます。</p>
       <button id="rk-open-mypage" class="ov-btn small primary" type="button">マイページへ</button>
@@ -806,20 +809,21 @@ function playout(seed, D, maxTurns, maxNodes) {
 const RANK_BASE = { easy: 1000, normal: 2000, hard: 3500, oni: 5000 };
 // 説得スコア＝難易度の基本点＋早さ（(10−解決ターン)×300、0未満なし）＋残りメンタル×10＋得点ボーナス（v1.15）
 // ボーナスは解決した局面 g の旗だけで決まる。検証AI・県民の勘・正解ルートの評価には使わない（出題が変わらないように）
-const RANK_BONUS = { ikki: ['一気呵成', 800], omoi: ['想いが届いた', 800], haisui2: ['背水の説得', 300], haisui1: ['背水の説得', 600] };
+const RANK_BONUS = { ikki: ['一気呵成', 800], omoi: ['想いが届いた', 800], haisui2: ['背水の説得', 300], haisui1: ['背水の説得', 600], ippatsu: ['一発解決', 500] };
 function rankBonus(g) {
   if (!g) return [];
   const out = [];
   if (!g.cliffTriggered) out.push('ikki');                              // 崖っぷちタイムを一度も起こさずに解決
   else if (g.cliffWon) out.push('omoi');                                // 崖っぷちタイムに成功して解決（一気呵成とは同時に取れない）
   if (g.crisis === 2) out.push('haisui2'); else if (g.crisis === 1) out.push('haisui1');   // 解決した時点の危機
+  if (g.firstTry) out.push('ippatsu');                                  // (v1.20) その事件の1回目の挑戦で解決（やり直し・もう一度なし）
   return out.map(k => ({ key: k, name: RANK_BONUS[k][0], pts: RANK_BONUS[k][1] }));
 }
 function rankScore(diffKey, turn, hp, g) { return RANK_BASE[diffKey] + Math.max(0, 10 - turn) * 300 + hp * 10 + rankBonus(g).reduce((a, b) => a + b.pts, 0); }
 function diffByKey(k) { return DIFFS.find(d => d.key === k) || null; }
-function replayLog(D, seed, log) {
+function replayLog(D, seed, log, first) {
   if (!D || !Number.isInteger(seed) || seed < 1 || seed > 0xFFFFFFFF || !Array.isArray(log) || !log.length || log.length > 30) return null;
-  const g = coreNewGame(D, seed);
+  const g = coreNewGame(D, seed); g.firstTry = first === true;   // (v1.20：一発解決。送り手の申告で、再生の中身には関わらない)
   for (let t = 0; t < log.length; t++) {
     const moves = log[t];
     if (!Array.isArray(moves) || moves.length > 40) return null;
@@ -1440,6 +1444,33 @@ function sndBreak() {
   osc('sine', 60, t, 1.2, 0.9, SND.sfx, { slide: 25 });
   for (let i = 0; i < 9; i++) osc('sine', rand(2000, 5200), t + rand(0, 0.5), rand(0.15, 0.5), 0.08, SND.sfx);
   [37, 38, 44, 49].forEach(n => osc('sawtooth', NOTE(n + 12), t + 0.05, 1.6, 0.04, SND.rev));
+  osc('sine', 52, t, 0.7, 0.45, SND.sfx, { a: 0.008 }); osc('triangle', 104, t, 0.35, 0.08, SND.sfx);   // (v1.20) 低い芯（音程は動かさない）
+  noiseHit(t + 0.02, 0.45, 0.3, 'bandpass', 1100, null, SND.sfx); noiseHit(t + 0.02, 0.6, 0.12, 'bandpass', 1100, null, SND.rev);   // 帯域ノイズ
+}
+// (v1.20) ★レアのカード：決め音の2打目に、短い高いノイズのきらめきと残響を重ねる
+function sndRareGlint() {
+  if (!ok()) return; const t = SND.ctx.currentTime + 0.24;
+  noiseHit(t, 0.18, 0.16, 'highpass', 7000, null, SND.sfx); noiseHit(t, 0.5, 0.1, 'highpass', 6000, null, SND.rev);
+  [96, 100, 103].forEach((n, i) => { osc('sine', NOTE(n), t + i * 0.035, 0.12, 0.025, SND.sfx); osc('sine', NOTE(n), t + i * 0.035, 0.5, 0.02, SND.rev); });
+}
+// (v1.20) 崖っぷちタイムのタップ：1回目・2回目・3回目で音が上がる
+function sndCliffTap(k) {
+  if (!ok()) return; const t = SND.ctx.currentTime, n = [76, 79, 84][Math.max(0, Math.min(2, k - 1))];
+  osc('square', NOTE(n), t, 0.07, 0.05, SND.sfx); osc('triangle', NOTE(n + 12), t, 0.12, 0.03, SND.rev);
+}
+// (v1.20) 危機2以下の心音：自分の番のあいだだけ、一定の速さ（音の時計で1秒ごと。倍速でも速くしない）。
+// 崖っぷちタイム（heartRush）・犯人の番・決着後・ポーズ中は鳴らさない。音のオン・オフに従う（動きを減らす設定とは関係ない）
+const HB = { next: 0 };
+function heartLoopTick() {
+  const want = ok() && SND.ctx.state === 'running' && phase === 'battle' && G.turn > 0 && G.crisis <= 2 && !G.enemyAct && !paused && !heartG && !(G.gamble && G.gamble.active);
+  if (!want) { HB.next = 0; return; }
+  const now = SND.ctx.currentTime;
+  if (HB.next < now - 0.1) HB.next = now + 0.3;
+  while (HB.next < now + 0.12) {
+    const t = HB.next;
+    osc('sine', 55, t, 0.13, 0.22, SND.sfx, { a: 0.006 }); osc('sine', 50, t + 0.2, 0.12, 0.14, SND.sfx, { a: 0.006 });
+    HB.next += 1.05;
+  }
 }
 function sndHurt() {
   if (!ok()) return; const t = SND.ctx.currentTime;
@@ -1560,10 +1591,10 @@ setInterval(() => {
    ・バトルの BGM（PROG・BGM.tempo・BGM.tension）はそのまま。切り替えは、バトルを0.6秒で絞り、エンディングを0.8秒で上げる
    ・音は SND.em → SND.master（音のオン／オフ・ポーズの音量下げに従う）。テンポは倍速に関係なく固定、音程も変えない */
 const EM_SONGS = {
-  dawn: { tempo: 72, chords: [[50, 54, 57], [49, 52, 57], [47, 50, 54], [43, 47, 50]], mel: [[74, 76], [78, 81], [83, 81], [78, 76]], pad: 'triangle', cut: 1500, vol: 1 },
-  sunset: { tempo: 66, chords: [[41, 45, 48, 55], [45, 48, 52, 55], [46, 50, 53, 55], [48, 53, 55]], mel: [[72, 69], [69, 67], [65, 67], [69, 72]], pad: 'sine', cut: 1100, vol: 1 },
-  night: { tempo: 54, chords: [[45, 48, 52], [41, 45, 48], [38, 41, 45], [40, 45, 47]], mel: null, pad: 'sine', cut: 700, vol: 0.9, drone: 33 },
-  rain: { tempo: 60, chords: [[38, 41, 45], [34, 38, 41], [31, 34, 38], [33, 37, 40]], mel: [[74, null], [70, null], [67, null], [69, null]], pad: 'sine', cut: 650, vol: 0.8 },
+  dawn: { orn: 'rise', tempo: 72, chords: [[50, 54, 57], [49, 52, 57], [47, 50, 54], [43, 47, 50]], mel: [[74, 76], [78, 81], [83, 81], [78, 76]], pad: 'triangle', cut: 1500, vol: 1 },
+  sunset: { orn: 'sixth', tempo: 66, chords: [[41, 45, 48, 55], [45, 48, 52, 55], [46, 50, 53, 55], [48, 53, 55]], mel: [[72, 69], [69, 67], [65, 67], [69, 72]], pad: 'sine', cut: 1100, vol: 1 },
+  night: { orn: 'bell', tempo: 54, chords: [[45, 48, 52], [41, 45, 48], [38, 41, 45], [40, 45, 47]], mel: null, pad: 'sine', cut: 700, vol: 0.9, drone: 33 },
+  rain: { orn: 'piano', tempo: 60, chords: [[38, 41, 45], [34, 38, 41], [31, 34, 38], [33, 37, 40]], mel: [[74, null], [70, null], [67, null], [69, null]], pad: 'sine', cut: 650, vol: 0.8 },
 };
 const EM = { on: false, sky: null, next: 0, step: 0, beam: -1 };
 function emNote(type, freq, t, dur, vol, a, dest) {                       // (倍速でも長さを変えない音)
@@ -1610,6 +1641,15 @@ function emStep(i, t) {
     if (j === 0 && m[0]) emNote('sine', NOTE(m[0]), t, spb * 7, 0.06, 0.02);
     if (j === 8 && m[1]) emNote('sine', NOTE(m[1]), t, spb * 7, 0.05, 0.02);
   }
+  emOrn(S, ch, k, j, t, spb);                                                 // (v1.20) 上の音域の装飾
+}
+// (v1.20) エンディング曲の装飾。今の曲より小さく（0.012〜0.018）、上の音域だけ
+function emOrn(S, ch, k, j, t, spb) {
+  const root = ch[0];
+  if (S.orn === 'rise' && j >= 12) emNote('sine', NOTE(ch[(j - 12) % ch.length] + 36 + (j === 15 ? 12 : 0)), t, spb * 2, 0.014);   // 朝焼け：上がるアルペジオ
+  if (S.orn === 'sixth' && (j === 6 || j === 14)) { emNote('sine', NOTE(root + 33), t, spb * 3, 0.012); emNote('sine', NOTE(root + 38), t + spb * 0.5, spb * 3, 0.01); }   // 夕焼け：6度・9度
+  if (S.orn === 'bell' && j === 8) emNote('sine', NOTE(ch[k % 2 ? ch.length - 1 : 0] + 36), t, spb * 6, 0.012, 0.005);   // 夜：小節ごとに1音、高い単音（ひとつおきに音を替える）
+  if (S.orn === 'piano' && k % 2 === 0 && j === 10) [[1, 1], [2, 0.3], [3, 0.08]].forEach(([mul, v]) => emNote('sine', NOTE(ch[ch.length - 1] + 36) * mul, t, spb * 6 / mul, 0.018 * v, 0.006));   // 雨：ピアノの単音
 }
 // 夜：灯台の光（|cos(T×1.3)| の山）に合わせて、ひとつおきに高い単音
 function emTick() {
@@ -1651,6 +1691,9 @@ function sndMotif(cu, delay) {
   if (!ok()) return; const m = CU_MOTIF[cu]; if (!m) return;
   const c = SND.ctx, t0 = c.currentTime + (delay || 0), f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = m.cut; f.connect(SND.sfx); if (SND.rev) f.connect(SND.rev);
   m.n.forEach((n, i) => emNote(m.type, NOTE(n), t0 + i * m.d, m.d * (i === m.n.length - 1 ? 3 : 1.1), m.vol, 0.01, f));
+  // (v1.20) 同じ音のオクターブ下を小さく重ねる（110Hz より下になる鷲尾は、心臓・崖の一撃とぶつかるので重ねない）。最後の音にだけ残響を足す
+  if (Math.min(...m.n) - 12 >= 45) m.n.forEach((n, i) => emNote(m.type, NOTE(n - 12), t0 + i * m.d, m.d * (i === m.n.length - 1 ? 3 : 1.1), m.vol * 0.35, 0.01, f));
+  const li = m.n.length - 1; if (SND.rev) emNote('sine', NOTE(m.n[li]), t0 + li * m.d, m.d * 6, m.vol * 0.8, 0.02, SND.rev);
 }
 
 
@@ -1662,6 +1705,16 @@ function sndMotif(cu, delay) {
    ・ひざまずいて約2秒で止め（8秒に満たなければ8.5秒まで延ばす）、最後の1.5秒に帯。負けたら捨てる。結果画面を離れたら捨てる。セーブには入れない
    ・計時・入力・G.busy・G.fxLock には触らない。フレームの間隔が33ms（30Hz）より遅い状態（36ms超）が30回（約1秒）続いたら、その事件では録画をやめる */
 const REC_KEY = SAVE_KEY + '.rec';
+// 一発解決（v1.20）：この端末で挑んだ事件の印（難易度・事件番号・犯人）。セーブとは別に置き、同期しない。2回目からは一発解決にならない
+const TRIED_KEY = SAVE_KEY + '.tried', TRIED_MAX = 400;
+function triedMark(d, seed) {
+  const k = d.key + ':' + seed + ':' + (d.culprit || 'iwaki');
+  let a = []; try { a = JSON.parse(lsGet(TRIED_KEY) || '[]'); } catch (e) { }
+  if (!Array.isArray(a)) a = [];
+  if (a.includes(k)) return false;
+  lsSet(TRIED_KEY, JSON.stringify(a.concat([k]).slice(-TRIED_MAX)));
+  return true;
+}
 const REC_MIMES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1.4D401E,mp4a.40.2', 'video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs="avc1,mp4a"'];
 const REC = { mr: null, chunks: [], t0: 0, rc: null, rx: null, bandFrom: 0, stopT: 0, file: null, g: null, slow: 0, off: false, pending: false };
 let recMimeCache;
@@ -1848,7 +1901,7 @@ const INTENT_TXT = {
   retreat: '大きく後ずさる',
 };
 function startTurn() {
-  coreStartTurn(G, D); G.hint = null; G._undo = null; G.log.push([]);
+  coreStartTurn(G, D); G.hint = null; G._undo = null; G.log.push([]); G.enemyAct = false;
   recStart();                                                             // 決着の動画：ターンの始めに毎回録り直す（v1.19.2。低い自首から一気に解決しても残るように）
   V.intentPulse = 1.2;
   drawCards(4);
@@ -1865,7 +1918,7 @@ function playCard(card) {
   G.hand = G.hand.filter(c => c !== card); G.disc.push(card.id); G.totalPlayed++; G.log[G.log.length - 1].push(card.id);
   G.hint = null;
   V.flying.push({ c: card, t: 0, kind: 'play' });
-  sndSting(d.type);
+  sndSting(d.type); if (d.r === 3) sndRareGlint();                       // (v1.20：★レアだけ、きらめきを足す)
   const surBefore = G.sur, alertBefore = G.alert, prevId = G._flagPrevId;   // (演出用。ルールには使わない)
   G._flagPrevId = card.id;
   const r = cardEffect(G, card.id, D);
@@ -2044,7 +2097,7 @@ function startCliffTime() {
 }
 function cliffTap() {
   const q = G.gamble; if (!q || !q.active || !q.armed) return;
-  q.have++; sndClick(); V.shake = Math.max(V.shake, 5);
+  q.have++; sndCliffTap(q.have); V.shake = Math.max(V.shake, 5);
   addFloat(U.hintX, U.handY + 40, ['', 'あと2回！', 'あと1回！', '届け――！'][Math.min(3, q.have)], '#ffd56b', 26);
   if (q.have >= q.need) endCliffTime(true);
 }
@@ -2105,7 +2158,7 @@ function drawCutin() {
 }
 async function endTurn() {
   if (G.busy || phase !== 'battle') return;
-  G.busy = true; G.hint = null;
+  G.busy = true; G.hint = null; G.enemyAct = true;                       // (v1.20：犯人の番。次の幕の見込みと心音を止める)
   G.hand.forEach(c => { V.flying.push({ c, t: 0, kind: 'discard' }); G.disc.push(c.id); });
   G.hand = [];
   await sleep(350);
@@ -2263,6 +2316,7 @@ async function beginGame(diffIn, seed, ck, opts) {
     seed = found ? found.seed : randomSeed(); verified = !!found;
   }
   newGame(diff, seed); G.verified = verified; G.daily = daily; G.busy = true; dlg = null; dlgResolve = null;
+  G.firstTry = triedMark(D, seed);                                       // (v1.20) この端末で初めて挑む事件か（一発解決のボーナス）
   const cu = cuNow();
   await playOpening(seed);                                                // 開幕の5秒（タップで飛ばせる）
   if (run !== RUN) return;
@@ -3183,6 +3237,73 @@ function drawIntentPanel() {
   ctx.font = `16px ${MINCHO}`; ctx.fillStyle = md.col; ctx.fillText(md.name, 378, 114);
   ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#eee'; ctx.fillText(md.desc, 344, 135);
 }
+/* ---------- v1.20：次の幕の見込み（読むだけ。乱数は使わない） ----------
+   次の幕の狙いは「犯人がこのターンの狙いを実行したあと」の状態で抽選される（applyEnemy → coreStartTurn → rollIntent）。
+   そこで今の状態の写しに CORE の planEnemy・applyEnemy を当て、rollIntent と同じ外し方（下の ok）で重みを割る。G は書き換えない */
+const NEXT_ACT = [['atk', '反', '反論', '#ff8f7a'], ['alert', '警', '警戒', '#ffc070'], ['wall', '固', '固める', '#9fc4ff'], ['retreat', '退', '後退', '#e08ae0']];
+function nextActOdds() {
+  const e = cloneSim(makeSim(G)); applyEnemy(e, planEnemy(e, D));
+  const soft = e.sur >= 60;                                               // ↓ CORE の rollIntent の ok と同じ条件（写し）
+  const ok = { atk: true, alert: !soft && e.alert < 4, wall: !soft && ((e.shield > 0 && e.shield < e.maxShield) || (e.shield === 0 && D.wallBreak && e.sur < 50)), retreat: true };
+  const ents = Object.entries(D.intents).filter(([k, w]) => ok[k] && w > 0), tot = ents.reduce((a, x) => a + x[1], 0);
+  const out = {}; for (const [k, w] of ents) out[k] = w / tot;
+  return out;
+}
+function drawNextAct() {
+  if (phase !== 'battle' || G.turn === 0 || G.enemyAct) return;
+  const odds = nextActOdds(), x0 = 10, y0 = 151, bw = WIDE ? 168 : 176, bx = 326 - 8 - bw;
+  if (!V.nextW) V.nextW = {};
+  rr(x0, y0, 316, 26, 8); ctx.fillStyle = 'rgba(28,8,8,0.74)'; ctx.fill();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#e0c0c0';
+  ctx.fillText('次の幕（いまなら）', x0 + 8, y0 + 13);
+  let x = bx;
+  for (const [k, ch, , col] of NEXT_ACT) {
+    const want = odds[k] || 0, cur = V.nextW[k] == null || REDUCED ? want : V.nextW[k] + (want - V.nextW[k]) * 0.25;   // (帯の幅は少しずつ追う。動きを減らす設定ではすぐ)
+    V.nextW[k] = Math.abs(cur - want) < 0.002 ? want : cur;
+    const w = bw * V.nextW[k]; if (w < 1) continue;
+    ctx.fillStyle = col; ctx.fillRect(x, y0 + 6, Math.max(1, w - 2), 14);
+    if (w > 30) { ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#1a0606'; ctx.fillText(ch + Math.round(want * 100), x + 3, y0 + 13.5); }
+    else if (w > 14) { ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#1a0606'; ctx.fillText(ch, x + 2, y0 + 13.5); }
+    x += w;
+  }
+}
+// まだ取れる挑戦状（v1.18 の CHAL_DEFS の判定と同じ条件を、ここまでの状態に当てる。読むだけ）
+const CHAL_SHORT = ['証拠だけで解決', 'トメをグルメだけで', 'グルメ10枚以上', '3ターン・勘なし・無傷', '崖っぷちで一気呵成', '崖っぷちで想いが届いた', '崖まで1歩で解決', '6人をむずかしい以上で'];
+const CHAL_ORDER = [1, 4, 5, 7, 3, 0, 2, 6];                              // (この事件でしか狙えないものを先に)
+function chalLive() {
+  const cu = D.culprit || 'iwaki', n = logCount(G.log), ci = CULPRITS.findIndex(c => c.key === cu), hard = D.key === 'hard' || D.key === 'oni';
+  const can = [
+    n.hu === 0 && n.gu === 0,                                             // 1 冷徹エンド：人情・グルメを使っていない
+    cu === 'tome' && n.ev === 0 && n.hu === 0,                            // 2 トメをグルメだけで
+    true,                                                                 // 3 グルメ10枚（切り直しで同じカードがまた出るので、途中では消えない）
+    G.turn <= 3 && !G.kanUsed && G.hp >= G.maxHp,                         // 4 東尋坊の神
+    D.key === 'oni' && !G.cliffTriggered,                                 // 5 崖っぷち難易度で一気呵成
+    D.key === 'oni' && !(G.cliffTriggered && !G.cliffWon && !(G.gamble && G.gamble.active)),   // 6 崖っぷち難易度で想いが届いた（失敗したら消える）
+    G.crisis <= 2,                                                        // 7 崖まで1歩（端に近づいたときだけ出す）
+    hard && ci >= 0 && !(SAVE.hardCu & (1 << ci)),                        // 8 6人全員（この犯人がまだのとき）
+  ];
+  const lab = i => i === 2 ? `${CHAL_SHORT[2]}（今${n.gu}枚）` : i === 7 ? `${CHAL_SHORT[7]}（あと${6 - bitCount(SAVE.hardCu)}人）` : CHAL_SHORT[i];
+  return CHAL_ORDER.filter(i => can[i] && !(SAVE.chal & (1 << i))).slice(0, 2).map(i => ({ i, text: lab(i) }));
+}
+function drawChalChips() {
+  if (!V.chalA) V.chalA = {};
+  const live = phase === 'battle' && G.turn > 0 ? chalLive() : [];
+  const on = new Set(live.map(c => c.i));
+  for (const k of Object.keys(V.chalA)) if (!on.has(+k)) { V.chalA[k] = REDUCED ? 0 : V.chalA[k] - 0.06; if (V.chalA[k] <= 0) delete V.chalA[k]; }   // (消えるときは静かに薄れる。音も帯も出さない)
+  const shown = live.slice();
+  for (const k of Object.keys(V.chalA)) if (!on.has(+k) && shown.length < 2) shown.push({ i: +k, text: CHAL_SHORT[+k], fade: true });
+  shown.forEach((c, r) => {
+    if (!c.fade) V.chalA[c.i] = 1;
+    const y = 151 + r * 24, a = V.chalA[c.i] || 0; if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha = a;
+    rr(332, y, 198, 21, 6); ctx.fillStyle = 'rgba(32,22,6,0.78)'; ctx.fill(); ctx.strokeStyle = '#c9a24a'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#e8c46a'; ctx.fillText('挑戦状', 339, y + 11);
+    ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#f6ecd2';
+    let t = c.text; while (t.length > 2 && ctx.measureText(t).width > 140) t = t.slice(0, -1); if (t !== c.text) t = t.slice(0, -1) + '…';
+    ctx.fillText(t, 384, y + 11.5);
+    ctx.restore();
+  });
+}
 function drawDialogue() {
   if (!dlg) return;
   const x = 12, y = 422, w = 516, h = 92;
@@ -3211,7 +3332,7 @@ function drawScene() {
     ctx.restore();
   } else ctx.drawImage(lowCv, 0, 0, LW * PX, LH * PX);
   drawFilm();
-  if (phase !== 'title') { drawGauges(); drawIntentPanel(); }
+  if (phase !== 'title') { drawGauges(); drawIntentPanel(); drawNextAct(); drawChalChips(); }
 }
 
 // 景色だけにかける質感：周辺減光（危機2以下で強める）と走査線（PCの横長では薄く）
@@ -3321,7 +3442,7 @@ function comboProgress(s, id) {
 }
 // 得点ボーナスの表示名（カードの上は短く。「一気呵成！」「背水 +600」など）
 function bonusLabel(b, short) {
-  if (short) return b.key === 'ikki' ? '一気呵成！' : b.key === 'omoi' ? '想いが届いた！' : '背水 +' + b.pts;
+  if (short) return b.key === 'ikki' ? '一気呵成！' : b.key === 'omoi' ? '想いが届いた！' : b.key === 'ippatsu' ? '一発解決！' : '背水 +' + b.pts;
   return (b.key.startsWith('haisui') ? '背水' : b.name) + ' +' + b.pts;
 }
 function bonusText(g) { const bs = rankBonus(g); return bs.length ? bs.map(b => bonusLabel(b)).join('・') : ''; }
@@ -3511,7 +3632,7 @@ function drawUI() {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `${WIDE ? 54 : 44}px ${MINCHO}`; outlineText('タップせよ！', cx, top + h * 0.32, '#ffd56b', '#000', 7);
     ctx.font = `${WIDE ? 22 : 18}px ${GOTH}`; outlineText(`画面を3回タップ（あと ${Math.max(0, q.need - q.have)} 回）`, cx, top + h * 0.52, '#fff', '#000', 4);
-    bar(L + 30, top + h * 0.66, R - L - 60, 18, Math.max(0, CLIFF_TIME - q.t), CLIFF_TIME, '#ffe07a', '#ff8a3a');
+    cliffRing(cx, top + h * 0.68, WIDE ? 20 : 17, Math.max(0, CLIFF_TIME - q.t) / CLIFF_TIME, q.have, q.need);   // (v1.20：残り時間の輪と、タップの印。読むだけ)
     ctx.font = `${WIDE ? 15 : 13}px ${GOTH}`; ctx.fillStyle = '#ffe9b0';
     ctx.fillText(WIDE ? '成功で自首 +15（スペースキーでも可）' : '成功で自首 +15', cx, top + h * 0.84);
   }
@@ -3525,6 +3646,20 @@ function drawUI() {
 /* =========================================================
    RENDER — OVERLAYS
    ========================================================= */
+function cliffRing(cx, cy, r, left, have, need) {
+  const rx = cx - r * 2.6;
+  ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.arc(rx, cy, r, 0, Math.PI * 2); ctx.strokeStyle = '#000'; ctx.lineWidth = r * 0.62; ctx.stroke();
+  ctx.beginPath(); ctx.arc(rx, cy, r, 0, Math.PI * 2); ctx.strokeStyle = '#3a3a4a'; ctx.lineWidth = r * 0.4; ctx.stroke();
+  const col = left > 0.6 ? '#ffe07a' : left > 0.3 ? '#ff9a3a' : '#ff4a3a';   // 黄→橙→赤
+  if (left > 0) { ctx.beginPath(); ctx.arc(rx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); ctx.strokeStyle = col; ctx.lineWidth = r * 0.4; ctx.stroke(); }
+  const dr = r * 0.48, gap = r * 1.5;
+  for (let i = 0; i < need; i++) {
+    const x = cx - r * 0.6 + i * gap;
+    ctx.beginPath(); ctx.arc(x, cy, dr, 0, Math.PI * 2); ctx.fillStyle = i < have ? '#fff' : 'rgba(255,255,255,0.08)'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = i < have ? '#fff' : '#bba'; ctx.stroke();
+  }
+}
 function drawFloats() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const f of V.floats) {
@@ -3720,6 +3855,7 @@ const RULE_PAGES = [
     ['#ffe9b0', '一気呵成 +800：崖っぷちタイムを一度も起こさずに解決（自首70を一気に飛び越える）。'],
     ['#ffb0a0', '想いが届いた +800：崖っぷちタイムに成功して解決（一気呵成とは同時に取れない）。'],
     ['#ff9a9a', '背水の説得：解決した時点で崖の端まで2歩なら +300、1歩なら +600。'],
+    ['#b0ffc8', '一発解決 +500：その事件の1回目の挑戦で解決（「最初からやり直す」や結果画面の「もう一度」で挑み直すと付かない）。'],
     ['#ddd', 'その1枚で解決するカードには、取れるボーナスが「一気呵成！」「背水 +600」のように出る。'],
   ] },
   { title: '県民の勘', items: [
@@ -4293,6 +4429,7 @@ function frame(now) {
   const rawMs = now - last, dt = Math.min(0.05, rawMs / 1000); last = now;
   updateHover();
   update(dt); render();
+  heartLoopTick();                                                        // (v1.20) 危機2以下の心音
   if (REC.mr) { recFrame(); recWatch(rawMs); }                            // 決着の動画（録画中だけ）
   requestAnimationFrame(frame);
 }
@@ -4582,7 +4719,7 @@ var MockCloudAdapter = {
       const db = this.read(), uid = this.uidOf(db, who);
       if (!uid) return { ok: false, error: 'session' };
       const cu = isObj(b) && culpritByKey(b.culprit || 'iwaki') ? (b.culprit || 'iwaki') : null;
-      const D = isObj(b) && cu ? withCulprit(diffByKey(b.course), cu) : null, r = D ? replayLog(D, b.seed, b.log) : null;
+      const D = isObj(b) && cu ? withCulprit(diffByKey(b.course), cu) : null, r = D ? replayLog(D, b.seed, b.log, b.first === true) : null;
       if (!r || !r.win) return { ok: false, error: 'rejected' };
       db.ranking = isObj(db.ranking) ? db.ranking : {};
       const e = { uid, name: cleanName(b.name) || DEFAULT_PLAYER_NAME, rk: Number.isInteger(b.rk) && b.rk >= 0 && b.rk <= 9 ? b.rk : null, score: r.score, turn: r.turn, hp: r.hp, seed: b.seed, cu, at: Date.now() };
@@ -4772,10 +4909,10 @@ function submitRank() {
   G.rankMsg = '';
   if (!rankJoin()) { G.rankMsg = '捜査実績表に載せない設定です（捜査実績表の画面で変えられます）'; return; }
   const run = RUN, g = G, key = D.key;
-  const r = replayLog(D, g.seed, g.log);              // (送る前に、この端末でも同じ記録になるか確かめる)
+  const r = replayLog(D, g.seed, g.log, !!g.firstTry);   // (送る前に、この端末でも同じ記録になるか確かめる)
   if (!r || !r.win) { g.rankMsg = '捜査実績表に送れない記録でした'; return; }
   g.rankMsg = '捜査実績表に送信中……';
-  SyncManager.rank('rankSubmit', { course: key, culprit: D.culprit || 'iwaki', seed: g.seed, log: g.log, name: displayName(), rk: gradeIndex() }).then(res => {
+  SyncManager.rank('rankSubmit', { course: key, culprit: D.culprit || 'iwaki', seed: g.seed, log: g.log, first: !!g.firstTry, name: displayName(), rk: gradeIndex() }).then(res => {
     if (run !== RUN) return;
     if (!res.ok) { g.rankMsg = '捜査実績表に送れませんでした：' + syncErrorText(res.error); return; }
     return SyncManager.rank('rankGet', key, 'week', RANK_SEASON).then(q => {   // (結果画面の順位は今シーズン)
@@ -5106,6 +5243,12 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 23, ver: '1.20', date: '2026-10-14', title: 'バトルが読みやすく、音が豊かに', items: [
+    '「犯人の狙い」の下に、次の幕で犯人がしうる行動の割合を出します（いまの状態なら。自首60以上では「警戒」「固める」が消えます）',
+    '崖っぷちタイムの残り時間を輪で、タップの回数を3つの印で出します',
+    'バトル中、この事件でまだ取れる挑戦状を2つまで出します（取れなくなったら静かに消えます）',
+    '新しい得点ボーナス「一発解決 +500」：その事件の1回目の挑戦（やり直し・もう一度なし）で解決すると付きます',
+    'エンディング曲の装飾、犯人の動機の厚み、★レアのきらめき、心壁が砕ける音、崖っぷちのタップ音、崖まで2歩以下の心音を足しました'] },
   { id: 22, ver: '1.19.3', date: '2026-10-14', title: '結果画面の表示の修正', items: [
     '解決した結果画面の下に、相談窓口の案内が重なって出ることがあり、「動画でシェア」のボタンや理由の表示が隠れていた不具合を直しました'] },
   { id: 21, ver: '1.19.2', date: '2026-10-14', title: '決着の動画の修正', items: [
