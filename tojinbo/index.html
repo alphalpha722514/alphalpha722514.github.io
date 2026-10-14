@@ -148,6 +148,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .nw-old summary{cursor:pointer;color:#9fd3ff;min-height:44px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}
 .nw-old .nw-list{margin-top:6px}
 .zk-sum{margin:0 0 8px;font-size:13.5px;color:#d8d8e4}
+.zk-ring{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:13px;color:#d8d8e4}.zk-ring svg{display:block}
+.zk-next{border-style:dashed!important;opacity:.95}
 .zk-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .zk-item{background:#0d0d17;border:0;border-left:3px solid #2a2a3a;padding:8px 10px;display:flex;flex-direction:column;gap:4px;min-height:64px}
 .zk-item.got{border-left-color:#8a6b3a}
@@ -181,6 +183,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
     <li>「犯人の狙い」の下に、次の幕で犯人がしうる行動（反論・警戒・固める・後退）の割合を、いまの状態から計算して表示。</li>
     <li>バトル中、この事件でまだ取れる挑戦状を2つまで表示。取れなくなると消える。</li>
     <li>その事件の1回目の挑戦で解決すると、得点ボーナス「一発解決」。</li>
+    <li>タイトル画面に、今日の事件の連続日数を7つの点で表示（7日目は金）。図鑑の上に全体の進み具合の輪、称号のタブに次に取れそうな称号のヒント。</li>
+    <li>決着の動画は、頭に事件ファイルの番号、最後にエンディング・ターン数・説得スコアのカードと、シェア画像と同じ帯が入る。</li>
   </ul>
   <h2>特徴</h2>
   <ul>
@@ -294,7 +298,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
   </section>
 
   <section id="scr-zukan" class="ov-scr" aria-labelledby="zk-h" hidden>
-    <div class="ov-bar"><h2 id="zk-h" class="ov-title">捜査図鑑</h2><button id="zk-back" class="ov-btn" type="button">もどる</button></div>
+    <div class="ov-bar"><h2 id="zk-h" class="ov-title">捜査図鑑</h2><span id="zk-ring" class="zk-ring" role="img"></span><button id="zk-back" class="ov-btn" type="button">もどる</button></div>
     <div id="zk-tabs" class="ov-tabs" role="group" aria-label="図鑑の種類">
       <button class="ov-btn small" type="button" data-kind="culprits" aria-pressed="true">犯人</button>
       <button class="ov-btn small" type="button" data-kind="cards" aria-pressed="false">カード</button>
@@ -1012,6 +1016,7 @@ const SCRIPT = {
   tsukkomi: {                                         // ツッコミ称号（勝ったときだけ）
     shokudo: '崖の上の食堂', mondo: '問答無用', kamihitoe: '紙一重の説得', tsutta: '指がつった刑事', abura: '火に油を注ぐ人',
     sakki: 'その話、さっきも聞いた', nashi: '今のは無しや', ibukuro: '胃袋から落とす', ronpa: '論破されたい教授', shitamachi: '下町の人情',
+    donburi: '丼ぶり三昧', kabeshirazu: '心壁知らず', kirinaoshi: '切り直しの刑事', reisei: '冷静沈着',   // (v1.22)
   },
 };
 
@@ -1153,13 +1158,13 @@ function deviceId() {
 function cleanName(v) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, PROFILE_NAME_MAX) : ''; }
 function blankDev() { const z = {}; DIFF_KEYS.forEach(k => z[k] = 0); return { earn: 0, spend: 0, merit: 0, plays: Object.assign({}, z), wins: Object.assign({}, z) }; }
 const TIP_ALL = 63;
-const TITLE_ALL = (1 << 18) - 1, CHAL_ALL = 255;   // 称号18種（公式8・ツッコミ10）・挑戦状8つ（v1.18）   // その場のヒント6種（1 犯人の狙い・2 心壁が割れた・4 コンボ・8 自首50・16 県民の勘・32 失敗）
+const TITLE_ALL = (1 << 18) - 1, TITLE2_ALL = 15, CHAL_ALL = 255;   // (v1.22：新しい称号4つは titles2)   // 称号18種（公式8・ツッコミ10）・挑戦状8つ（v1.18）   // その場のヒント6種（1 犯人の狙い・2 心壁が割れた・4 コンボ・8 自首50・16 県民の勘・32 失敗）
 const ONBOARD_VER = 2;   // はじめての捜査（説明）の版。上げると、見た人にも「増えた分」だけもう一度出す
 // v1.17：説明を3枚にした。ONBOARD_VER は 2 のまま（見た人に出し直さない）。前の版の「増えた1枚だけ」は使わず、onboard 1 の人は 2 にする（コンボと崖っぷちタイムはその場のヒントで）
 // schema 4：図鑑（zukan）を追加。中身は「種類 → { key: 解決した回数 }」
 const ZUKAN_KINDS = ['culprits', 'cards', 'combos', 'endings'];
 function blankZukan() { return { culprits: {}, cards: {}, combos: {}, endings: {} }; }
-function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, tips: 0, titles: 0, chal: 0, hardCu: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan(), daily: { last: 0, streak: 0, best: 0 } }; }
+function blankSave() { return { schema: 4, devs: {}, best: {}, clear: {}, seenRules: false, onboard: 0, tips: 0, titles: 0, titles2: 0, chal: 0, hardCu: 0, solved: [], gradeSeen: -1, profile: { name: '', at: 0 }, zukan: blankZukan(), daily: { last: 0, streak: 0, best: 0 } }; }
 // 図鑑に載せてよい key（知らない key は捨てる）
 function zukanKeys(kind) {
   if (kind === 'culprits') return CULPRITS.map(c => c.key);
@@ -1199,7 +1204,7 @@ function coerceSave(raw) {
   out.seenRules = raw.seenRules === true;
   out.onboard = cInt(raw.onboard, 0, 1000);
   out.tips = cInt(raw.tips, 0, TIP_ALL);   // その場のヒントの表示済み（v1.17。ビットの和）
-  out.titles = cInt(raw.titles, 0, TITLE_ALL); out.chal = cInt(raw.chal, 0, CHAL_ALL); out.hardCu = cInt(raw.hardCu, 0, 63);   // 称号・挑戦状・むずかしい以上で解決した犯人（v1.18。ビットの和）
+  out.titles = cInt(raw.titles, 0, TITLE_ALL); out.titles2 = cInt(raw.titles2, 0, TITLE2_ALL); out.chal = cInt(raw.chal, 0, CHAL_ALL); out.hardCu = cInt(raw.hardCu, 0, 63);   // 称号・挑戦状・むずかしい以上で解決した犯人（v1.18。ビットの和）
   if (Array.isArray(raw.solved)) out.solved = raw.solved.filter(v => typeof v === 'string' && /^[a-z]+:\d{1,10}(:[a-z]+)?$/.test(v)).slice(-SOLVED_MAX);
   out.gradeSeen = raw.gradeSeen == null ? -1 : cInt(raw.gradeSeen, -1, 9);
   if (isObj(raw.profile)) out.profile = { name: cleanName(raw.profile.name), at: cInt(raw.profile.at, 0, 1e15) };
@@ -1231,7 +1236,7 @@ function mergeSaves(a, b) {
   out.seenRules = L.seenRules || C.seenRules;
   out.onboard = Math.max(L.onboard, C.onboard);
   out.tips = (L.tips | C.tips) & TIP_ALL;   // (表示済みは2台分を合わせる)
-  out.titles = (L.titles | C.titles) & TITLE_ALL; out.chal = (L.chal | C.chal) & CHAL_ALL; out.hardCu = (L.hardCu | C.hardCu) & 63;   // (v1.18：2台分を合わせる)
+  out.titles = (L.titles | C.titles) & TITLE_ALL; out.titles2 = (L.titles2 | C.titles2) & TITLE2_ALL; out.chal = (L.chal | C.chal) & CHAL_ALL; out.hardCu = (L.hardCu | C.hardCu) & 63;   // (v1.18：2台分を合わせる)
   out.solved = L.solved.concat(C.solved.filter(v => !L.solved.includes(v))).slice(-SOLVED_MAX);
   out.gradeSeen = Math.max(L.gradeSeen, C.gradeSeen);
   if (C.profile.at > L.profile.at) out.profile = Object.assign({}, C.profile);
@@ -1773,22 +1778,65 @@ function recFrame(force) {
   REC.last = now;
   const rc = REC.rc, x = REC.rx;
   try { x.drawImage(cv, offX * dpr, offY * dpr, W * scale * dpr, H * scale * dpr, 0, 0, rc.width, rc.height); } catch (e) { return; }
-  if (REC.bandFrom && performance.now() >= REC.bandFrom) recBand(x, rc.width, rc.height);
+  if (REC.mr && now - REC.t0 < 400) recSlate(x, rc.width, rc.height, now - REC.t0);              // (v1.22) 頭の0.4秒：事件ファイルのスレート
+  if (REC.bandFrom && now >= REC.bandFrom) { recCard(x, rc.width, rc.height, now - REC.bandFrom); recBand(x, rc.width, rc.height); }   // 最後の1.5秒：結果カードと帯
 }
-function recBand(x, w, h) {                                                // 帯：題名／難易度・No.・犯人／URL（縦長は3行、横長は2行。幅に合わせて字を縮める）
-  const cu = cuNow(), tall = !WIDE, info = `${D.name}・No.${caseNo(G.seed)}・${cu.short}`, url = 'alphalpha722514.github.io/tojinbo';
-  const lines = tall ? [['東尋坊ディスウェイド', 0.34, MINCHO, '#ffe2a0'], [info, 0.22, GOTH, '#f4f1ea'], [url, 0.2, GOTH, '#9fd3ff']]
-    : [['東尋坊ディスウェイド', 0.34, MINCHO, '#ffe2a0'], [`${info}　／　${url}`, 0.22, GOTH, '#f4f1ea']];
-  const unit = Math.round(h * (tall ? 0.05 : 0.075)), bh = Math.round(unit * (tall ? 3.3 : 2.4)), y = Math.round(h * (tall ? 0.06 : 0.05));
-  x.save(); x.fillStyle = 'rgba(8,6,14,0.88)'; x.fillRect(0, y, w, bh); x.fillStyle = '#ffd56b'; x.fillRect(0, y, w, 3); x.fillRect(0, y + bh - 3, w, 3);
-  x.textAlign = 'center'; x.textBaseline = 'middle';
-  let cy = y + unit * 0.65;
-  for (const [t, k, font, col] of lines) {
-    let fs = Math.round(unit * k * (tall ? 3 : 2.6)); x.font = `${fs}px ${font}`;
-    const tw = x.measureText(t).width; if (tw > w * 0.94) { fs = Math.floor(fs * w * 0.94 / tw); x.font = `${fs}px ${font}`; }
-    x.fillStyle = col; x.fillText(t, w / 2, cy); cy += unit * (tall ? 1.0 : 1.05);
+// (v1.22) 帯の中身（シェア画像と決着の動画で同じ）
+function bandInfo(g, d) {
+  const cu = culpritByKey(d.culprit || 'iwaki') || CULPRITS[0], en = (g && g.ending) || ENDINGS[ENDINGS.length - 1];
+  return { title: '東尋坊ディスウェイド', info: `${d.name}・No.${caseNo(g.seed)}・${cu.name}`, cta: '同じ事件に挑戦できる ▶ alphalpha722514.github.io/tojinbo', col: en.col };
+}
+// (v1.22) 帯を描く：上端にエンディングの色の線。1〜3行のうち、字がいちばん大きくなる組み方を選ぶ（高さと幅に合わせて字の大きさが変わる）
+function drawBand(c, x0, y0, w, h, b, bg) {
+  c.save();
+  c.fillStyle = bg || '#000'; c.fillRect(x0, y0, w, h);
+  const line = Math.max(2, Math.round(h * 0.06)); c.fillStyle = b.col; c.fillRect(x0, y0, w, line);
+  const sets = [[[`${b.title} ／ ${b.info} ／ ${b.cta}`, '#ffffff']],
+    [[`${b.title} ／ ${b.info}`, '#ffe2a0'], [b.cta, '#9fd3ff']],
+    [[b.title, '#ffe2a0'], [b.info, '#f4f1ea'], [b.cta, '#9fd3ff']]];
+  const ih = h - line, maxW = w * 0.94;
+  let best = null;
+  for (const set of sets) {
+    let fs = Math.floor(ih / set.length * 0.6);
+    for (const [t] of set) { c.font = `${fs}px ${PIXFONT}`; const tw = c.measureText(t).width; if (tw > maxW) fs = Math.floor(fs * maxW / tw); }
+    if (!best || fs > best.fs) best = { set, fs };
   }
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = `${best.fs}px ${PIXFONT}`;
+  const n = best.set.length, step = ih / n;
+  best.set.forEach(([t, col], i) => { c.fillStyle = n === 1 ? '#ffffff' : col; c.fillText(t, x0 + w / 2, y0 + line + step * (i + 0.5) + 1); });
+  c.restore();
+  return best.fs;
+}
+// (v1.22) 頭のスレート：画面中央に「事件ファイル No.○○」と「難易度・犯人名」。0.25秒からの0.15秒で透明度だけで消える
+function recSlate(x, w, h, t) {
+  const g = REC.g || G; if (!g) return;
+  const a = t < 250 ? 1 : clamp(1 - (t - 250) / 150, 0, 1); if (a <= 0) return;
+  const cu = cuNow(), bh = Math.round(h * (WIDE ? 0.26 : 0.17)), y = Math.round(h / 2 - bh / 2);
+  x.save(); x.globalAlpha = a;
+  x.fillStyle = 'rgba(8,6,14,0.9)'; x.fillRect(0, y, w, bh); x.fillStyle = '#ffd56b'; x.fillRect(0, y, w, 3); x.fillRect(0, y + bh - 3, w, 3);
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  const L = [[`事件ファイル No.${caseNo(g.seed)}`, 0.36, '#ffe2a0'], [`${D.name}・${cu.name}`, 0.22, '#f4f1ea']];
+  L.forEach(([t, k, col], i) => { let fs = Math.round(bh * k); x.font = `${fs}px ${PIXFONT}`; const tw = x.measureText(t).width; if (tw > w * 0.92) { fs = Math.floor(fs * w * 0.92 / tw); x.font = `${fs}px ${PIXFONT}`; } x.fillStyle = col; x.fillText(t, w / 2, y + bh * (i ? 0.72 : 0.36)); });
   x.restore();
+}
+// (v1.22) 最後の結果カード：画面の上側（帯は下端、犯人の絵より上）に、透明度だけで出る
+function recCard(x, w, h, t) {
+  const g = REC.g || G; if (!g) return;
+  const en = g.ending || ENDINGS[ENDINGS.length - 1], a = clamp(t / 300, 0, 1);
+  const score = rankScore(D.key, g.turn, g.hp, g), bt = bonusText(g), rank = RANK_LETTER[g.turn <= 3 ? 3 : g.turn <= 4 ? 2 : g.turn <= 5 ? 1 : 0];
+  const cw = Math.round(w * (WIDE ? 0.6 : 0.92)), chh = Math.round(h * (WIDE ? 0.2 : 0.18)), cx = Math.round((w - cw) / 2), cy = Math.round(h * (WIDE ? 0.025 : 0.035));
+  x.save(); x.globalAlpha = a;
+  x.fillStyle = 'rgba(8,6,14,0.86)'; x.fillRect(cx, cy, cw, chh); x.fillStyle = en.col; x.fillRect(cx, cy, cw, 3); x.fillRect(cx, cy + chh - 3, cw, 3);
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  const L = [[`${en.grade}エンド　${en.name}`, 0.25, en.col], [`${g.turn}ターン・${rank}ランク　説得スコア ${score.toLocaleString('ja-JP')}`, 0.17, '#ffffff']];
+  if (bt) L.push([bt, 0.13, '#ffd56b']);
+  const rows = L.length, ys = rows === 3 ? [0.27, 0.58, 0.82] : [0.33, 0.7];
+  L.forEach(([tx, k, col], i) => { let fs = Math.round(chh * k); x.font = `${fs}px ${PIXFONT}`; const tw = x.measureText(tx).width; if (tw > cw * 0.92) { fs = Math.floor(fs * cw * 0.92 / tw); x.font = `${fs}px ${PIXFONT}`; } x.fillStyle = col; x.fillText(tx, w / 2, cy + chh * ys[i]); });
+  x.restore();
+}
+function recBand(x, w, h) {                                                // 帯（v1.22：シェア画像と同じ drawBand。下端に置き、上側は結果カード）
+  const bh = Math.round(h * (WIDE ? 0.17 : 0.14));
+  drawBand(x, 0, h - bh, w, bh, bandInfo(REC.g || G, D), 'rgba(8,6,14,0.9)');
 }
 // ひざまずいたところで呼ぶ：約2秒後（録り始めから8秒に満たなければ8.5秒）に止め、最後の1.5秒に帯
 function recFinish() {
@@ -2006,10 +2054,12 @@ function tsukkomiTitle(g, cu) {
   const ev = [].concat(...(g.hist || []).map(h => h.ev));
   const cards = g.histCards || [];
   const cliffs = ev.filter(e => e === 'cliffWin' || e === 'cliffLose').length;
-  const L = [
+  const L = [                                                           // (v1.22：14種。表示の順は上から。記録のビットの順とは別)
+    [n.gu >= 12, SCRIPT.tsukkomi.donburi],                              // 丼ぶり三昧（崖の上の食堂より先に調べる）
     [n.gu >= 6, SCRIPT.tsukkomi.shokudo],
     [cliffs === 0, SCRIPT.tsukkomi.mondo],
     [g.crisis === 1, SCRIPT.tsukkomi.kamihitoe],
+    [!cards.some(c => c.broke), SCRIPT.tsukkomi.kabeshirazu],           // 心壁知らず：心壁を一度も割らずに（待ったで戻した手は G.histCards ごと戻る）
     [ev.includes('cliffLose'), SCRIPT.tsukkomi.tsutta],
     [(g.histAlertMax || 0) >= 5, SCRIPT.tsukkomi.abura],
     [plays.some((id, i) => i > 0 && plays[i - 1] === id), SCRIPT.tsukkomi.sakki],
@@ -2017,6 +2067,8 @@ function tsukkomiTitle(g, cu) {
     [cu === 'tome' && cards.filter(c => c.type === 'gu').reduce((s, c) => s + c.sur, 0) >= 20, SCRIPT.tsukkomi.ibukuro],
     [cu === 'kanzaki' && cards.some(c => c.type === 'ev' && c.pct && c.broke), SCRIPT.tsukkomi.ronpa],
     [cu === 'hosono' && cards.some(c => c.type === 'hu' && c.before > 50 && c.sur >= 30), SCRIPT.tsukkomi.shitamachi],
+    [(g.reshuffles || 0) >= 1, SCRIPT.tsukkomi.kirinaoshi],             // 切り直しの刑事：山札を切り直してから（CORE の回数を読むだけ）
+    [(g.histAlertMax || 0) < 3, SCRIPT.tsukkomi.reisei],                // 冷静沈着：警戒が一度も3以上にならずに（よく当たるので一番最後）
   ];
   const t = L.find(x => x[0]); return t ? t[1] : null;
 }
@@ -3867,8 +3919,9 @@ function drawTitle() {
     button(T_DAILY, '今日の事件', sub, ds.solved ? '#2e6a50' : '#c43a2a', ds.solved ? '#14382a' : '#6a1410', true, !ds.solved && Math.floor(T) % 4 === 0, hoverBtn === 'tdaily');
     button(T_CASE, '事件番号', 'で挑戦', '#3a3a5a', '#1c1c30', true, false, hoverBtn === 'tcase');
   }
-  ctx.textAlign = 'center'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = '#999';
-  ctx.fillText('県民の勘：クリアで入手。バトル中に使うと、その場の最善手を1つ教えてくれる', W / 2, 888);
+  drawStreakDots();                                                      // (v1.22) 連続日数の7つの点。勘の説明は短くして右へ
+  ctx.textAlign = 'right'; ctx.font = `11px ${GOTH}`; ctx.fillStyle = '#999';
+  ctx.fillText('県民の勘＝その場の最善手を1つ', 500, 885);
   button(T_NEWS, 'お知らせ', null, '#3a3a4a', '#20202a', true, false, hoverBtn === 'tnews');   // アップデートのお知らせ
   if (typeof newsUnseen === 'function' && newsUnseen().length) {
     ctx.fillStyle = '#000'; ctx.fillRect(T_NEWS.x + T_NEWS.w - 21, T_NEWS.y - 12, 33, 21);
@@ -3881,6 +3934,18 @@ function drawTitle() {
   ctx.fillStyle = '#888'; ctx.fillText('※音が出ます', 18, 77);
   ctx.textAlign = 'center';
   drawHelpLine(WIDE ? HELP_R.titleWide : HELP_R.title);   // 相談窓口の案内（縦長は最下部、横長は右下）
+}
+// (v1.22) 今日の事件の連続日数：7つの点（7日目は金）と「連続 N日（最高 M日）」。途切れた連続は dailyState() のとおり0日で出す
+function drawStreakDots() {
+  const ds = dailyState(), best = Math.max(SAVE.daily.best || 0, ds.streak), on = ds.streak > 0 ? ((ds.streak - 1) % 7) + 1 : 0, y = 885;
+  for (let i = 0; i < 7; i++) {
+    const x = 46 + i * 13, gold = i === 6, fill = i < on;
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 1, y - 5, 11, 11);
+    ctx.fillStyle = fill ? (gold ? '#ffd54a' : '#7dffa8') : '#2a2a36'; ctx.fillRect(x, y - 4, 9, 9);
+    if (!fill && gold) { ctx.fillStyle = 'rgba(255,213,74,0.35)'; ctx.fillRect(x + 2, y - 2, 5, 5); }
+  }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `12px ${GOTH}`; ctx.fillStyle = ds.streak ? '#d8ffe6' : '#aaa';
+  ctx.fillText(`連続 ${ds.streak}日（最高 ${best}日）`, 46 + 7 * 13 + 6, y + 1);
 }
 // ルール説明
 const RULE_PAGES = [
@@ -4060,7 +4125,19 @@ const TITLE_DEFS = [
   { name: SCRIPT.tsukkomi.ibukuro, icon: '🍙', tz: true, cond: 'トメにグルメで自首を合計20以上上げて解決', hint: 'トメの胃袋をつかむ' },
   { name: SCRIPT.tsukkomi.ronpa, icon: '🎓', tz: true, cond: '神崎の心壁を、割合の証拠で割って解決', hint: '教授を理詰めで' },
   { name: SCRIPT.tsukkomi.shitamachi, icon: '🏭', tz: true, cond: '細野に、自首50を超えてから人情で30以上上げて解決', hint: '町工場の親方に、最後は人情で' },
+  // ↓ v1.22。ここから先（18〜21番）は SAVE.titles2 のビット0〜3に記録する（古い版が SAVE.titles を上限で丸めて壊さないように、別の欄）
+  { name: SCRIPT.tsukkomi.donburi, icon: '🍚', tz: true, cond: 'グルメを12枚以上使って解決', hint: '丼ものを、とことん' },
+  { name: SCRIPT.tsukkomi.kabeshirazu, icon: '🧱', tz: true, cond: '心壁を一度も割らずに解決', hint: '壁を壊さずに、心に届く' },
+  { name: SCRIPT.tsukkomi.kirinaoshi, icon: '🃏', tz: true, cond: '山札を切り直してから解決', hint: '長い説得になっても' },
+  { name: SCRIPT.tsukkomi.reisei, icon: '🧊', tz: true, cond: '警戒が一度も3以上にならずに解決', hint: '犯人を刺激しない' },
 ];
+const TITLE_BITS1 = 18;                                                  // (SAVE.titles に入る数)
+function titleHas(i) { return i < TITLE_BITS1 ? !!(SAVE.titles & (1 << i)) : !!(SAVE.titles2 & (1 << (i - TITLE_BITS1))); }
+function titleSet(i) { if (i < TITLE_BITS1) SAVE.titles |= 1 << i; else SAVE.titles2 |= 1 << (i - TITLE_BITS1); }
+function titleCount() { return bitCount(SAVE.titles) + bitCount(SAVE.titles2); }
+// 次に取れそうな称号（取りやすい順。名前は出さず、ヒントだけ）
+const TITLE_EASY = [7, 9, 8, 20, 21, 19, 6, 2, 3, 4, 1, 12, 13, 14, 11, 10, 18, 5, 0, 15, 16, 17];
+function nextTitleHint() { const i = TITLE_EASY.find(k => !titleHas(k)); return i == null ? null : TITLE_DEFS[i]; }
 const CHAL_DEFS = [
   { name: '証拠だけで解決する', note: '冷徹エンド' },
   { name: 'トメをグルメだけで解決する', note: '人情エンド' },
@@ -4077,7 +4154,7 @@ function bitCount(n) { let c = 0; while (n) { c += n & 1; n >>>= 1; } return c; 
 function recordTitlesAndChal(end) {
   const cu = D.culprit || 'iwaki', out = { titles: [], chal: [] };
   const names = [pickTitle().name, tsukkomiTitle(G, cu)].filter(Boolean);
-  for (const nm of names) { const i = TITLE_DEFS.findIndex(t => t.name === nm); if (i >= 0 && !(SAVE.titles & (1 << i))) { SAVE.titles |= 1 << i; out.titles.push(nm); } }
+  for (const nm of names) { const i = TITLE_DEFS.findIndex(t => t.name === nm); if (i >= 0 && !titleHas(i)) { titleSet(i); out.titles.push(nm); } }
   const ci = CULPRITS.findIndex(c => c.key === cu);
   if ((D.key === 'hard' || D.key === 'oni') && ci >= 0) SAVE.hardCu |= 1 << ci;
   const bonus = rankBonus(G).map(b => b.key);
@@ -4312,9 +4389,7 @@ function makeResultImage() {
       lx += 20 + c.measureText(lab).width + 14;
     }
     // ---- 一番下の帯 ----
-    c.fillStyle = '#000'; c.fillRect(0, BAND_Y, IW, IH - BAND_Y);
-    const band = `東尋坊ディスウェイド ／ ${d.name}・No.${no}・${cu.name} ／ 同じ事件に挑戦できる ▶ alphalpha722514.github.io/tojinbo`;
-    text(band, IW / 2, BAND_Y + 21, fit(band, 20, IW - 40), '#ffffff', null, 0);
+    drawBand(c, 0, BAND_Y, IW, IH - BAND_Y, bandInfo(g, d), '#000');      // (v1.22：決着の動画と同じ帯。上端にエンディングの色)
     try { cv2.toBlob(b => b ? resolve(b) : reject(new Error('toBlob')), 'image/png'); } catch (e) { reject(e); }
   }));
 }
@@ -5329,6 +5404,12 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 25, ver: '1.22', date: '2026-10-14', title: 'シェアとやりこみ', items: [
+    'シェア画像と決着の動画の帯をそろえました（上にエンディングの色の線）',
+    '決着の動画の頭に事件ファイルの番号、最後に結果のカードが入ります',
+    'ツッコミ称号を4つ追加（丼ぶり三昧・心壁知らず・切り直しの刑事・冷静沈着）。称号は全22種に',
+    '図鑑の上に全体の進み具合の輪、称号のタブに「次に取れそうな称号」のヒントを出します',
+    'タイトル画面に、今日の事件の連続日数を7つの点で出します（7日目は金）'] },
   { id: 24, ver: '1.21', date: '2026-10-14', title: '絵と演出の磨き込み', items: [
     '夕焼け・朝焼けの空の下に残照の帯、崖の稜線に光、波打ち際のしぶきに泡を足しました',
     '犯人の表情を細かく（改心の目の光・ときどき瞬き・夕焼けや夜の肩の光・動揺の頬の赤み）',
@@ -5496,13 +5577,24 @@ function zkItem(got, name, tag, desc, n) {
   if (got && n) li.append(el('span', 'zk-cnt', `解決 ${n}回`));
   return li;
 }
+// (v1.22) 図鑑の全体の進捗の輪（犯人・カード・コンボ・エンディングの合計。そろったら金）
+function renderZukanRing() {
+  const r = document.getElementById('zk-ring'); if (!r) return;
+  const n = zukanTotal(), m = zukanMax(), k = m ? n / m : 0, full = n >= m, C = 2 * Math.PI * 16, col = full ? '#ffd54a' : '#9fd3ff';
+  r.innerHTML = `<svg width="42" height="42" viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="16" fill="none" stroke="#2a2a38" stroke-width="6"/>`
+    + `<circle cx="21" cy="21" r="16" fill="none" stroke="${col}" stroke-width="6" stroke-dasharray="${(C * k).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 21 21)"/></svg>`
+    + `<span style="color:${full ? '#ffd54a' : '#d8d8e4'}">${full ? '完成！ ' : ''}${n} / ${m}</span>`;
+  r.setAttribute('aria-label', `図鑑の進み具合 ${n} / ${m}` + (full ? '（完成）' : ''));
+}
 function renderZukanTC() {                                                 // 称号・挑戦状（v1.18。全78項目とは別に数える）
   const body = document.getElementById('zk-body'), ul = el('ul', 'zk-grid');
   document.querySelectorAll('#zk-tabs [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === zkKind)));
   if (zkKind === 'titles') {
-    document.getElementById('zk-sum').textContent = `称号 ${bitCount(SAVE.titles)} / ${TITLE_DEFS.length}　（v1.18 から記録。解決したときの称号とツッコミ称号）`;
+    document.getElementById('zk-sum').textContent = `称号 ${titleCount()} / ${TITLE_DEFS.length}　（v1.18 から記録。解決したときの称号とツッコミ称号）`;
+    const nx = nextTitleHint();                                            // (v1.22) 次に取れそうな称号：名前は出さず、ヒントだけ
+    if (nx) { const li = el('li', 'zk-item zk-next'); li.append(el('span', 'zk-tag', '次に取れそうな称号'), el('span', 'zk-name', '？？？'), el('span', 'zk-desc', 'ヒント：' + nx.hint)); ul.append(li); }
     TITLE_DEFS.forEach((t, i) => {
-      const got = !!(SAVE.titles & (1 << i));
+      const got = titleHas(i);
       const li = zkItem(got, t.name, t.tz ? 'ツッコミ称号' : '称号', got ? t.cond : 'ヒント：' + t.hint, 0);
       const ic = el('span', 'zk-seal' + (got ? '' : ' none'), got ? t.icon : '印'); li.prepend(ic);
       if (got && !t.tz) li.querySelector('.zk-name').style.color = '#ffe86a';
@@ -5521,6 +5613,7 @@ function renderZukanTC() {                                                 // �
   body.replaceChildren(ul);
 }
 function renderZukan() {
+  renderZukanRing();
   if (zkKind === 'titles' || zkKind === 'chal') { renderZukanTC(); return; }
   const z = SAVE.zukan[zkKind], body = document.getElementById('zk-body');
   document.querySelectorAll('#zk-tabs [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === zkKind)));
