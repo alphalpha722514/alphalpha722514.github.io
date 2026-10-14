@@ -1946,9 +1946,9 @@ function playCard(card) {
   // 待った：カードを引いた（山札が見えた）・崖っぷちタイムが始まった・決着したときは戻せない
   G._undo = snap && !r.draw && !r.cliff && G.sur < 100 ? snap : null;
   if (r.broke) shieldBreak();
-  if (r.combos.length && !r.broke) { hitStop(90); V.flash = 0.5; V.flashCol = '#ffd56b'; }   // コンボ：止め 90ms・金の閃光
+  if (r.combos.length && !r.broke) { hitStop(90); V.flash = 0.5; V.flashCol = FLASH_COL.combo; camHold(0.45); }   // コンボ：止め 90ms・金の閃光・0.45秒寄る（v1.21）
   for (const c of r.combos) {                                            // 捜査コンボ
-    showTelop(c.name + '！', 'yellow', 52, 1.3); cutin(c.name, c.text, '#ffd56b'); sndCombo();
+    showTelop(c.name + '！', 'gold', 52, 1.3); cutin(c.name, c.text, FLASH_COL.combo); sndCombo();
     if (c.bonus.pierceEv) addFloat(fx, fy + 120, 'このターン 証拠が貫通', '#ffe9b0', 18);
   }
   if (r.stepBack) later(600, () => { banner('一歩、崖から離れた！', '#ffd56b'); addFloat(V.cx, 160, '危機 +1', '#9dffb0', 24); sndHeal(); }, 600);
@@ -2107,7 +2107,7 @@ function endCliffTime(okTap) {
   histEv(okTap ? 'cliffWin' : 'cliffLose');
   if (okTap) {
     const r = cliffBonus(G); G.log[G.log.length - 1].push(CLIFF_MOVE);
-    V.flash = 0.6; V.flashCol = '#fff4d6'; sndPromo();
+    V.flash = 0.6; V.flashCol = '#fff4d6'; sndPromo(); camHold(0.7);   // (v1.21：成功で0.7秒寄る)
     banner('想いが、届いた！', '#ffd56b'); addFloat(V.cx, 230, '自首 +' + r.sur, '#ffd56b', 30);
     if (r.stepBack) later(600, () => { banner('一歩、崖から離れた！', '#ffd56b'); sndHeal(); }, 600);
     slowCheck();
@@ -2126,14 +2126,20 @@ function playCardQuirks(d, surBefore, alertBefore, prevId) {
   if (d.type === 'hu' && alertBefore >= 5 && !G._flagAlertMax) { G._flagAlertMax = true; banner(SCRIPT.shout.alertMax, '#ffb347'); sndBuzz(); }
   if (prevId === G._flagPrevId && !G._flagSame) { G._flagSame = true; addFloat(270, 200, SCRIPT.shout.same, '#ff8a5a', 26); }
 }
+// 閃光の色（v1.21）。カードごとの閃光は足さない。ev・hu・gu は今は閃光の出る所がないので、色だけ決めておく
+const FLASH_COL = { ev: '#dceeff', hu: '#ffc4dc', gu: '#ffe0a0', combo: '#ffd56b', brk: '#ffb4ac' };
 function shieldBreak() {
   hitStop(140);                                                          // 止め 140ms → 白の閃光・ひび → 寄り＋テロップ → 顔のアップ（動揺）
-  V.flash = 1; V.flashCol = '#ffffff'; V.shake = 22; V.shakenT = 4;
-  makeCracks(V.cx, 220, 6); sndBreak(); showTelop('心の壁が、崩れた――！！', 'red', 72, 1.3); vib(60);
+  V.flash = 1; V.flashCol = FLASH_COL.brk; V.shake = 22; V.shakenT = 4;
+  makeCracks(V.cx, 220, 6); sndBreak(); showTelop('心の壁が、崩れた――！！', BREAK_TELOP, 72, 1.3); vib(60);
   later(950, () => showFaceUp('shaken', 0.5));
   cutin('心壁崩壊', `${cuWho()}の顔から、余裕が消えた`, '#ff4a4a');
-  if (!G._flagZoom) { G._flagZoom = true; V.zoomHold = 0.9; }          // 犯人へ寄る（1事件1回。0.9秒で戻る）
+  if (!G._flagZoom) { G._flagZoom = true; camHold(0.9); }             // 犯人へ寄る（1事件の最初の1回は0.9秒）
+  else camHold(0.6);                                                     // (v1.21) 2回目からは0.6秒
 }
+const BREAK_TELOP = 'red';                                               // (v1.21：心壁崩壊のテロップの色。'red' か 'ice')
+// カメラ：犯人へ寄る時間を伸ばす（短くはしない）。動きを減らす設定では寄らない
+function camHold(sec) { V.zoomHold = Math.max(V.zoomHold || 0, sec); }
 /* ---------- カットイン（斜めの黒帯。左から0.18秒で入り、1.35秒から消える。後から出たものが上書き） ---------- */
 function cutin(text, sub, col) { V.cutin = { text, sub, col, t: 0 }; }
 function drawCutin() {
@@ -2154,6 +2160,24 @@ function drawCutin() {
   const sw = ctx.measureText(c.sub).width; if (sw > W - 60) ctx.font = `${Math.floor(17 * (W - 60) / sw)}px ${GOTH}`;
   outlineText(c.sub, cx, Y + 20, '#ffffff', '#000', 4);
   if (c.face) drawFace(20 + off + 12, Y - 70, 140, c.face, c.col);          // 崖っぷちタイム：犯人の顔を4倍のアップで
+  ctx.restore();
+}
+// (v1.21) カットインの装飾：黒帯の中だけに斜めの走査線と、上端の点の列。入り・消えは drawCutin と同じ。動きを減らす設定では走査線を流さない
+function drawCutinDeco() {
+  const c = V.cutin; if (!c) return;
+  const t = c.t, e = 1 - Math.pow(1 - clamp(t / 0.18, 0, 1), 3), a = t > 1.35 ? clamp(1 - (t - 1.35) / 0.25, 0, 1) : 1;
+  if (a <= 0) return;
+  const off = (1 - e) * -(W + 200), Y = 392, x0 = -40 + off, x1 = W + 40 + off;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.beginPath(); ctx.moveTo(x0, Y - 58); ctx.lineTo(x1, Y - 84); ctx.lineTo(x1, Y + 32); ctx.lineTo(x0, Y + 58); ctx.closePath(); ctx.clip();
+  const sh = REDUCED ? 0 : (t * 90) % 18;
+  ctx.globalAlpha = a * 0.09; ctx.fillStyle = c.col;
+  ctx.beginPath();                                                               // (1回の塗りにまとめる)
+  for (let x = x0 - 160 + sh; x < x1 + 40; x += 18) { ctx.moveTo(x, Y + 70); ctx.lineTo(x + 6, Y + 70); ctx.lineTo(x + 126, Y - 100); ctx.lineTo(x + 120, Y - 100); ctx.closePath(); }
+  ctx.fill();
+  ctx.globalAlpha = a * 0.8; ctx.beginPath();
+  for (let x = Math.ceil(x0 / 12) * 12; x < x1; x += 12) { const yy = Y - 58 + (x - x0) * (-26 / (x1 - x0)) + 5; ctx.rect(Math.round(x), Math.round(yy), 3, 3); }
+  ctx.fill();
   ctx.restore();
 }
 async function endTurn() {
@@ -2455,13 +2479,15 @@ function fxLockTick() {
   if (!fxStopped()) G.fxLock = false;
 }
 // 極太テロップ（昭和サスペンス風。DotGothic16 を縁取り・影・左右に1pxずらして重ねて太く見せる）。c はどのキャンバスでもよい
-const TELOP_STYLE = { white: ['#ffffff', '#000000'], red: ['#ff3b30', '#1a0000'], yellow: ['#ffe14a', '#2a1a00'] };
+const TELOP_STYLE = { white: ['#ffffff', '#000000'], red: ['#ff3b30', '#1a0000'], yellow: ['#ffe14a', '#2a1a00'],
+  gold: ['#ffc23c', '#3a1e00', '#fff2b0'], ice: ['#a8dcff', '#04203c', '#ffffff'] };   // (v1.21：金＝コンボ・称号、氷＝心壁崩壊の候補。3つ目は上半分の照り)
 function telop(c, text, x, y, size, style, align) {
   const S = TELOP_STYLE[style] || TELOP_STYLE.white;
   c.save(); c.font = `${size}px ${PIXFONT}`; c.textAlign = align || 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
   c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillText(text, x + size * 0.08, y + size * 0.08);                 // 右下の影
   c.lineWidth = Math.max(4, size * 0.22); c.strokeStyle = S[1]; c.strokeText(text, x, y);              // 太い縁
   c.fillStyle = S[0]; c.fillText(text, x - 1, y); c.fillText(text, x + 1, y); c.fillText(text, x, y);   // 極太に見せる
+  if (S[2]) { c.save(); c.beginPath(); c.rect(x - 4000, y - size, 8000, size * 0.62); c.clip(); c.fillStyle = S[2]; c.globalAlpha = 0.55; c.fillText(text, x, y - 1); c.restore(); }   // (v1.21) 上半分の照り
   c.restore();
 }
 function showTelop(text, style, size, dur) { V.telop = { text, style: style || 'white', size: size || 72, t: 0, dur: dur || 1.3 }; }
@@ -2479,7 +2505,7 @@ function faceCanvas(face) {
   const c = document.createElement('canvas'); c.width = SPR_W; c.height = SPR_H;
   const g = c.getContext('2d'), expr = face === 'kneel' || face === 'remorse' ? 'remorse' : face === 'shaken' || face === 'edge' ? 'shaken' : 'angry';
   g.drawImage(culpritSprite(expr, false, Math.floor(T * 6) % 2, expr === 'remorse' ? 3 : 0, D.culprit, face, culpritFlags(face)), 0, 0);
-  drawFaceFx(g, 0, 0, face, T, D.culprit);
+  drawFaceFx(g, 0, 0, face, T, D.culprit); drawFaceDetail(g, 0, 0, face, T, D.culprit, false);   // (v1.21：アップにも同じディテール)
   return c;
 }
 function drawFace(x, y, size, face, col) {
@@ -2565,6 +2591,7 @@ function update(dt) {
   if (V.cutin) { V.cutin.t += dt; if (V.cutin.t > 1.6) V.cutin = null; }
   V.zoomHold = Math.max(0, (V.zoomHold || 0) - dt);
   V.zoom = lerp(V.zoom || 1, V.zoomHold > 0 ? 1.22 : 1, Math.min(1, dt * 8)); if (Math.abs(V.zoom - 1) < 0.002 && !V.zoomHold) V.zoom = 1;
+  if (REDUCED) V.zoom = 1;                                           // (v1.21：動きを減らす設定ではカメラが寄らない)
   tickWaiters();
   V.shake = Math.max(0, V.shake - dt * 40);
   V.flash = Math.max(0, V.flash - dt * 2.2);
@@ -2835,6 +2862,32 @@ function drawFaceFx(c, ox, oy, face, t, cu) {
   if (cu === 'tome' && G && G.ate && phase === 'battle') { px(fx - 1, fy + 2, 2, 2, '#ff7a8a'); px(fx + 7, fy + 2, 2, 2, '#ff7a8a'); }   // グルメで頬が赤く丸く
   if (face === 'rage' && cu === 'washio') px(fx - 2, fy - 4, 12, 9, 'rgba(255,40,40,0.2)');   // 鷲尾：激昂で顔がさらに赤い
 }
+// (v1.21) 犯人ごとの顔と肩の位置（スプライトの座標。CU_LOOK の sh・up・wd・hx と culpritSprite の式から求めた。6人で確かめ済み）
+function facePts(cu, expr, kneel) {
+  const L = CU_LOOK[cu] || CU_LOOK.iwaki, sh = L.sh || 0, up = L.up || 0, wd = L.wd || 0, hx = L.hx || 0;
+  const hy = (kneel ? 10 : 0) + sh - up + (expr === 'remorse' || kneel ? 1 : 0), Y = 6 + hy, X = x => x + hx, ty = 19 + (kneel ? 10 : 0) + sh;
+  const cy = cu === 'kanzaki' ? Y + 8 : Y + 7;                             // (神崎はメガネの縁を避けて1ドット下)
+  const l0 = 13 - wd - (wd > 1 ? 1 : 0), r1 = 26 + wd + (wd > 1 ? 1 : 0);   // (鷲尾は張った肩まで)
+  return { eye: [[X(17), Y + 5], [X(21), Y + 5]], glint: [[X(17), Y + 5], [X(22), Y + 5]], cheek: [[X(15), cy], [X(23), cy]],
+    sh: [[l0, ty, X(18) - l0], [X(22), ty, r1 - X(22) + 1]] };
+}
+// (v1.21) 表情のディテール（drawFaceFx の直後。ゲームの状態を読むだけ）：改心・ひざまずく＝目の光、ふつう・頑な＝まれに瞬き、夕焼け・朝焼け＝肩に暖色／夜＝寒色の縁、動揺＝頬の赤み
+function drawFaceDetail(c, ox, oy, face, t, cu, kneel) {
+  const expr = face === 'kneel' || face === 'remorse' ? 'remorse' : face === 'shaken' || face === 'edge' ? 'shaken' : 'angry';
+  const P = facePts(cu, expr, face === 'kneel' || kneel);
+  const px = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(ox + x, oy + y, w, h); };
+  if (face === 'remorse' || face === 'kneel') for (const [x, y] of P.glint) px(x, y, 1, 1, '#ffffff');
+  if ((face === 'base' || face === 'stubborn') && (t % 4.3) < 0.13) {      // (4.3秒に1回、0.13秒だけ目を閉じる。時間だけで決まる)
+    const skin = ((CU_LOOK[cu] || {}).pal || {}).skin || PAL.skin;
+    for (const [x, y] of P.eye) { px(x, y, 2, 1, skin); px(x, y + 1, 2, 1, PAL.ink); }
+  }
+  if (face === 'shaken') for (const [x, y] of P.cheek) px(x, y, 2, 1, 'rgba(255,110,140,0.75)');
+  const m = skyMix(), warm = Math.max(m.s * (1 - m.n) * (1 - m.r), m.d), night = m.n;
+  if (warm > 0.35 || night > 0.35) {
+    const col = night > warm ? `rgba(150,190,255,${0.8 * night})` : `rgba(255,190,110,${0.85 * warm})`;
+    for (const [x, y, w] of P.sh) if (w > 0) px(x, y, w, 1, col);
+  }
+}
 // 刑事：右（犯人のほう）へ手を差しのべる。f = 風のコマ
 function detectiveSprite(f) {
   return makeSpr(`d|${f}`, R => {
@@ -2888,12 +2941,43 @@ function qIndex(r, g, b) {
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v / 16 - 0.47) * 26);
 function quantizeLow() {
   const im = lowCtx.getImageData(0, 0, LW, LH), d = im.data;
+  const rim = rimMask(), lift = rimLift();                                 // (v1.21) 稜線のリムライト：崖の「暗い面のすぐ上の明るい1ドット」を、同じループの中で毎フレーム持ち上げる
   for (let y = 0, o = 0; y < LH; y++) for (let x = 0; x < LW; x++, o += 4) {
+    if (rim && rim[o >> 2]) { d[o] += lift[0]; d[o + 1] += lift[1]; d[o + 2] += lift[2]; }
     const t = BAYER[(y & 3) * 4 + (x & 3)];
     const p = SCENE_PAL[qIndex(Math.max(0, Math.min(255, d[o] + t)), Math.max(0, Math.min(255, d[o + 1] + t)), Math.max(0, Math.min(255, d[o + 2] + t)))];
     d[o] = p[0]; d[o + 1] = p[1]; d[o + 2] = p[2]; d[o + 3] = 255;
   }
   lowCtx.putImageData(im, 0, 0);
+}
+// (v1.21) リムライトの印：崖の絵（固定）から、崖の中で「すぐ下が暗い明るいドット」を、画面の大きさが変わったときだけ数える
+const rimCache = { key: '', mask: null };
+function rimMask() {
+  const key = LW + ',' + WX + ',' + LH;
+  if (rimCache.key === key) return rimCache.mask;
+  if (cliffCache.key !== LW + ',' + WX || !cliffCache.neutral) return null;   // (崖の絵ができてから)
+  const c = cliffCache.neutral, d = c.getContext('2d').getImageData(0, 0, LW, LH).data, m = new Uint8Array(LW * LH);
+  const lum = i => d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11;
+  for (let y = 0; y < LH - 1; y++) for (let x = 0; x < LW; x++) {
+    const i = y * LW + x, j = i + LW;
+    if (d[i * 4 + 3] === 255 && d[j * 4 + 3] === 255 && lum(i) - lum(j) > 18) m[i] = 1;   // (ふちの半透明のドットは後ろの波が透けて毎フレーム変わるので外す)
+  }
+  rimCache.key = key; rimCache.mask = m;
+  return m;
+}
+// 持ち上げる色：夕焼け・朝焼けは暖色、曇り・夜・雨は寒色（空の混ざり具合で決まる。乱数なし）
+function rimLift() {
+  const m = skyMix(), warm = Math.max(m.s * (1 - m.n) * (1 - m.r), m.d), cool = 1 - warm;
+  return [Math.round(30 * warm + 4 * cool), Math.round(16 * warm + 12 * cool), Math.round(-6 * warm + 26 * cool)];
+}
+// (v1.21) 残照の帯：夕焼け・朝焼けの空の下端（水平線の上）に暖色のグラデーション。網点は quantizeLow に任せる
+function drawAfterglow() {
+  const m = skyMix(), k = Math.max(m.s * (1 - m.n) * (1 - m.r), m.d * (1 - m.r));
+  if (k < 0.02) return;
+  const col = m.d > m.s ? '255,190,150' : '255,150,80';
+  const g = ctx.createLinearGradient(0, 228, 0, 300);
+  g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(1, `rgba(${col},${0.42 * k})`);
+  ctx.fillStyle = g; ctx.fillRect(-WX, 228, W, 72);
 }
 // 白黒にする（縮小キャンバスごと。止めの間と、自首99以上のスローで背景だけ）
 function desaturateLow() {
@@ -2915,7 +2999,7 @@ function drawSprDissolve(g, spr, x, y, alpha) {
 function renderPixelWorld() {
   const keep = ctx; ctx = lowCtx;
   lowCtx.setTransform(1 / PX, 0, 0, 1 / PX, WX / PX, 0);
-  drawSky(); drawSea(); drawCliff();
+  drawSky(); drawAfterglow(); drawSea(); drawCliff();
   if (phase === 'battle' && G.crisis <= 2) {
     const a = 0.3 + 0.15 * Math.sin(T * 6);
     const vg = ctx.createRadialGradient(W / 2 - WX, 260, 150, W / 2 - WX, 260, Math.max(420, W * 0.6));
@@ -2932,6 +3016,8 @@ function renderPixelWorld() {
   // しぶき
   g.fillStyle = '#ffffff';
   for (const p of V.parts) if (p.life > 0.25 && !p.rain) g.fillRect(Math.round((p.x + WX) / PX), Math.round(p.y / PX), p.r > 3.5 ? 2 : 1, p.r > 3.5 ? 2 : 1);
+  g.fillStyle = '#dce8f4';                                               // (v1.21) 波頭の泡：波打ち際のしぶきだけ 2×1 ドット
+  for (const p of V.parts) if (p.life > 0.25 && !p.rain && p.y > 470) g.fillRect(Math.round((p.x + WX) / PX) - 1, Math.round(p.y / PX) + 1, 2, 1);
   g.fillStyle = '#a8b0bc';
   for (const p of V.parts) if (p.rain && p.y < SCENE_H) g.fillRect(Math.round((p.x + WX) / PX), Math.round(p.y / PX), 1, 3);
   // 人物
@@ -2944,7 +3030,7 @@ function renderPixelWorld() {
   const tear = expr === 'remorse' ? 1 + Math.floor((T * 6) % 5) : 0;
   const ox = Math.round((V.cx + WX) / PX) - SPR_AX + sx + tr, oy = Math.round(340 / PX) - SPR_AY;
   drawSprDissolve(g, culpritSprite(expr, kneel, cfr, tear, D.culprit, face, culpritFlags(face)), ox, oy, V.culpritA);
-  if (V.culpritA > 0.6) drawFaceFx(g, ox, oy, face, T, D.culprit);
+  if (V.culpritA > 0.6) { drawFaceFx(g, ox, oy, face, T, D.culprit); drawFaceDetail(g, ox, oy, face, T, D.culprit, kneel); }
   if (gray) desaturateLow();
   // 風（1ドットの線）。危機が減るほど本数が増える
   const wm = (1 - V.sunset * 0.6) * (0.6 + (phase === 'battle' ? clamp(1 - G.crisis / 6, 0, 1) : 0.2) * 1.2);
@@ -4409,7 +4495,7 @@ function render() {
   if (phase !== 'title') { ctx.save(); ctx.translate(Math.round((W - 540) / 6) * 3, 0); drawDialogue(); ctx.restore(); }
   drawFloats();
   drawBanner();
-  drawCutin();
+  drawCutin(); drawCutinDeco();
   drawCracks();
   drawTelop();
   drawFaceUp();
@@ -5243,6 +5329,11 @@ addEventListener('keydown', e => {
    起動したとき、まだ見ていないお知らせがあれば自動で出す。見たかどうかはこの端末に覚える（セーブの形は変えない）
    はじめて遊ぶ人には出さない（説明のほうを先に見せる） */
 const CHANGELOG = [
+  { id: 24, ver: '1.21', date: '2026-10-14', title: '絵と演出の磨き込み', items: [
+    '夕焼け・朝焼けの空の下に残照の帯、崖の稜線に光、波打ち際のしぶきに泡を足しました',
+    '犯人の表情を細かく（改心の目の光・ときどき瞬き・夕焼けや夜の肩の光・動揺の頬の赤み）',
+    'コンボのテロップを金色に。カットインに走査線と点の列を足しました',
+    'コンボ・心壁崩壊・崖っぷちタイムの成功で、犯人へ少し寄ります（動きを減らす設定では寄りません）'] },
   { id: 23, ver: '1.20', date: '2026-10-14', title: 'バトルが読みやすく、音が豊かに', items: [
     '「犯人の狙い」の下に、次の幕で犯人がしうる行動の割合を出します（いまの状態なら。自首60以上では「警戒」「固める」が消えます）',
     '崖っぷちタイムの残り時間を輪で、タップの回数を3つの印で出します',
