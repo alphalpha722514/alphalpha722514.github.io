@@ -37,7 +37,7 @@
   color-scheme:dark;
 }
 [hidden]{display:none!important;}
-html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(--washi);font-family:var(--body);}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--ink);color:var(--washi);font-family:var(--body);}
 #cv{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none;}
 .hud{position:fixed;inset:0;pointer-events:none;font-size:14px;z-index:4;}
 .hud > *{position:absolute;}
@@ -425,7 +425,7 @@ body.touchmode #mini{display:none;}
       <p class="tkeys">PC：WASD 移動・左クリック 攻撃・右クリック 強攻撃・Space 回避・E 調べる<br>スマホ：画面の左をなぞって移動、ボタンで操作。詳しくは「操作方法」へ<br><span class="tdemo">デモ版です。内容は今後変わることがあります。</span></p>
     </div>
   </div>
-  <div class="tfoot"><span class="tver">v0.32 デモ版　光明寺マップ</span><span class="credit">地形・地図：国土地理院の標高データ、© OpenStreetMap contributors（ODbL）、e-Stat 国勢調査の境界データを加工して作成。道・建物・駅・神社・寺の位置は実際のもの（形は簡略化）。拠点・柵・人物・物語はすべて架空です。タイトルの英字：Anton（The Anton Project Authors、SIL Open Font License 1.1）の字形を加工。</span></div>
+  <div class="tfoot"><span class="tver">v0.32.1 デモ版　光明寺マップ</span><span class="credit">地形・地図：国土地理院の標高データ、© OpenStreetMap contributors（ODbL）、e-Stat 国勢調査の境界データを加工して作成。道・建物・駅・神社・寺の位置は実際のもの（形は簡略化）。拠点・柵・人物・物語はすべて架空です。タイトルの英字：Anton（The Anton Project Authors、SIL Open Font License 1.1）の字形を加工。</span></div>
 </div>
 
 <div class="ov" id="howto" hidden>
@@ -5033,7 +5033,7 @@ window.addEventListener('keydown',e=>{
   else if(k==='c'){ cam.yaw=P.facing; cam.manualT=0.8; }
 });
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-window.addEventListener('blur',()=>{ keys.clear(); if(S.mode==='playing') openPause(); });
+window.addEventListener('blur',()=>{ keys.clear(); if(S.mode==='playing'&&!touchMode) openPause(); }); // v0.32.1：スマホでは画面の端からのなぞり（OSの操作）でも blur が来るので止めない。ほかのアプリへ移ったときは下の visibilitychange で止まる
 document.addEventListener('visibilitychange',()=>{ if(document.hidden&&S.mode==='playing') openPause(); });
 const cv=$('cv');
 cv.addEventListener('pointermove',e=>{ if(e.pointerType!=='mouse') return; if(e.buttons&4){ cam.dragDX+=e.movementX||0; } mouse.x=e.clientX; mouse.y=e.clientY; mouse.active=true; });
